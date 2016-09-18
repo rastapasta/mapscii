@@ -8,7 +8,8 @@ Discover the world in your console - render vector tile maps from any source!
   * [ ] from local mbtiles
   * [ ] from remote url
 * [ ] label drawing
-* [ ] center+zoom based viewport
+* [ ] lat/lng-center + zoom based viewport
+* [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
 * [ ] zoom while keeping center
 * [ ] API
   * [ ] setCenter

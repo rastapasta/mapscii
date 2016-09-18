@@ -15,13 +15,20 @@ mouse.start()
 width = null
 height = null
 
-drawOrder = ["admin", "water", "landuse", "building", "road"]
-layers =
-  road: "white"
-  landuse: "green"
-  water: "blue"
-  admin: "red"
-  building: 8
+config =
+  drawOrder: ["admin", "water", "landuse", "building", "road"]
+
+  layers:
+    road:
+      color: "white"
+    landuse:
+      color: "green"
+    water:
+      color: "blue"
+    admin:
+      color: "red"
+    building:
+      color: 8
 
 canvas = null
 
@@ -37,11 +44,19 @@ zlib.gunzip data, (err, buffer) ->
   throw new Error err if err
 
   tile = new VectorTile new Protobuf buffer
+
+  # Load all layers and preparse the included geometries
   for name,layer of tile.layers
-    if layers[name]
+    if config.layers[name]
       features[name] = []
+
       for i in [0...layer.length]
-        features[name].push layer.feature(i).loadGeometry()
+        feature = layer.feature i
+        features[name].push
+          type: feature.type
+          id: feature.id
+          properties: feature.properties
+          points: feature.loadGeometry()
 
   draw()
 
@@ -62,12 +77,12 @@ draw = ->
   canvas.save()
 
   canvas.translate view[0], view[1]
-  for layer in drawOrder
+  for layer in config.drawOrder
     continue unless features[layer]
 
-    canvas.strokeStyle = layers[layer]
+    canvas.strokeStyle = config.layers[layer].color
     for feature in features[layer]
-      for line in feature
+      for line in feature.points
         found = false
         points = for point in line
           p = [point.x/scale, point.y/scale]
@@ -81,7 +96,11 @@ draw = ->
         canvas.lineTo point... for point in points
         canvas.stroke()
 
+  canvas.fillStyle = "white"
+  canvas.fillText "test", 0, 0
+  canvas.stroke()
   canvas.restore()
+
   flush()
   process.stdout.write getStatus()
 
