@@ -16,9 +16,30 @@ width = null
 height = null
 
 config =
-  drawOrder: ["admin", "water", "landuse", "building", "road"]
+  drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label"]
+
+  icons:
+    car: "🚗"
+    school: "🏫"
+    marker: "⭐"
+    'art-gallery': "🎨"
+    attraction: "❕"
+    stadium: "🏈"
+    toilet: "🚽"
+    cafe: "☕"
+    laundry: "👚"
+    bus: "🚌"
+    restaurant: "🍕"
+    lodging: "🏨"
+    'fire-station': "🚒"
+    shop: "🏬"
+    pharmacy: "💊"
+    beer: "🍺"
+    cinema: "🎦"
 
   layers:
+    poi_label:
+      color: "red"
     road:
       color: "white"
     landuse:
@@ -53,7 +74,7 @@ zlib.gunzip data, (err, buffer) ->
       for i in [0...layer.length]
         feature = layer.feature i
         features[name].push
-          type: feature.type
+          type: [undefined, "point", "line", "polygon"][feature.type]
           id: feature.id
           properties: feature.properties
           points: feature.loadGeometry()
@@ -80,25 +101,29 @@ draw = ->
   for layer in config.drawOrder
     continue unless features[layer]
 
-    canvas.strokeStyle = config.layers[layer].color
+    canvas.strokeStyle = canvas.fillStyle = config.layers[layer].color
+
     for feature in features[layer]
-      for line in feature.points
-        found = false
-        points = for point in line
+      for points in feature.points
+
+        visible = false
+        points = for point in points
           p = [point.x/scale, point.y/scale]
-          if not found and p[0]+view[0]>=0 and p[0]+view[0]<width and p[1]+view[1]>=0 and p[1]+view[1]<height
-            found = true
+          if not visible and p[0]+view[0]>=4 and p[0]+view[0]<width-4 and p[1]+view[1]>=0 and p[1]+view[1]<height
+            visible = true
           p
-        continue unless found
+        continue unless visible
 
-        canvas.beginPath()
-        canvas.moveTo points.shift()...
-        canvas.lineTo point... for point in points
-        canvas.stroke()
+        switch feature.type
+          when "polygon", "line"
+            canvas.beginPath()
+            canvas.moveTo points.shift()...
+            canvas.lineTo point... for point in points
+            canvas.stroke()
 
-  canvas.fillStyle = "white"
-  canvas.fillText "test", 0, 0
-  canvas.stroke()
+          when "point"
+            canvas.fillText (config.icons[feature.properties.maki] or "X"), point... for point in points
+
   canvas.restore()
 
   flush()
