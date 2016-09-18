@@ -85,6 +85,10 @@ draw = ->
 getStatus = ->
   "view: [#{view.toString()}] scale: [#{size}] columns: [#{process.stdout.columns}]"
 
+notify = (text) ->
+  return if drawing
+  process.stdout.write "\r\x1B[K#{getStatus()} #{text}"
+
 moving = null
 process.stdin.on 'mousepress', (info) ->
   # TODO: file bug @keypress, fails after x>95 / sequence: '\u001b[M#B'
@@ -122,7 +126,10 @@ process.stdin.on 'keypress', (ch, key) ->
     else
       false
 
-  draw() if result
+  if result
+    draw()
+  else
+    notify JSON.stringify key
 
 process.stdout.on 'resize', ->
   init()
