@@ -8,7 +8,8 @@ TermMouse = require('term-mouse')
 
 class Termap
   config:
-    drawOrder: ["admin", "water", "landuse", "building", "road", "housenum_label"]
+    zoomStep: 1
+    drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -31,11 +32,15 @@ class Termap
 
     layers:
       housenum_label:
-        minZoom: 4
+        minZoom: 3
         color: 8
       building:
-        minZoom: 12
+        minZoom: 10
         color: 8
+
+      # poi_label:
+      #   minZoom: 3
+      #   color: "yellow"
 
       road:
         color: "white"
@@ -101,7 +106,7 @@ class Termap
 
   _onMouseScroll: (event) ->
     # TODO: handle .x/y for directed zoom
-    @zoomBy .5 * if event.button is "up" then 1 else -1
+    @zoomBy @config.zoomStep * if event.button is "up" then 1 else -1
     @_draw()
 
   _onMouseMove: (event) ->
@@ -121,8 +126,8 @@ class Termap
       when "q"
         process.exit 0
 
-      when "z" then @zoomBy(.5)
-      when "a" then @zoomBy(-.5)
+      when "z" then @zoomBy @config.zoomStep
+      when "a" then @zoomBy -@config.zoomStep
       when "left" then @view[0] += 5
       when "right" then @view[0] -= 5
       when "up" then @view[1]+= 5
@@ -216,7 +221,7 @@ class Termap
   _getFooter: ->
     "scale: #{Math.floor(@scale*1000)/1000}"
 
-  notify: ->
+  notify: (text) ->
     return if @isDrawing
     @_write "\r\x1B[K#{@_getFooter()} #{text}"
 
