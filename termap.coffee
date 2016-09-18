@@ -8,7 +8,7 @@ TermMouse = require('term-mouse')
 
 class Termap
   config:
-    drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label"]
+    drawOrder: ["admin", "water", "landuse", "building", "road", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -22,7 +22,7 @@ class Termap
       laundry: "👚"
       bus: "🚌"
       restaurant: "🍛"
-      lodging: "🛏"
+      lodging: "🛏."
       'fire-station': "🚒"
       shop: "🛍"
       pharmacy: "💊"
@@ -30,18 +30,22 @@ class Termap
       cinema: "🎦"
 
     layers:
-      poi_label:
-        color: "red"
+      housenum_label:
+        minZoom: 4
+        color: 8
+      building:
+        minZoom: 12
+        color: 8
+
       road:
         color: "white"
+
       landuse:
         color: "green"
       water:
         color: "blue"
       admin:
         color: "red"
-      building:
-        color: 8
 
   mouse: null
   width: null
@@ -117,8 +121,8 @@ class Termap
       when "q"
         process.exit 0
 
-      when "a" then @zoomBy(.5)
-      when "z" then @zoomBy(-.5)
+      when "z" then @zoomBy(.5)
+      when "a" then @zoomBy(-.5)
       when "left" then @view[0] += 5
       when "right" then @view[0] -= 5
       when "up" then @view[1]+= 5
@@ -167,6 +171,10 @@ class Termap
     for layer in @config.drawOrder
       continue unless @features?[layer]
 
+      if @config.layers[layer].minZoom and @scale > @config.layers[layer].minZoom
+        continue
+
+
       @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
 
       for feature in @features[layer]
@@ -192,7 +200,8 @@ class Termap
               @canvas.stroke()
 
             when "point"
-              @canvas.fillText (@config.icons[feature.properties.maki] or "X"), point... for point in points
+              text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
+              @canvas.fillText text, point... for point in points
 
     @canvas.restore()
 
@@ -205,7 +214,7 @@ class Termap
     process.stdout.write text
 
   _getFooter: ->
-    "TerMap up and running!"
+    "scale: #{Math.floor(@scale*1000)/1000}"
 
   notify: ->
     return if @isDrawing

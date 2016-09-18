@@ -3,24 +3,28 @@
 Discover the world in your console! termap allows you to render and navigate
 VectorTile based maps in your console.
 
-* No native dependencies, 100% JavaScript/CoffeeScript
+* No native dependencies, 100% Coffee-/JavaScript
+* Use your mouse or keyboard to navigate the map
 * Use tile servers or local MBTiles and VectorTiles
 
-## How to install it?
+## How to get it?
 
 `npm install -g termap`
 
 ## Behind the scenes
 
 ### Libraries
-* [`pbf`](https://github.com/mapbox/pbf) for Protobuf parsing
+* [`pbf`](https://github.com/mapbox/pbf) for Protobuf decoding
 * [`vector-tile`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
 * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
 * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 * [`node-drawille`](https://github.com/madbence/node-drawille/) for braille rendering (to be replaced)
 
 
-## TODOs
+## Wishlist
+* node-gyp binding to [libdrawille](https://github.com/Huulivoide/libdrawille) for speed refactor possibilities + filled polygons
+
+### TODOs
 * [ ] mapping of view to tiles to show
 * [ ] tile request system
   * [ ] from local mbtiles
@@ -34,6 +38,3 @@ VectorTile based maps in your console.
   * [ ] setZoom
 * [x] accurate mouse drag&drop
 * [x] handle console resize
-
-## Wishlist
-* node-gyp binding to [libdrawille](https://github.com/Huulivoide/libdrawille) for speed refactor possibilities + filled polygons
