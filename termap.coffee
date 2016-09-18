@@ -4,205 +4,225 @@ Protobuf = require 'pbf'
 keypress = require 'keypress'
 fs = require 'fs'
 zlib = require 'zlib'
-mouse = require('term-mouse')()
+TermMouse = require('term-mouse')
 
-keypress process.stdin
-process.stdin.setRawMode(true)
-process.stdin.resume()
+class Termap
+  config:
+    drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label"]
 
-mouse.start()
+    icons:
+      car: "🚗"
+      school: "🏫"
+      marker: "⭐"
+      'art-gallery': "🎨"
+      attraction: "❕"
+      stadium: "🏈"
+      toilet: "🚽"
+      cafe: "☕"
+      laundry: "👚"
+      bus: "🚌"
+      restaurant: "🍛"
+      lodging: "🛏"
+      'fire-station': "🚒"
+      shop: "🛍"
+      pharmacy: "💊"
+      beer: "🍺"
+      cinema: "🎦"
 
-width = null
-height = null
+    layers:
+      poi_label:
+        color: "red"
+      road:
+        color: "white"
+      landuse:
+        color: "green"
+      water:
+        color: "blue"
+      admin:
+        color: "red"
+      building:
+        color: 8
 
-config =
-  drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label"]
+  mouse: null
+  width: null
+  height: null
+  canvas: null
 
-  icons:
-    car: "🚗"
-    school: "🏫"
-    marker: "⭐"
-    'art-gallery': "🎨"
-    attraction: "❕"
-    stadium: "🏈"
-    toilet: "🚽"
-    cafe: "☕"
-    laundry: "👚"
-    bus: "🚌"
-    restaurant: "🍕"
-    lodging: "🏨"
-    'fire-station': "🚒"
-    shop: "🏬"
-    pharmacy: "💊"
-    beer: "🍺"
-    cinema: "🎦"
+  isDrawing: false
+  lastDrawAt: 0
 
-  layers:
-    poi_label:
-      color: "red"
-    road:
-      color: "white"
-    landuse:
-      color: "green"
-    water:
-      color: "blue"
-    admin:
-      color: "red"
-    building:
-      color: 8
+  mousePosition: [0, 0]
+  mouseDragging: false
 
-canvas = null
+  view: [-400, -80]
+  scale: 4
 
-init = ->
-  width = Math.floor((process.stdout.columns-1)/2)*2*2
-  height = Math.ceil(process.stdout.rows/4)*4*4
-  canvas = new Canvas width, height
-init()
+  constructor: ->
+    @_initControls()
+    @_initCanvas()
 
-features = {}
-data = fs.readFileSync __dirname+"/tiles/regensburg.pbf.gz"
-zlib.gunzip data, (err, buffer) ->
-  throw new Error err if err
+    @_onResize =>
+      @_initCanvas()
+      @_draw()
 
-  tile = new VectorTile new Protobuf buffer
+  _initControls: ->
+    keypress process.stdin
+    process.stdin.setRawMode true
+    process.stdin.resume()
 
-  # Load all layers and preparse the included geometries
-  for name,layer of tile.layers
-    if config.layers[name]
-      features[name] = []
+    process.stdin.on 'keypress', (ch, key) => @_onKey key
 
-      for i in [0...layer.length]
-        feature = layer.feature i
-        features[name].push
-          type: [undefined, "point", "line", "polygon"][feature.type]
-          id: feature.id
-          properties: feature.properties
-          points: feature.loadGeometry()
+    @mouse = TermMouse()
+    @mouse.start()
 
-  draw()
+    @mouse.on 'click', (event) => @_onClick event
+    @mouse.on 'scroll', (event) => @_onMouseScroll event
+    @mouse.on 'move', (event) => @_onMouseMove event
 
-view = [-400, -80]
-scale = 4
+  _initCanvas: ->
+    @width = Math.floor((process.stdout.columns-1)/2)*2*2
+    @height = Math.ceil(process.stdout.rows/4)*4*4
+    @canvas = new Canvas @width, @height
 
-flush = ->
-  process.stdout.write canvas._canvas.frame()
+  _onResize: (cb) ->
+    process.stdout.on 'resize', cb
 
-lastDraw = null
-drawing = false
-draw = ->
-  return if drawing
-  lastDraw = Date.now()
-  drawing = true
-  canvas.clearRect(0, 0, width, height)
+  _onClick: (event) ->
+    if @mouseDragging and event.button is "left"
+      @view[0] -= (@mouseDragging.x-@mousePosition.x)*2
+      @view[1] -= (@mouseDragging.y-@mousePosition.y)*4
+      @_draw()
 
-  canvas.save()
+      @mouseDragging = false
 
-  canvas.translate view[0], view[1]
-  for layer in config.drawOrder
-    continue unless features[layer]
+  _onMouseScroll: (event) ->
+    # TODO: handle .x/y for directed zoom
+    @zoomBy .5 * if event.button is "up" then 1 else -1
+    @_draw()
 
-    canvas.strokeStyle = canvas.fillStyle = config.layers[layer].color
+  _onMouseMove: (event) ->
+    # only continue if x/y are valid
+    return unless event.x <= process.stdout.columns and event.y <= process.stdout.rows
 
-    for feature in features[layer]
-      for points in feature.points
+    # start dragging
+    if not @mouseDragging and event.button is "left"
+      @mouseDragging = x: event.x, y: event.y
 
-        visible = false
-        points = for point in points
-          p = [point.x/scale, point.y/scale]
-          if not visible and p[0]+view[0]>=4 and p[0]+view[0]<width-4 and p[1]+view[1]>=0 and p[1]+view[1]<height
-            visible = true
-          p
-        continue unless visible
+    # update internal mouse tracker
+    @mousePosition = x: event.x, y: event.y
 
-        switch feature.type
-          when "polygon", "line"
-            canvas.beginPath()
-            canvas.moveTo points.shift()...
-            canvas.lineTo point... for point in points
-            canvas.stroke()
+  _onKey: (key) ->
+    # check if the pressed key is configured
+    draw = switch key?.name
+      when "q"
+        process.exit 0
 
-          when "point"
-            canvas.fillText (config.icons[feature.properties.maki] or "X"), point... for point in points
+      when "a" then @zoomBy(.5)
+      when "z" then @zoomBy(-.5)
+      when "left" then @view[0] += 5
+      when "right" then @view[0] -= 5
+      when "up" then @view[1]+= 5
+      when "down" then @view[1]-= 5
 
-  canvas.restore()
+      else
+        false
 
-  flush()
-  process.stdout.write getStatus()
-
-  drawing = false
-
-getStatus = ->
-  "TerMap up and running!"
-
-notify = (text) ->
-  return if drawing
-  process.stdout.write "\r\x1B[K#{getStatus()} #{text}"
-
-# moving = null
-# process.stdin.on 'mousepress', (info) ->
-#   # TODO: file bug @keypress, fails after x>95 / sequence: '\u001b[M#B'
-#   if info.x > 2048
-#     info.x = 100
-#
-#   if info.button is "left"
-#     moving = info
-#
-#   else if moving and info.release
-#
-#  draw()
-
-zoomBy = (step) ->
-  return unless scale+step > 0
-
-  before = scale
-  scale += step
-
-  view[0] = view[0]*before/scale + if step > 0 then 8 else -8
-  view[1] = view[1]*before/scale + if step > 0 then 8 else -8
-
-process.stdin.on 'keypress', (ch, key) ->
-  result = switch key?.name
-    when "q"
-      process.exit 0
-
-    when "a" then zoomBy(.5)
-    when "z" then zoomBy(-.5)
-    when "left" then view[0] += 5
-    when "right" then view[0] -= 5
-    when "up" then view[1]+= 5
-    when "down" then view[1]-= 5
-
+    if draw
+      @_draw()
     else
-      false
+      # display debug info for unhandled keys
+      @notify JSON.stringify key
 
-  if result
-    draw()
-  else
-    notify JSON.stringify key
+  _parseTile: (buffer) ->
+    # extract, decode and parse a given tile buffer
+    new VectorTile new Protobuf zlib.gunzipSync data
 
-process.stdout.on 'resize', ->
-  init()
-  draw()
+  _getFeatures: (tile) ->
+    features = {}
+    for name,layer of tile.layers
+      continue unless @config.layers[name]
 
-moving = null
-mousePosition = null
+      features[name] = for i in [0...layer.length]
+        feature = layer.feature i
 
-mouse.on 'click', (event) ->
-  if moving and event.button is "left"
-    view[0] -= (moving.x-mousePosition.x)*2
-    view[1] -= (moving.y-mousePosition.y)*4
-    draw()
+        type: [undefined, "point", "line", "polygon"][feature.type]
+        id: feature.id
+        properties: feature.properties
+        points: feature.loadGeometry()
 
-    moving = null
+    features
 
-mouse.on 'scroll', (event) ->
-  # TODO: handle .x/y for directed zoom
-  zoomBy .5 * if event.button is "up" then 1 else -1
-  draw()
+  _draw: ->
+    return if @isDrawing
+    @isDrawing = true
+    @lastDrawAt = Date.now()
 
-mouse.on 'move', (event) ->
-  return unless event.x <= process.stdout.columns and event.y <= process.stdout.rows
-  if not moving and event.button is "left"
-    moving = x: event.x, y: event.y
+    @canvas.clearRect 0, 0, @width, @height
+    #@_write @canvas._canvas.frame()
 
-  mousePosition = x: event.x, y: event.y
+    @canvas.save()
+
+    @canvas.translate @view[0], @view[1]
+
+    for layer in @config.drawOrder
+      continue unless @features?[layer]
+
+      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
+
+      for feature in @features[layer]
+        for points in feature.points
+
+          visible = false
+          points = for point in points
+            p = [point.x/@scale, point.y/@scale]
+            if not visible and
+              p[0]+@view[0]>=4 and
+              p[0]+@view[0]<@width-4 and
+              p[1]+@view[1]>=0 and
+              p[1]+@view[1]<@height
+                visible = true
+            p
+          continue unless visible
+
+          switch feature.type
+            when "polygon", "line"
+              @canvas.beginPath()
+              @canvas.moveTo points.shift()...
+              @canvas.lineTo point... for point in points
+              @canvas.stroke()
+
+            when "point"
+              @canvas.fillText (@config.icons[feature.properties.maki] or "X"), point... for point in points
+
+    @canvas.restore()
+
+    @_write @canvas._canvas.frame()
+    @_write @_getFooter()
+
+    @isDrawing = false
+
+  _write: (text) ->
+    process.stdout.write text
+
+  _getFooter: ->
+    "TerMap up and running!"
+
+  notify: ->
+    return if @isDrawing
+    @_write "\r\x1B[K#{@_getFooter()} #{text}"
+
+  zoomBy: (step) ->
+    return unless @scale+step > 0
+
+    before = @scale
+    @scale += step
+
+    @view[0] = @view[0]*before/@scale + if step > 0 then 8 else -8
+    @view[1] = @view[1]*before/@scale + if step > 0 then 8 else -8
+
+termap = new Termap()
+
+# TODO: abstracing this class, create loader class
+data = fs.readFileSync __dirname+"/tiles/regensburg.pbf.gz"
+termap.features = termap._getFeatures termap._parseTile data
+termap._draw()
