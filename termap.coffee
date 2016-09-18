@@ -7,6 +7,10 @@ zlib = require 'zlib'
 mouse = require('term-mouse')()
 
 keypress process.stdin
+process.stdin.setRawMode(true)
+process.stdin.resume()
+
+mouse.start()
 
 width = null
 height = null
@@ -41,16 +45,17 @@ zlib.gunzip data, (err, buffer) ->
 
   draw()
 
-zoom = 0
 view = [-400, -80]
-size = 4
+scale = 4
 
 flush = ->
   process.stdout.write canvas._canvas.frame()
 
+lastDraw = null
 drawing = false
 draw = ->
   return if drawing
+  lastDraw = Date.now()
   drawing = true
   canvas.clearRect(0, 0, width, height)
 
@@ -65,7 +70,7 @@ draw = ->
       for line in feature
         found = false
         points = for point in line
-          p = [point.x/size, point.y/size]
+          p = [point.x/scale, point.y/scale]
           if not found and p[0]+view[0]>=0 and p[0]+view[0]<width and p[1]+view[1]>=0 and p[1]+view[1]<height
             found = true
           p
@@ -83,41 +88,41 @@ draw = ->
   drawing = false
 
 getStatus = ->
-  "view: [#{view.toString()}] scale: [#{size}] columns: [#{process.stdout.columns}]"
+  "TerMap up and running!"
 
 notify = (text) ->
   return if drawing
   process.stdout.write "\r\x1B[K#{getStatus()} #{text}"
 
-moving = null
-process.stdin.on 'mousepress', (info) ->
-  # TODO: file bug @keypress, fails after x>95 / sequence: '\u001b[M#B'
-  if info.x > 2048
-    info.x = 100
+# moving = null
+# process.stdin.on 'mousepress', (info) ->
+#   # TODO: file bug @keypress, fails after x>95 / sequence: '\u001b[M#B'
+#   if info.x > 2048
+#     info.x = 100
+#
+#   if info.button is "left"
+#     moving = info
+#
+#   else if moving and info.release
+#
+#  draw()
 
-  switch info.scroll
-    when -1
-      size -= .2
-    when 1
-      size += .2
+zoomBy = (step) ->
+  return unless scale+step > 0
 
-  if info.button is 0
-    moving = info
+  before = scale
+  scale += step
 
-  else if moving and info.release
-    view[0] -= (moving.x-info.x)*2
-    view[1] -= (moving.y-info.y)*4
-    moving = null
-
- draw()
+  view[0] = view[0]*before/scale + if step > 0 then 8 else -8
+  view[1] = view[1]*before/scale + if step > 0 then 8 else -8
 
 process.stdin.on 'keypress', (ch, key) ->
   result = switch key?.name
     when "q"
       process.exit 0
 
-    when "a" then size += 1
-    when "z" then size -= 1
+    when "a" then zoomBy(.5)
+    when "z" then zoomBy(-.5)
     when "left" then view[0] += 5
     when "right" then view[0] -= 5
     when "up" then view[1]+= 5
@@ -135,5 +140,25 @@ process.stdout.on 'resize', ->
   init()
   draw()
 
-process.stdin.setRawMode(true)
-process.stdin.resume()
+moving = null
+mousePosition = null
+
+mouse.on 'click', (event) ->
+  if moving and event.button is "left"
+    view[0] -= (moving.x-mousePosition.x)*2
+    view[1] -= (moving.y-mousePosition.y)*4
+    draw()
+
+    moving = null
+
+mouse.on 'scroll', (event) ->
+  # TODO: handle .x/y for directed zoom
+  zoomBy .5 * if event.button is "up" then 1 else -1
+  draw()
+
+mouse.on 'move', (event) ->
+  return unless event.x <= process.stdout.columns and event.y <= process.stdout.rows
+  if not moving and event.button is "left"
+    moving = x: event.x, y: event.y
+
+  mousePosition = x: event.x, y: event.y
