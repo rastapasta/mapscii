@@ -8,8 +8,8 @@ mouse = require('term-mouse')()
 
 keypress process.stdin
 
-width = Math.floor((process.stdout.columns-1)/2)*2*2;
-height = Math.ceil(process.stdout.rows/4)*4*4;
+width = null
+height = null
 
 drawOrder = ["admin", "water", "landuse", "building", "road"]
 layers =
@@ -19,7 +19,13 @@ layers =
   admin: "red"
   building: 8
 
-canvas = new Canvas width, height
+canvas = null
+
+init = ->
+  width = Math.floor((process.stdout.columns-1)/2)*2*2
+  height = Math.ceil(process.stdout.rows/4)*4*4
+  canvas = new Canvas width, height
+init()
 
 features = {}
 data = fs.readFileSync __dirname+"/tiles/regensburg.pbf.gz"
@@ -42,7 +48,10 @@ size = 4
 flush = ->
   process.stdout.write canvas._canvas.frame()
 
+drawing = false
 draw = ->
+  return if drawing
+  drawing = true
   canvas.clearRect(0, 0, width, height)
 
   canvas.save()
@@ -69,7 +78,12 @@ draw = ->
 
   canvas.restore()
   flush()
+  process.stdout.write getStatus()
 
+  drawing = false
+
+getStatus = ->
+  "view: [#{view.toString()}] scale: [#{size}] columns: [#{process.stdout.columns}]"
 
 moving = null
 process.stdin.on 'mousepress', (info) ->
@@ -109,6 +123,10 @@ process.stdin.on 'keypress', (ch, key) ->
       false
 
   draw() if result
+
+process.stdout.on 'resize', ->
+  init()
+  draw()
 
 process.stdin.setRawMode(true)
 process.stdin.resume()

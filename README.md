@@ -14,6 +14,7 @@ Discover the world in your console - render vector tile maps from any source!
   * [ ] setCenter
   * [ ] setZoom
 * [x] accurate mouse drag&drop
+* [x] handle console resize
 
 ## Wishlist
 * node-gyp binding to [libdrawille](https://github.com/Huulivoide/libdrawille) for speed refactor possibilities + filled polygons
