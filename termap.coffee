@@ -4,11 +4,28 @@ Protobuf = require 'pbf'
 keypress = require 'keypress'
 fs = require 'fs'
 zlib = require 'zlib'
-TermMouse = require('term-mouse')
+TermMouse = require 'term-mouse'
+mercator = new (require('sphericalmercator'))()
+
+utils =
+  deg2rad: (angle) ->
+    # (angle / 180) * Math.PI
+    angle * 0.017453292519943295
+  rad2deg: (angle) ->
+    angle / Math.PI * 180
+
+  digits: (number, digits) ->
+    Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
+  metersPerPixel: (zoom, lat = 0) ->
+    utils.rad2deg(40075017*Math.cos(utils.deg2rad(lat))/Math.pow(2, zoom+8))
+
+console.log utils.metersPerPixel(16, 180)
+process.exit 0
+
 
 class Termap
   config:
-    zoomStep: 1
+    zoomStep: 0.5
     drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label", "housenum_label"]
 
     icons:
@@ -38,12 +55,12 @@ class Termap
         minZoom: 10
         color: 8
 
-      # poi_label:
-      #   minZoom: 3
-      #   color: "yellow"
+      poi_label:
+        minZoom: 3
+        color: "yellow"
 
       road:
-        color: "white"
+        color: 15
 
       landuse:
         color: "green"
@@ -63,7 +80,13 @@ class Termap
   mousePosition: [0, 0]
   mouseDragging: false
 
+  center:
+    lat: 49.019855
+    lng: 12.096956
+
+  zoom: 0
   view: [-400, -80]
+
   scale: 4
 
   constructor: ->
@@ -173,12 +196,13 @@ class Termap
 
     @canvas.translate @view[0], @view[1]
 
+    scale = Math.pow 2, @zoom
+
     for layer in @config.drawOrder
       continue unless @features?[layer]
 
-      if @config.layers[layer].minZoom and @scale > @config.layers[layer].minZoom
+      if @config.layers[layer].minZoom and @zoom > @config.layers[layer].minZoom
         continue
-
 
       @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
 
@@ -187,7 +211,7 @@ class Termap
 
           visible = false
           points = for point in points
-            p = [point.x/@scale, point.y/@scale]
+            p = [point.x/scale, point.y/scale]
             if not visible and
               p[0]+@view[0]>=4 and
               p[0]+@view[0]<@width-4 and
@@ -218,8 +242,15 @@ class Termap
   _write: (text) ->
     process.stdout.write text
 
+  _getBBox: ->
+    [x, y] = mercator.forward [@center.lng, @center.lat]
+    width = @width * Math.pow(2, @zoom)
+    height = @height * Math.pow(2, @zoom)
+
+    mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
+
   _getFooter: ->
-    "scale: #{Math.floor(@scale*1000)/1000}"
+    "center: [lat: #{utils.digits @center.lat, 3} lng: #{utils.digits @center.lng, 3}] zoom: #{@zoom} bbox: [#{@_getBBox().map((z) -> utils.digits(z, 3)).join(',')}]"
 
   notify: (text) ->
     return if @isDrawing
@@ -230,6 +261,7 @@ class Termap
 
     before = @scale
     @scale += step
+    @zoom += step
 
     @view[0] = @view[0]*before/@scale + if step > 0 then 8 else -8
     @view[1] = @view[1]*before/@scale + if step > 0 then 8 else -8
