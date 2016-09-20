@@ -1,4 +1,4 @@
-Canvas = require 'drawille-canvas-blessed-contrib'
+Canvas = require '../drawille-canvas-blessed-contrib'
 VectorTile = require('vector-tile').VectorTile
 Protobuf = require 'pbf'
 keypress = require 'keypress'
@@ -7,6 +7,7 @@ zlib = require 'zlib'
 TermMouse = require 'term-mouse'
 mercator = new (require('sphericalmercator'))()
 LabelBuffer = require __dirname+'/src/LabelBuffer'
+triangulator = new (require('pnltri')).Triangulator()
 
 utils =
   deg2rad: (angle) ->
@@ -215,7 +216,7 @@ class Termap
 
           visible = false
           points = for point in points
-            p = [point.x/scale, point.y/scale]
+            p = x: point.x/scale, y: point.y/scale
             if not visible and @_isOnScreen p
               visible = true
             p
@@ -223,19 +224,20 @@ class Termap
 
           wasDrawn = false
           switch feature.type
-            when "polygon", "line"
-              @canvas.beginPath()
-              @canvas.moveTo points.shift()...
-              @canvas.lineTo point... for point in points
-              @canvas.stroke()
+            when "line"
+              @_drawWithLines points
+
+            when "polygon"
+              unless points.length > 3 and @_drawWithTriangles points
+                @_drawWithLines points
               wasDrawn = true
 
             when "point"
               text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
 
               for point in points
-                if labelBuffer.writeIfPossible text, point...
-                  @canvas.fillText text, point...
+                if labelBuffer.writeIfPossible text, point.x, point.y
+                  @canvas.fillText text, point.x, point.y
                   wasDrawn = true
 
           if wasDrawn
@@ -248,11 +250,29 @@ class Termap
 
     @isDrawing = false
 
+  _drawWithTriangles: (points) ->
+    try
+      triangles = triangulator.triangulate_polygon [points]
+    catch
+      return false
+
+    for triangle in triangles
+      @canvas.fillTriangle points[triangle[0]], points[triangle[1]], points[triangle[2]]
+
+    true
+
+  _drawWithLines: (points) ->
+    @canvas.beginPath()
+    first = points.shift()
+    @canvas.moveTo first.x, first.y
+    @canvas.lineTo point.x, point.y for point in points
+    @canvas.stroke()
+
   _isOnScreen: (point) ->
-    point[0]+@view[0]>=4 and
-    point[0]+@view[0]<@width-4 and
-    point[1]+@view[1]>=0 and
-    point[1]+@view[1]<@height
+    point.x+@view[0]>=4 and
+    point.x+@view[0]<@width-4 and
+    point.y+@view[1]>=0 and
+    point.y+@view[1]<@height
 
   _write: (text) ->
     process.stdout.write text

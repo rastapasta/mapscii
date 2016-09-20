@@ -52,6 +52,9 @@ No web browser around? No worries - discover the planet in your console!
   * [x] support for point labels
   * [x] dynamic decluttering of labels
   * [ ] centering text labels
+* [x] filled polygons
+  * [x] convert polygons to triangles
+  * [x] implement fillTriangle into drawille-canvas-blessed-contrib
 * [ ] lat/lng-center + zoom based viewport
   * [ ] bbox awareness
   * [ ] zoom -> scale calculation
