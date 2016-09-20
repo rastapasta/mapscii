@@ -6,6 +6,7 @@ fs = require 'fs'
 zlib = require 'zlib'
 TermMouse = require 'term-mouse'
 mercator = new (require('sphericalmercator'))()
+LabelBuffer = require __dirname+'/src/LabelBuffer'
 
 utils =
   deg2rad: (angle) ->
@@ -16,11 +17,9 @@ utils =
 
   digits: (number, digits) ->
     Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
+
   metersPerPixel: (zoom, lat = 0) ->
     utils.rad2deg(40075017*Math.cos(utils.deg2rad(lat))/Math.pow(2, zoom+8))
-
-console.log utils.metersPerPixel(16, 180)
-process.exit 0
 
 
 class Termap
@@ -84,7 +83,7 @@ class Termap
     lat: 49.019855
     lng: 12.096956
 
-  zoom: 0
+  zoom: 2
   view: [-400, -80]
 
   scale: 4
@@ -198,6 +197,9 @@ class Termap
 
     scale = Math.pow 2, @zoom
 
+    drawn = []
+    labelBuffer = new LabelBuffer()
+
     for layer in @config.drawOrder
       continue unless @features?[layer]
 
@@ -212,25 +214,30 @@ class Termap
           visible = false
           points = for point in points
             p = [point.x/scale, point.y/scale]
-            if not visible and
-              p[0]+@view[0]>=4 and
-              p[0]+@view[0]<@width-4 and
-              p[1]+@view[1]>=0 and
-              p[1]+@view[1]<@height
-                visible = true
+            if not visible and @_isOnScreen p
+              visible = true
             p
           continue unless visible
 
+          wasDrawn = false
           switch feature.type
             when "polygon", "line"
               @canvas.beginPath()
               @canvas.moveTo points.shift()...
               @canvas.lineTo point... for point in points
               @canvas.stroke()
+              wasDrawn = true
 
             when "point"
               text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
-              @canvas.fillText text, point... for point in points
+
+              for point in points
+                if labelBuffer.writeIfPossible text, point...
+                  @canvas.fillText text, point...
+                  wasDrawn = true
+
+          if wasDrawn
+            drawn.push feature
 
     @canvas.restore()
 
@@ -238,6 +245,12 @@ class Termap
     @_write @_getFooter()
 
     @isDrawing = false
+
+  _isOnScreen: (point) ->
+    point[0]+@view[0]>=4 and
+    point[0]+@view[0]<@width-4 and
+    point[1]+@view[1]>=0 and
+    point[1]+@view[1]<@height
 
   _write: (text) ->
     process.stdout.write text

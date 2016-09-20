@@ -30,6 +30,7 @@ Discover the world in your console!
 * [`node-mbtiles`](https://github.com/mapbox/node-mbtiles) for MBTiles parsing
 * [`pbf`](https://github.com/mapbox/pbf) for Protobuf decoding
 * [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
+* [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for EPSG:3857 <> WGS84 conversions
 
 ## Wishlist
@@ -41,8 +42,11 @@ Discover the world in your console!
 * [ ] mapping of view to tiles to show
 * [ ] label drawing
   * [x] support for point labels
-  * [ ] dynamic decluttering of labels
+  * [x] dynamic decluttering of labels
+  * [ ] centering text labels
 * [ ] lat/lng-center + zoom based viewport
+  * [ ] bbox awareness
+  * [ ] zoom -> scale calculation
 * [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
 * [ ] tile request system
   * [ ] from local mbtiles
