@@ -23,7 +23,7 @@ Discover the world in your console!
 ## Behind the scenes
 ### Libraries
 #### Mastering the console
-  * [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for braille rendering
+  * [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for [braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) rendering
   * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 
@@ -34,7 +34,7 @@ Discover the world in your console!
 
 #### Juggling the vectors and numbers
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
-* [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for EPSG:3857 <> WGS84 conversions
+* [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
 
 ## Wishlist
@@ -66,7 +66,7 @@ Discover the world in your console!
 * [ ] turn this into a [`blessed-contrib`](https://github.com/yaronn/blessed-contrib) widget
 
 ## License
-####The MIT License (MIT)
+#### The MIT License (MIT)
 Copyright (c) 2016 Michael Straßburger
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
