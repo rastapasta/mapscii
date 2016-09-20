@@ -285,6 +285,6 @@ class Termap
 termap = new Termap()
 
 # TODO: abstracing this class, create loader class
-data = fs.readFileSync __dirname+"/tiles/world.pbf.gz"
+data = fs.readFileSync __dirname+"/tiles/regensburg.pbf.gz"
 termap.features = termap._getFeatures termap._parseTile data
 termap._draw()

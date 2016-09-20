@@ -21,17 +21,21 @@ Discover the world in your console!
   ` termap`
 
 ## Behind the scenes
-
 ### Libraries
+#### Mastering the console
+  * [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for braille rendering
+  * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
+  * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 
-* [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for braille rendering
-* [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
-* [`keypress`](https://github.com/TooTallNate/keypress) for input handling
-* [`node-mbtiles`](https://github.com/mapbox/node-mbtiles) for MBTiles parsing
-* [`pbf`](https://github.com/mapbox/pbf) for Protobuf decoding
+#### Discovering the map data
+* [`node-mbtiles`](https://github.com/mapbox/node-mbtiles) for [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.2/spec.md) parsing
+* [`pbf`](https://github.com/mapbox/pbf) for [Protobuf](https://developers.google.com/protocol-buffers/) decoding
 * [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
-* [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing
+
+#### Juggling the vectors and numbers
+* [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for EPSG:3857 <> WGS84 conversions
+
 
 ## Wishlist
 
