@@ -7,6 +7,9 @@ module.exports = class LabelBuffer
   constructor: (@width, @height) ->
     @tree = rbush()
 
+  clear: ->
+    @tree.clear()
+
   project: (x, y) ->
     [Math.floor(x/2), Math.floor(y/4)]
 

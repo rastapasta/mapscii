@@ -26,7 +26,9 @@ utils =
 class Termap
   config:
     zoomStep: 0.5
-    drawOrder: ["admin", "water", "landuse", "building", "road", "poi_label", "housenum_label"]
+
+    # landuse
+    drawOrder: ["admin", "water", "building", "road", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -116,7 +118,10 @@ class Termap
     @height = Math.ceil(process.stdout.rows/4)*4*4
     @canvas = new Canvas @width, @height
 
-    @zoom = Math.log(4096/@width)/Math.LN2
+    unless @lastDrawAt
+      @zoom = Math.log(4096/@width)/Math.LN2
+
+    @labelBuffer = new LabelBuffer()
 
   _onResize: (cb) ->
     process.stdout.on 'resize', cb
@@ -189,59 +194,17 @@ class Termap
   _draw: ->
     return if @isDrawing
     @isDrawing = true
+
     @lastDrawAt = Date.now()
 
     @canvas.clearRect 0, 0, @width, @height
-    #@_write @canvas._canvas.frame()
 
     @canvas.save()
-
     @canvas.translate @view[0], @view[1]
 
-    scale = Math.pow 2, @zoom
+    @labelBuffer.clear()
 
-    drawn = []
-    labelBuffer = new LabelBuffer()
-
-    for layer in @config.drawOrder
-      continue unless @features?[layer]
-
-      if @config.layers[layer].minZoom and @zoom > @config.layers[layer].minZoom
-        continue
-
-      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
-
-      for feature in @features[layer]
-        for points in feature.points
-
-          visible = false
-          points = for point in points
-            p = x: point.x/scale, y: point.y/scale
-            if not visible and @_isOnScreen p
-              visible = true
-            p
-          continue unless visible
-
-          wasDrawn = false
-          switch feature.type
-            when "line"
-              @_drawWithLines points
-
-            when "polygon"
-              unless points.length > 3 and @_drawWithTriangles points
-                @_drawWithLines points
-              wasDrawn = true
-
-            when "point"
-              text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
-
-              for point in points
-                if labelBuffer.writeIfPossible text, point.x, point.y
-                  @canvas.fillText text, point.x, point.y
-                  wasDrawn = true
-
-          if wasDrawn
-            drawn.push feature
+    drawn = @_drawLayers()
 
     @canvas.restore()
 
@@ -250,15 +213,82 @@ class Termap
 
     @isDrawing = false
 
+  _drawLayers: ->
+    drawn = []
+    for layer in @config.drawOrder
+      scale = Math.pow 2, @zoom
+      continue unless @features?[layer]
+
+      if @config.layers[layer].minZoom and @zoom > @config.layers[layer].minZoom
+        continue
+
+      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
+
+      for feature in @features[layer]
+        if @_drawFeature feature, scale
+          drawn.push feature
+
+    drawn
+
+  _drawFeature: (feature, scale) ->
+    toDraw = []
+    for idx, points of feature.points
+      visible = false
+
+      projectedPoints = for point in points
+        projectedPoint =
+          x: point.x/scale
+          y: point.y/scale
+
+        visible = true if not visible and @_isOnScreen projectedPoint
+        projectedPoint
+
+      if idx is 0 and not visible
+        return false
+
+      continue unless visible
+      toDraw.push projectedPoints
+
+    switch feature.type
+      when "line"
+        @_drawWithLines points for points in toDraw
+        true
+
+      when "polygon"
+        unless @_drawWithTriangles toDraw
+          @_drawWithLines points for points in toDraw
+        true
+
+      when "point"
+        text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
+
+        wasDrawn = false
+        # TODO: check in definition if points can actually own multiple geometries
+        for points in toDraw
+          for point in points
+            if @labelBuffer.writeIfPossible text, point.x, point.y
+              @canvas.fillText text, point.x, point.y
+              wasDrawn = true
+
+        wasDrawn
+
   _drawWithTriangles: (points) ->
     try
-      triangles = triangulator.triangulate_polygon [points]
+      triangles = triangulator.triangulate_polygon points
     catch
       return false
 
-    for triangle in triangles
-      @canvas.fillTriangle points[triangle[0]], points[triangle[1]], points[triangle[2]]
+    return false unless triangles.length
 
+    # TODO: triangles are returned as vertex references to a flattened input.
+    #       optimize it!
+
+    arr = points.reduce (a, b) -> a.concat b
+    for triangle in triangles
+      try
+        @canvas.fillTriangle arr[triangle[0]], arr[triangle[1]], arr[triangle[2]]
+      catch
+        return false
     true
 
   _drawWithLines: (points) ->

@@ -37,6 +37,7 @@ No web browser around? No worries - discover the planet in your console!
 * [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
 
 #### Juggling the vectors and numbers
+* [`pnltri`](https://github.com/jahting/pnltri.js) for polygon triangulation to draw them filled
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
