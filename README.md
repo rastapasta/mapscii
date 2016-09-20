@@ -1,24 +1,28 @@
 # termap - Terminal Map Viewer
 
-Discover the world in your console!
+No web browser around? No worries - discover the planet in your console!
 
-* Use your mouse or keyboard to navigate
-* Watch the globe or zoom down to house numbers
-* Use tile servers, local MBTiles or a single VectorTile
+* Use your mouse or keys to navigate
+* Discover the globe or zoom in to learn about house numbers
+* See Point-of-Interest around any given location
+* Use an online map server or work offline with VectorTile/MBTiles
+* Highly customizable styling (colors, feature visibility, ...)
+* Compatible with Linux and OS X (Windows to be tested)
+* 99% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to get it?
 
-* Make sure to have [node.js](https://nodejs.org/) installed
-
+* Make sure to have at least [node.js](https://nodejs.org/) version 4 installed
 * Install `termap` with
 
   `npm install -g termap`
 
 ## How to use it?
-
+#### Basic usage
 * Start `termap` with
 
   ` termap`
+
 
 ## Behind the scenes
 ### Libraries
