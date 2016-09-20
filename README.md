@@ -56,6 +56,7 @@ Discover the world in your console!
 * [ ] API
   * [ ] setCenter
   * [ ] setZoom
+* [x] start with zoom level which shows full vector tile
 * [x] accurate mouse drag&drop
 * [x] handle console resize
 * [ ] turn this into a [`blessed-contrib`](https://github.com/yaronn/blessed-contrib) widget

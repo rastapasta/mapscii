@@ -48,10 +48,10 @@ class Termap
 
     layers:
       housenum_label:
-        minZoom: 3
+        minZoom: 2
         color: 8
       building:
-        minZoom: 10
+        minZoom: 3.5
         color: 8
 
       poi_label:
@@ -84,7 +84,7 @@ class Termap
     lng: 12.096956
 
   zoom: 2
-  view: [-400, -80]
+  view: [0, 0]
 
   scale: 4
 
@@ -114,6 +114,8 @@ class Termap
     @width = Math.floor((process.stdout.columns-1)/2)*2*2
     @height = Math.ceil(process.stdout.rows/4)*4*4
     @canvas = new Canvas @width, @height
+
+    @zoom = Math.log(4096/@width)/Math.LN2
 
   _onResize: (cb) ->
     process.stdout.on 'resize', cb
@@ -263,7 +265,8 @@ class Termap
     mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
 
   _getFooter: ->
-    "center: [lat: #{utils.digits @center.lat, 3} lng: #{utils.digits @center.lng, 3}] zoom: #{@zoom} bbox: [#{@_getBBox().map((z) -> utils.digits(z, 3)).join(',')}]"
+    "center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{@zoom}"
+    # bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(',')}]"
 
   notify: (text) ->
     return if @isDrawing
@@ -282,6 +285,6 @@ class Termap
 termap = new Termap()
 
 # TODO: abstracing this class, create loader class
-data = fs.readFileSync __dirname+"/tiles/regensburg.pbf.gz"
+data = fs.readFileSync __dirname+"/tiles/world.pbf.gz"
 termap.features = termap._getFeatures termap._parseTile data
 termap._draw()
