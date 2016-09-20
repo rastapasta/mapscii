@@ -1,24 +1,26 @@
 {
   "name": "termap",
   "version": "0.1.0",
-  "description": "OSM Terminal Map",
+  "description": "Terminal Map Viewer",
   "main": "termap.coffee",
   "scripts": {
+    "start": "./node_modules/coffee-script/bin/coffee termap.coffee",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
+    "map",
     "console",
-    "map",
     "terminal",
-    "map",
+    "ascii",
     "osm",
-    "vector",
-    "tiles",
+    "vectortile",
+    "render",
     "mbtiles"
   ],
   "author": "Michael Straßburger <codepoet@cpan.org>",
   "license": "MIT",
   "dependencies": {
+    "coffee-script": "^1.10.0",
     "drawille-canvas-blessed-contrib": "^0.1.3",
     "keypress": "^0.2.1",
     "pbf": "^3.0.0",
