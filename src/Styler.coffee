@@ -47,10 +47,10 @@ module.exports = class Styler
         true
 
       when "=="
-        feature.properties[filter[0]] is filter[1]
+        feature.properties[filter[1]] is filter[2]
 
       when "!="
-        feature.properties[filter[0]] isnt filter[1]
+        feature.properties[filter[2]] isnt filter[2]
 
       when "in"
         field = filter[1]

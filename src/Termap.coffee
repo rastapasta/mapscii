@@ -1,6 +1,8 @@
 ###
   termap - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
+
+  UI and central command center
 ###
 
 keypress = require 'keypress'

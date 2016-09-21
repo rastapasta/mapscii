@@ -4,7 +4,7 @@
   "description": "Terminal Map Viewer",
   "main": "termap.coffee",
   "scripts": {
-    "start": "./node_modules/coffee-script/bin/coffee termap.coffee",
+    "start": "node main",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -988,7 +988,7 @@
       "type": "symbol",
       "id": "poi_label_4",
       "paint": {
-        "text-color": "#666"
+        "text-color": "#aa0"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1013,7 +1013,7 @@
       "type": "symbol",
       "id": "poi_label_3",
       "paint": {
-        "text-color": "#666"
+        "text-color": "#cc0"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1038,7 +1038,7 @@
       "type": "symbol",
       "id": "poi_label_2",
       "paint": {
-        "text-color": "#666"
+        "text-color": "#ee0"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1074,7 +1074,7 @@
       "type": "symbol",
       "id": "poi_label_1",
       "paint": {
-        "text-color": "#666"
+        "text-color": "#ff0"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1242,7 +1242,7 @@
       "type": "symbol",
       "id": "place_label_city",
       "paint": {
-        "text-color": "#333"
+        "text-color": "#f00"
       },
       "source-layer": "place_label",
       "filter": [

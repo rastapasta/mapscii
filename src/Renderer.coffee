@@ -148,7 +148,7 @@ module.exports = class Renderer
 
   _drawFeature: (layer, feature, scale) ->
     # TODO: this is ugly :) need to be fixed @style
-    return false if feature.properties.class is "ferry"
+    #return false if feature.properties.class is "ferry"
     feature.type = "LineString" if layer is "building" or layer is "road"
 
     toDraw = []
@@ -169,16 +169,16 @@ module.exports = class Renderer
       continue unless visible
       toDraw.push projectedPoints
 
-    if style = @styler.getStyleFor layer, feature, 14
-      color = style.paint['line-color'] or style.paint['fill-color']
+    unless style = @styler.getStyleFor layer, feature, 14
+      return false
 
-      # TODO: zoom calculation todo for perfect styling
-      if color instanceof Object
-        color = color.stops[0][1]
+    color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
 
-      @canvas.fillStyle = @canvas.strokeStyle = x256 utils.hex2rgb color
-    else
-      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
+    # TODO: zoom calculation todo for perfect styling
+    if color instanceof Object
+      color = color.stops[0][1]
+
+    @canvas.fillStyle = @canvas.strokeStyle = x256 utils.hex2rgb color
 
     switch feature.type
       when "LineString"
