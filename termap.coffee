@@ -21,6 +21,9 @@ utils =
     angle / Math.PI * 180
 
   hex2rgb: (color) ->
+    if not color.match
+      console.log color
+      process.exit()
     return [255, 0, 0] unless color?.match
 
     unless color.match /^#[a-fA-F0-9]{3,6}$/
@@ -207,10 +210,14 @@ class Termap
 
       features[name] = for i in [0...layer.length]
         feature = layer.feature i
+        type = [undefined, "Point", "LineString", "Polygon"][feature.type]
 
-        type: [undefined, "Point", "LineString", "Polygon"][feature.type]
+        properties = feature.properties
+        properties.$type = type
+
         id: feature.id
-        properties: feature.properties
+        type: type
+        properties: properties
         points: feature.loadGeometry()
 
     features
@@ -276,7 +283,7 @@ class Termap
       continue unless visible
       toDraw.push projectedPoints
 
-    if style = @styler.getStyleFor layer, feature, 8
+    if style = @styler.getStyleFor layer, feature, 14
       color = style.paint['line-color'] or style.paint['fill-color']
 
       # TODO: zoom calculation todo for perfect styling

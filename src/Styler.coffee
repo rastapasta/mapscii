@@ -33,9 +33,9 @@ module.exports = class Styler
     false
 
   _passesFilter: (feature, filter) ->
-    switch filter.shift()
+    switch filter[0]
       when "all"
-        for subFilter in filter
+        for subFilter in filter[1..]
           return false unless @_passesFilter feature, subFilter
         true
 
@@ -46,14 +46,14 @@ module.exports = class Styler
         feature.properties[filter[0]] isnt filter[1]
 
       when "in"
-        field = filter.shift()
-        for value in filter
+        field = filter[1]
+        for value in filter[2..]
           return true if feature.properties[field] is value
         false
 
       when "!in"
-        field = filter.shift()
-        for value in filter
+        field = filter[1]
+        for value in filter[2..]
           return false if feature.properties[field] is value
         true
 

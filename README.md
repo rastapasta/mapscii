@@ -42,10 +42,6 @@ No web browser around? No worries - discover the planet in your console!
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
-## Wishlist
-
-* node port of [libdrawille](https://github.com/Huulivoide/libdrawille) - well optimized library, supporting filled polygons
-
 ### TODOs
 * [ ] cli linking
 * [ ] mapping of view to tiles to show
