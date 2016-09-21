@@ -87,10 +87,11 @@
       ]
     },
     {
+      "hide": true,
       "type": "line",
       "id": "waterway",
       "paint": {
-        "line-color": "#a0c8f0"
+        "line-color": "#303090"
       },
       "source-layer": "waterway",
       "filter": [
@@ -116,7 +117,7 @@
       "type": "line",
       "id": "waterway_river",
       "paint": {
-        "line-color": "#a0c8f0"
+        "line-color": "#303090"
       },
       "source-layer": "waterway",
       "filter": [
@@ -143,7 +144,7 @@
       "type": "fill",
       "id": "water",
       "paint": {
-        "fill-color": "#a0c8f0"
+        "fill-color": "#303090"
       },
       "source-layer": "water"
     },
@@ -1652,6 +1653,19 @@
           ]
         }
       }
+    },
+    {
+      "type": "line",
+      "id": "ferry_road",
+      "paint": {
+        "line-color": "#303090"
+      },
+      "source-layer": "road",
+      "filter": [
+        "==",
+        "class",
+        "ferry"
+      ]
     }
   ]
 }
