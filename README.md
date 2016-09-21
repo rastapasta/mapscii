@@ -38,8 +38,9 @@ No web browser around? No worries - discover the planet in your console!
 * [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
 
 #### Juggling the vectors and numbers
-* [`pnltri`](https://github.com/jahting/pnltri.js) for polygon triangulation to draw them filled
+* [`pnltri`](https://github.com/jahting/pnltri.js) for polygon triangulation to draw 'em filled
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
+* [`gl-matrix`](https://github.com/toji/gl-matrix) for vector and matrix operations
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
 ### TODOs
@@ -51,12 +52,14 @@ No web browser around? No worries - discover the planet in your console!
   * [x] support for point labels
   * [x] dynamic decluttering of labels
   * [x] centering text labels
+  * [ ] clipping fix when x<0 after repositioning
   * [ ] multi line label
   * [ ] label margin to avoid POI overlap?
   * [ ] translatable raster fonts
 * [x] filled polygons
   * [x] convert polygons to triangles
   * [x] implement fillTriangle into drawille-canvas-blessed-contrib
+  * [ ] respect fill/line style file based setting
 * [ ] lat/lng-center + zoom based viewport
   * [ ] bbox awareness
   * [ ] zoom -> scale calculation

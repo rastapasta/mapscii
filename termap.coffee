@@ -296,8 +296,9 @@ class Termap
         # TODO: check in definition if points can actually own multiple geometries
         for points in toDraw
           for point in points
-            if @labelBuffer.writeIfPossible text, point.x, point.y
-              @canvas.fillText text, point.x, point.y
+            x = point.x - text.length
+            if @labelBuffer.writeIfPossible text, x, point.y
+              @canvas.fillText text, x, point.y
               wasDrawn = true
 
         wasDrawn
