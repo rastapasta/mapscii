@@ -21,12 +21,13 @@ utils = require __dirname+'/src/utils'
 
 class Termap
   config:
+    language: 'de'
     styleFile: __dirname+"/styles/bright.json"
 
     fillPolygons: true
     zoomStep: 0.4
 
-    drawOrder: ["admin", "water", "building", "road", "poi_label", "city_label", "housenum_label"]
+    drawOrder: ["admin", "water", "building", "road", "poi_label", "place_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -54,6 +55,9 @@ class Termap
       building:
         minZoom: 3.8
         color: 8
+
+      place_label:
+        color: "yellow"
 
       poi_label:
         minZoom: 3
@@ -282,7 +286,11 @@ class Termap
         true
 
       when "Point"
-        text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
+        text = feature.properties["name_"+@config.language] or
+          feature.properties["name"] or
+          feature.properties.house_num or
+          @config.icons[feature.properties.maki] or
+          "◉"
 
         wasDrawn = false
         # TODO: check in definition if points can actually own multiple geometries

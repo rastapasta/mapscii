@@ -1,3 +1,10 @@
+###
+  termap - Terminal Map Viewer
+  by Michael Strassburger <codepoet@cpan.org>
+
+  methods used all around
+###
+
 utils =
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
@@ -6,9 +13,9 @@ utils =
     angle / Math.PI * 180
 
   hex2rgb: (color) ->
-    if not color.match
+    if not color?.match
       console.log color
-      process.exit()
+
     return [255, 0, 0] unless color?.match
 
     unless color.match /^#[a-fA-F0-9]{3,6}$/
