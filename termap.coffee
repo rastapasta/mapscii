@@ -79,7 +79,7 @@ class Termap
         minZoom: 2
         color: 8
       building:
-        minZoom: 2.5
+        minZoom: 3.8
         color: 8
 
       poi_label:
@@ -265,6 +265,10 @@ class Termap
     drawn
 
   _drawFeature: (layer, feature, scale) ->
+    # TODO: this is ugly :) need to be fixed @style
+    return false if layer is 'road' and feature.type is "Polygon"
+    feature.type = "LineString" if layer is "building"
+
     toDraw = []
     for idx, points of feature.points
       visible = false

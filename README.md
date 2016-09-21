@@ -45,6 +45,8 @@ No web browser around? No worries - discover the planet in your console!
 ### TODOs
 * [ ] cli linking
 * [ ] mapping of view to tiles to show
+* [ ] line drawing
+  * [ ] support for stroke width
 * [ ] label drawing
   * [x] support for point labels
   * [x] dynamic decluttering of labels
