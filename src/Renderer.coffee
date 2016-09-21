@@ -20,7 +20,7 @@ module.exports = class Renderer
     fillPolygons: true
     language: 'de'
 
-    drawOrder: ["admin", "water", "building", "road", "poi_label", "place_label", "housenum_label"]
+    drawOrder: ["admin", "building", "road", "water", "poi_label", "place_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -42,29 +42,15 @@ module.exports = class Renderer
       cinema: "C" #"🎦"
 
     layers:
-      housenum_label:
-        minZoom: 1.5
-        color: 8
-      building:
-        minZoom: 3.8
-        color: 8
+      housenum_label: minZoom: 1.5
+      building: minZoom: 3.8
 
-      place_label:
-        color: "yellow"
+      place_label: true
+      poi_label: minZoom: 3
 
-      poi_label:
-        minZoom: 3
-        color: "yellow"
-
-      road:
-        color: 15
-
-      landuse:
-        color: "green"
-      water:
-        color: "blue"
-      admin:
-        color: "red"
+      road: true
+      water: true
+      admin: true
 
   isDrawing: false
   lastDrawAt: 0
@@ -108,6 +94,8 @@ module.exports = class Renderer
     @isDrawing = true
     @lastDrawAt = Date.now()
 
+    @notify "rendering..."
+
     @labelBuffer.clear()
 
     # TODO: better way for background color instead of setting filling FG?
@@ -122,16 +110,17 @@ module.exports = class Renderer
     @_drawLayers()
     @canvas.restore()
 
-    @write @canvas._canvas.frame()
+    @_write @canvas._canvas.frame()
 
     @isDrawing = false
 
-  write: (output) ->
+  _write: (output) ->
     process.stdout.write output
 
   _drawLayers: ->
     drawn = []
     for layer in @config.drawOrder
+      @notify "rendering #{layer}..."
       scale = Math.pow 2, @zoom
       continue unless @features?[layer]
 
@@ -240,3 +229,6 @@ module.exports = class Renderer
     point.x+@view[0]<@width-4 and
     point.y+@view[1]>=0 and
     point.y+@view[1]<@height
+
+  notify: (text) ->
+    @_write "\r\x1B[K"+text

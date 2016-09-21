@@ -3,7 +3,7 @@
 No web browser around? No worries - discover the planet in your console!
 
 * Use your mouse or keys to navigate
-* Discover the globe or zoom in to learn about house numbers
+* Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
 * Use an online map server or work offline with VectorTile/MBTiles
 * Highly customizable styling (colors, feature visibility, ...)
@@ -46,8 +46,11 @@ No web browser around? No worries - discover the planet in your console!
 ### TODOs
 * [ ] cli linking
 * [ ] mapping of view to tiles to show
+* [x] abstracted MapBox style JSON support
+* [ ] giving render priority to features across layers (collect before render vs. direct)?
 * [ ] line drawing
   * [ ] support for stroke width
+  * [ ] support for dashed/dotted lines?
 * [ ] label drawing
   * [x] support for point labels
   * [x] dynamic decluttering of labels
@@ -63,6 +66,8 @@ No web browser around? No worries - discover the planet in your console!
 * [ ] lat/lng-center + zoom based viewport
   * [ ] bbox awareness
   * [ ] zoom -> scale calculation
+* [ ] Tile parsing
+  * [ ] directly throw away features that aren't covered by any style
 * [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
 * [ ] tile request system
   * [ ] from local mbtiles
@@ -75,8 +80,7 @@ No web browser around? No worries - discover the planet in your console!
 * [x] start with zoom level which shows full vector tile
 * [x] accurate mouse drag&drop
 * [x] handle console resize
-* [ ] styling
-  * [ ] abstracted MapBox style JSON support
+* [x] styling
 * [ ] turn this into a [`blessed-contrib`](https://github.com/yaronn/blessed-contrib) widget
 
 ## License

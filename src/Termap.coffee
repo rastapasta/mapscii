@@ -119,7 +119,7 @@ module.exports = class Termap
 
   _draw: ->
     @renderer.draw @view, @zoom
-    @renderer.write @_getFooter()
+    @renderer.notify @_getFooter()
 
   _getBBox: ->
     [x, y] = mercator.forward [@center.lng, @center.lat]
@@ -131,10 +131,6 @@ module.exports = class Termap
   _getFooter: ->
     "center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
     # bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(',')}]"
-
-  notify: (text) ->
-    return if @renderer.isDrawing
-    @renderer.write "\r\x1B[K#{@_getFooter()} #{text}"
 
   zoomBy: (step) ->
     return unless @scale+step > 0

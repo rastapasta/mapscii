@@ -5,8 +5,8 @@
   Minimalistic parser and compiler for Mapbox (Studio) Map Style files
   See: https://www.mapbox.com/mapbox-gl-style-spec/
 
-  Verrrrry MVP implementation
-  TODO: should be optimized by compiling the json to method&cb based filters
+  Compiles layer filter instructions into a chain of true/false returning
+  anonymous functions to improve rendering speed compared to realtime parsing.
 ###
 
 fs = require 'fs'
@@ -19,47 +19,48 @@ module.exports = class Styler
     json = JSON.parse fs.readFileSync(file).toString()
     @styleName = json.name
 
-    for layer in json.layers
-      continue if layer.ref
-      style = layer
+    for style in json.layers
+      continue if style.ref
 
-      @styleByLayer[layer['source-layer']] ?= []
-      @styleByLayer[layer['source-layer']].push style
+      style.appliesTo = @_compileFilter style.filter
 
-      @styleById[layer.id] = style
+      @styleByLayer[style['source-layer']] ?= []
+      @styleByLayer[style['source-layer']].push style
+
+      @styleById[style.id] = style
 
   getStyleFor: (layer, feature, zoom) ->
+    # Skip all layers that don't have any styles set
     return false unless @styleByLayer[layer]
 
     for style in @styleByLayer[layer]
-      return style unless style.filter
-
-      if @_passesFilter feature, style.filter
-        return style
+      return style if style.appliesTo feature
 
     false
 
-  _passesFilter: (feature, filter) ->
+  _compileFilter: (filter) ->
+    if not filter or not filter.length
+      return -> true
+
     switch filter[0]
       when "all"
-        for subFilter in filter[1..]
-          return false unless @_passesFilter feature, subFilter
-        true
+        filters = (@_compileFilter subFilter for subFilter in filter[1..])
+        (feature) ->
+          return false for appliesTo in filters when not appliesTo feature
+          true
 
       when "=="
-        feature.properties[filter[1]] is filter[2]
+        (feature) -> feature.properties[filter[1]] is filter[2]
 
       when "!="
-        feature.properties[filter[2]] isnt filter[2]
+        (feature) -> feature.properties[filter[1]] isnt filter[2]
 
       when "in"
-        field = filter[1]
-        for value in filter[2..]
-          return true if feature.properties[field] is value
-        false
+        (feature) ->
+          return true for value in filter[2..] when feature.properties[filter[1]] is value
+          false
 
       when "!in"
-        field = filter[1]
-        for value in filter[2..]
-          return false if feature.properties[field] is value
-        true
+        (feature) ->
+          return false for value in filter[2..] when feature.properties[filter[1]] is value
+          true
