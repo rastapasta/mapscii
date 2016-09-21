@@ -1,8 +1,15 @@
-fs = require 'fs'
-# 'text-field'
+###
+  termap - Terminal Map Viewer
+  by Michael Strassburger <codepoet@cpan.org>
 
-# Verrrrry MVP implementation
-# TODO: should be optimized by compiling the json to method&cb based filters
+  Minimalistic parser and compiler for Mapbox (Studio) Map Style files
+  See: https://www.mapbox.com/mapbox-gl-style-spec/
+
+  Verrrrry MVP implementation
+  TODO: should be optimized by compiling the json to method&cb based filters
+###
+
+fs = require 'fs'
 
 module.exports = class Styler
   styleById: {}
@@ -56,37 +63,3 @@ module.exports = class Styler
         for value in filter[2..]
           return false if feature.properties[field] is value
         true
-
-  ###
-  cleanStyle: (file) ->
-    json = JSON.parse fs.readFileSync(file).toString()
-
-    cleanedStyle =
-      name: json.name
-      layers: []
-
-    for layer in json.layers
-      continue if layer.ref
-
-      cleanLayer =
-        type: layer.type
-        id: layer.id
-        paint: {}
-        'source-layer': layer['source-layer']
-
-
-      for key in ['filter', 'minzoom']
-        cleanLayer[key] = layer[key] if layer[key]
-
-      if layer.layout?['text-size']
-        cleanLayer.layout = 'text-size': layer.layout?['text-size']
-
-      # TODO: opacity
-      for key in ['fill-color', 'line-color', 'text-color', 'background-color']
-        cleanLayer.paint[key] = layer.paint[key] if layer.paint?[key]
-
-      if Object.keys(cleanLayer.paint).length
-        cleanedStyle.layers.push cleanLayer
-
-    console.log JSON.stringify cleanedStyle, null, '  '
-  ###

@@ -1,4 +1,8 @@
-Canvas = require '../drawille-canvas-blessed-contrib'
+###
+  termap - Terminal Map Viewer
+  by Michael Strassburger <codepoet@cpan.org>
+###
+
 keypress = require 'keypress'
 TermMouse = require 'term-mouse'
 x256 = require 'x256'
@@ -10,69 +14,38 @@ zlib = require 'zlib'
 mercator = new (require('sphericalmercator'))()
 triangulator = new (require('pnltri')).Triangulator()
 
+Canvas = require __dirname+'/src/Canvas'
 LabelBuffer = require __dirname+'/src/LabelBuffer'
 Styler = require __dirname+'/src/Styler'
-
-utils =
-  deg2rad: (angle) ->
-    # (angle / 180) * Math.PI
-    angle * 0.017453292519943295
-  rad2deg: (angle) ->
-    angle / Math.PI * 180
-
-  hex2rgb: (color) ->
-    if not color.match
-      console.log color
-      process.exit()
-    return [255, 0, 0] unless color?.match
-
-    unless color.match /^#[a-fA-F0-9]{3,6}$/
-      throw new Error "#{color} isn\'t a supported hex color"
-
-    color = color.substr 1
-    decimal = parseInt color, 16
-
-    if color.length is 3
-      rgb = [decimal>>8, (decimal>>4)&15, decimal&15]
-      rgb.map (c) => c + (c<<4)
-    else
-      [(decimal>>16)&255, (decimal>>8)&255, decimal&255]
-
-  digits: (number, digits) ->
-    Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
-
-  metersPerPixel: (zoom, lat = 0) ->
-    utils.rad2deg(40075017*Math.cos(utils.deg2rad(lat))/Math.pow(2, zoom+8))
-
+utils = require __dirname+'/src/utils'
 
 class Termap
   config:
     styleFile: __dirname+"/styles/bright.json"
 
     fillPolygons: true
-    zoomStep: 0.5
+    zoomStep: 0.4
 
-    # landuse "poi_label"
-    drawOrder: ["admin", "water", "building", "road", "housenum_label"]
+    drawOrder: ["admin", "water", "building", "road", "poi_label", "city_label", "housenum_label"]
 
     icons:
       car: "🚗"
-      school: "🏫"
+      school: "S" #{}"🏫"
       marker: "⭐"
-      'art-gallery': "🎨"
+      'art-gallery': "A" #"🎨"
       attraction: "❕"
       stadium: "🏈"
       toilet: "🚽"
       cafe: "☕"
       laundry: "👚"
       bus: "🚌"
-      restaurant: "🍛"
-      lodging: "🛏."
+      restaurant: "R" #🍛"
+      lodging: "B" #🛏"
       'fire-station': "🚒"
       shop: "🛍"
       pharmacy: "💊"
-      beer: "🍺"
-      cinema: "🎦"
+      beer: "H" #"🍺"
+      cinema: "C" #"🎦"
 
     layers:
       housenum_label:
@@ -195,9 +168,9 @@ class Termap
 
     if draw
       @_draw()
-    else
-      # display debug info for unhandled keys
-      @notify JSON.stringify key
+    # else
+    #   # display debug info for unhandled keys
+    #   @notify JSON.stringify key
 
   _parseTile: (buffer) ->
     # extract, decode and parse a given tile buffer
@@ -364,7 +337,7 @@ class Termap
     mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
 
   _getFooter: ->
-    "center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{@zoom}"
+    "center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
     # bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(',')}]"
 
   notify: (text) ->

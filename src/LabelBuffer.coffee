@@ -1,3 +1,11 @@
+###
+  termap - Terminal Map Viewer
+  by Michael Strassburger <codepoet@cpan.org>
+
+  Using 2D spatial indexing to avoid overlapping labels and markers
+  Future: to detect collision on mouse interaction
+###
+
 rbush = require 'rbush'
 
 module.exports = class LabelBuffer
