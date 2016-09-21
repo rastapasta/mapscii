@@ -28,6 +28,7 @@ No web browser around? No worries - discover the planet in your console!
 ### Libraries
 #### Mastering the console
   * [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for [braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) rendering
+  * [`x256`](https://github.com/substack/node-x256) for finding nearest xterm-256 [color codes](https://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg)
   * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 
@@ -40,7 +41,6 @@ No web browser around? No worries - discover the planet in your console!
 * [`pnltri`](https://github.com/jahting/pnltri.js) for polygon triangulation to draw them filled
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
-
 
 ## Wishlist
 
@@ -71,6 +71,8 @@ No web browser around? No worries - discover the planet in your console!
 * [x] start with zoom level which shows full vector tile
 * [x] accurate mouse drag&drop
 * [x] handle console resize
+* [ ] styling
+  * [ ] abstracted MapBox style JSON support
 * [ ] turn this into a [`blessed-contrib`](https://github.com/yaronn/blessed-contrib) widget
 
 ## License

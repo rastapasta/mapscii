@@ -1,13 +1,17 @@
 Canvas = require '../drawille-canvas-blessed-contrib'
-VectorTile = require('vector-tile').VectorTile
-Protobuf = require 'pbf'
 keypress = require 'keypress'
+TermMouse = require 'term-mouse'
+x256 = require 'x256'
+Protobuf = require 'pbf'
+VectorTile = require('vector-tile').VectorTile
 fs = require 'fs'
 zlib = require 'zlib'
-TermMouse = require 'term-mouse'
+
 mercator = new (require('sphericalmercator'))()
-LabelBuffer = require __dirname+'/src/LabelBuffer'
 triangulator = new (require('pnltri')).Triangulator()
+
+LabelBuffer = require __dirname+'/src/LabelBuffer'
+Styler = require __dirname+'/src/Styler'
 
 utils =
   deg2rad: (angle) ->
@@ -15,6 +19,21 @@ utils =
     angle * 0.017453292519943295
   rad2deg: (angle) ->
     angle / Math.PI * 180
+
+  hex2rgb: (color) ->
+    return [255, 0, 0] unless color?.match
+
+    unless color.match /^#[a-fA-F0-9]{3,6}$/
+      throw new Error "#{color} isn\'t a supported hex color"
+
+    color = color.substr 1
+    decimal = parseInt color, 16
+
+    if color.length is 3
+      rgb = [decimal>>8, (decimal>>4)&15, decimal&15]
+      rgb.map (c) => c + (c<<4)
+    else
+      [(decimal>>16)&255, (decimal>>8)&255, decimal&255]
 
   digits: (number, digits) ->
     Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
@@ -25,10 +44,13 @@ utils =
 
 class Termap
   config:
+    styleFile: __dirname+"/styles/bright.json"
+
+    fillPolygons: true
     zoomStep: 0.5
 
-    # landuse
-    drawOrder: ["admin", "water", "building", "road", "poi_label", "housenum_label"]
+    # landuse "poi_label"
+    drawOrder: ["admin", "water", "building", "road", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -54,7 +76,7 @@ class Termap
         minZoom: 2
         color: 8
       building:
-        minZoom: 3.5
+        minZoom: 2.5
         color: 8
 
       poi_label:
@@ -76,6 +98,7 @@ class Termap
   height: null
   canvas: null
 
+  styler: null
   isDrawing: false
   lastDrawAt: 0
 
@@ -122,6 +145,7 @@ class Termap
       @zoom = Math.log(4096/@width)/Math.LN2
 
     @labelBuffer = new LabelBuffer()
+    @styler = new Styler @config.styleFile
 
   _onResize: (cb) ->
     process.stdout.on 'resize', cb
@@ -184,7 +208,7 @@ class Termap
       features[name] = for i in [0...layer.length]
         feature = layer.feature i
 
-        type: [undefined, "point", "line", "polygon"][feature.type]
+        type: [undefined, "Point", "LineString", "Polygon"][feature.type]
         id: feature.id
         properties: feature.properties
         points: feature.loadGeometry()
@@ -194,9 +218,12 @@ class Termap
   _draw: ->
     return if @isDrawing
     @isDrawing = true
-
     @lastDrawAt = Date.now()
 
+    # if color = @styler.styleById['background']?.paint['background-color']
+    #   @canvas.strokeStyle = x256 utils.hex2rgb(color)...
+    #   @canvas.fillRect 0, 0, @width, @height
+    # else
     @canvas.clearRect 0, 0, @width, @height
 
     @canvas.save()
@@ -225,12 +252,12 @@ class Termap
       @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
 
       for feature in @features[layer]
-        if @_drawFeature feature, scale
+        if @_drawFeature layer, feature, scale
           drawn.push feature
 
     drawn
 
-  _drawFeature: (feature, scale) ->
+  _drawFeature: (layer, feature, scale) ->
     toDraw = []
     for idx, points of feature.points
       visible = false
@@ -249,17 +276,28 @@ class Termap
       continue unless visible
       toDraw.push projectedPoints
 
+    if style = @styler.getStyleFor layer, feature, 8
+      color = style.paint['line-color'] or style.paint['fill-color']
+
+      # TODO: zoom calculation todo for perfect styling
+      if color instanceof Object
+        color = color.stops[0][1]
+
+      @canvas.fillStyle = @canvas.strokeStyle = x256 utils.hex2rgb color
+    else
+      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
+
     switch feature.type
-      when "line"
+      when "LineString"
         @_drawWithLines points for points in toDraw
         true
 
-      when "polygon"
-        unless @_drawWithTriangles toDraw
+      when "Polygon"
+        unless @config.fillPolygons and @_drawWithTriangles toDraw
           @_drawWithLines points for points in toDraw
         true
 
-      when "point"
+      when "Point"
         text = feature.properties.house_num or @config.icons[feature.properties.maki] or "◉"
 
         wasDrawn = false

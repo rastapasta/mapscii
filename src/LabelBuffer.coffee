@@ -2,7 +2,7 @@ rbush = require 'rbush'
 
 module.exports = class LabelBuffer
   tree: null
-  margin: 1
+  margin: 5
 
   constructor: (@width, @height) ->
     @tree = rbush()

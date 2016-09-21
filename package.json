@@ -28,6 +28,7 @@
     "rbush": "^2.0.1",
     "sphericalmercator": "^1.0.5",
     "term-mouse": "^0.1.1",
-    "vector-tile": "^1.3.0"
+    "vector-tile": "^1.3.0",
+    "x256": "0.0.2"
   }
 }
