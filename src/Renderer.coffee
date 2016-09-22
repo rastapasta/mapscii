@@ -5,9 +5,6 @@
   The Console Vector Tile renderer - bäm!
 ###
 x256 = require 'x256'
-Protobuf = require 'pbf'
-VectorTile = require('vector-tile').VectorTile
-zlib = require 'zlib'
 triangulator = new (require('pnltri')).Triangulator()
 
 Canvas = require './Canvas'
@@ -66,29 +63,6 @@ module.exports = class Renderer
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
 
-  _parseTile: (buffer) ->
-    # extract, decode and parse a given tile buffer
-    new VectorTile new Protobuf zlib.gunzipSync buffer
-
-  _getFeatures: (tile) ->
-    features = {}
-    for name,layer of tile.layers
-      continue unless @config.layers[name]
-
-      features[name] = for i in [0...layer.length]
-        feature = layer.feature i
-        type = [undefined, "Point", "LineString", "Polygon"][feature.type]
-
-        properties = feature.properties
-        properties.$type = type
-
-        id: feature.id
-        type: type
-        properties: properties
-        points: feature.loadGeometry()
-
-    features
-
   draw: (@view, @zoom) ->
     return if @isDrawing
     @isDrawing = true
@@ -118,50 +92,33 @@ module.exports = class Renderer
     process.stdout.write output
 
   _drawLayers: ->
-    drawn = []
     for layer in @config.drawOrder
+      continue unless @features?[layer]
+
       @notify "rendering #{layer}..."
       scale = Math.pow 2, @zoom
-      continue unless @features?[layer]
 
       if @config.layers[layer].minZoom and @zoom > @config.layers[layer].minZoom
         continue
 
-      @canvas.strokeStyle = @canvas.fillStyle = @config.layers[layer].color
-
-      for feature in @features[layer]
-        if @_drawFeature layer, feature, scale
-          drawn.push feature
-
-    drawn
+      for feature in @features[layer].tree.search(minX: 0, minY: 0, maxX: 4096, maxY: 4096)
+        @_drawFeature layer, feature.data, scale
 
   _drawFeature: (layer, feature, scale) ->
     # TODO: this is ugly :) need to be fixed @style
     #return false if feature.properties.class is "ferry"
     feature.type = "LineString" if layer is "building" or layer is "road"
 
-    toDraw = []
-    for idx, points of feature.points
-      visible = false
-
-      projectedPoints = for point in points
-        projectedPoint =
-          x: point.x/scale
-          y: point.y/scale
-
-        visible = true if not visible and @_isOnScreen projectedPoint
-        projectedPoint
-
-      if idx is 0 and not visible
-        return false
-
-      continue unless visible
-      toDraw.push projectedPoints
-
+    # TODO: zoom level
     unless style = @styler.getStyleFor layer, feature, 14
       return false
 
     color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
+
+    toDraw = for points in feature.points
+      for point in points
+        x: point.x/scale
+        y: point.y/scale
 
     # TODO: zoom calculation todo for perfect styling
     if color instanceof Object

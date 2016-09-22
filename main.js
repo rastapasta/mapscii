@@ -12,10 +12,12 @@ require('coffee-script/register');
 
 const fs = require('fs');
 const Termap = require(__dirname+'/src/Termap');
+const Tile = require(__dirname+'/src/Tile')
 
 termap = new Termap();
 
 // TODO: abstracing this class, create loader class
 data = fs.readFileSync(__dirname+"/tiles/regensburg.pbf.gz");
-termap.renderer.features = termap.renderer._getFeatures(termap.renderer._parseTile(data));
+tile = new Tile(data);
+termap.renderer.features = tile.layers
 termap._draw();

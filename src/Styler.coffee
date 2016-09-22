@@ -39,10 +39,7 @@ module.exports = class Styler
     false
 
   _compileFilter: (filter) ->
-    if not filter or not filter.length
-      return -> true
-
-    switch filter[0]
+    switch filter?[0]
       when "all"
         filters = (@_compileFilter subFilter for subFilter in filter[1..])
         (feature) ->
@@ -64,3 +61,6 @@ module.exports = class Styler
         (feature) ->
           return false for value in filter[2..] when feature.properties[filter[1]] is value
           true
+
+      else
+        -> true
