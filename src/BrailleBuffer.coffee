@@ -20,6 +20,9 @@ module.exports = class BrailleBuffer
   charBuffer: null
   colorBuffer: null
 
+  termReset: "\x1B[39m"
+  termColor: (color) -> "\x1B[38;5;#{color}m"
+
   constructor: (@width, @height) ->
     @pixelBuffer = new Buffer @width*@height/8
     @clear()
@@ -32,47 +35,55 @@ module.exports = class BrailleBuffer
   setPixel: (x, y, color) ->
     @_locate x, y, (idx, mask) =>
       @pixelBuffer[idx] |= mask
-      @colorBuffer[(x>>1)+(y*@height<<2)] = @termColor color
+      @colorBuffer[idx] = @termColor color
 
   unsetPixel: (x, y) ->
     @_locate x, y, (idx, mask) =>
       @pixelBuffer[idx] &= ~mask
 
+  _project: (x, y) ->
+    (x>>1) + (@width>>1)*(y>>2)
+
   _locate: (x, y, cb) ->
     return unless 0 <= x < @width and 0 <= y < @height
-    idx = (x>>1) + (@width>>1)*(y>>2)
+    idx = @_project x, y
     mask = @characterMap[y&3][x&1]
     cb idx, mask
 
   frame: ->
     output = []
+    currentColor = null
     delimeter = "\n"
-    color = null
 
     for idx in [0...@pixelBuffer.length]
       output.push delimeter unless idx % (@width/2)
 
-      if @charBuffer[idx]
-        output.push @charBuffer[idx]
-      else if @pixelBuffer[idx] is 0
-        output.push ' '
-      else
-        output.push color = colorCode if color isnt colorCode = @colorBuffer[idx] or "\x1B[39m"
-        output.push String.fromCharCode 0x2800+@pixelBuffer[idx]
+      if currentColor isnt colorCode = @colorBuffer[idx] or @termReset
+        output.push currentColor = colorCode
 
-    output.push "\x1B[39m"+delimeter
+      output.push if @charBuffer[idx]
+        @charBuffer[idx]
+      else if @pixelBuffer[idx] is 0
+        ' '
+      else
+        String.fromCharCode 0x2800+@pixelBuffer[idx]
+
+    output.push @termReset+delimeter
     output.join ''
 
-  termColor: (color) ->
-    "\x1B[38;5;#{color}m"
-
-  setChar: (char, color, x, y) ->
+  setChar: (char, x, y, color) ->
     return unless 0 <= x < @width/2 and 0 <= y < @height/4
-    idx = x+y*@width/2
+    idx = @_project x, y
     @charBuffer[idx] = char
-    @colorBuffer[idx] = color
+    @colorBuffer[idx] = @termColor color
 
-buffer = new BrailleBuffer 100, 16
-for i in [0...100]
-  buffer.setPixel i, 8+8*Math.cos(i/10*Math.PI/2), i>>2
-console.log buffer.frame()
+  writeText: (text, x, y, color, center = true) ->
+    x -= text.length/2 if center
+    @setChar text.charAt(i), x+i*2, y, color for i in [0...text.length]
+
+# buffer = new BrailleBuffer 100, 16
+# for i in [0...255]
+#   buffer.setPixel i, 8+8*Math.cos(i/10*Math.PI/2), i
+#
+# buffer.writeText "ruth", 10, 0, 111
+# console.log buffer.frame()

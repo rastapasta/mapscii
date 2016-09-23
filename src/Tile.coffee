@@ -8,7 +8,7 @@
 VectorTile = require('vector-tile').VectorTile
 Protobuf = require 'pbf'
 zlib = require 'zlib'
-Rbush = require('rbush')
+Rbush = require 'rbush'
 
 module.exports = class Tile
   tree: null
