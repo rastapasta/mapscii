@@ -113,12 +113,12 @@ module.exports = class Renderer
     unless style = @styler.getStyleFor layer, feature, 14
       return false
 
-    color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
-
     toDraw = for points in feature.points
       for point in points
         x: point.x/scale
         y: point.y/scale
+
+    color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
 
     # TODO: zoom calculation todo for perfect styling
     if color instanceof Object

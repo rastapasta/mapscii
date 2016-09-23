@@ -65,8 +65,8 @@ module.exports = class Termap
     @zoom = Math.log(4096/@width)/Math.LN2
 
   _resizeRenderer: (cb) ->
-    @width = Math.floor((process.stdout.columns-1)/2)*2*2
-    @height = Math.ceil(process.stdout.rows/4)*4*4
+    @width = (process.stdout.columns-1) >> 1 << 2
+    @height = process.stdout.rows >> 2 << 4
 
     @renderer.setSize @width, @height
 
