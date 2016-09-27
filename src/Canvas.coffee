@@ -2,40 +2,107 @@
   termap - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
-  Extends drawille-canvas to add additional drawing functions.
-  To be PRed up the tree at some point.
+  Simple pixel to barille character mapper
+
+  Implementation inspired by node-drawille-canvas (https://github.com/madbence/node-drawille-canvas)
+  * added support for filled polygons
+  * improved text rendering
+
+  Will most likely be turned into a stand alone module at some point
 ###
 
-BlessedCanvas = require 'drawille-canvas-blessed-contrib'
-vec2 = require('gl-matrix').vec2
+bresenham = require 'bresenham'
+glMatrix = require 'gl-matrix'
+earcut = require 'earcut'
 
-module.exports = class Canvas extends BlessedCanvas
+BrailleBuffer = require './BrailleBuffer'
 
-  # bresenham: (from, to) ->
-  #   points = []
-  #   adx = Math.abs dx = to.x - from.x
-  #   ady = Math.abs dy = to.y - from.y
-  #   eps = 0
-  #   sx = if dx > 0 then 1 else -1
-  #   sy = if dy > 0 then 1 else -1
-  #
-  #   [x, y] = from
-  #   if adx > ady
-  #     while if sx < 0 then x >= x1 else x <= x1
-  #       points.add x:, y: y
-  #       eps += ady
-  #       if eps<<1 >= adx
-  #         y += sy
-  #         eps -= adx
-  #
-  #       x += sx
-  #   else
-  #     while if sy < 0 then y >= y1 else y <= y1
-  #       fn(x, y);
-  #       eps += adx;
-  #       if eps<<1 >= ady
-  #         x += sx;
-  #         eps -= ady;
-  #
-  #       y += sy
-  #   arr
+vec2 = glMatrix.vec2
+mat2d = glMatrix.mat2d
+
+module.exports = class Canvas
+  matrix: null
+
+  constructor: (@width, @height) ->
+    @buffer = new BrailleBuffer @width, @height
+    @reset()
+
+  reset: ->
+    @matrix = mat2d.create()
+
+  print: ->
+    process.stdout.write @buffer.frame()
+
+  translate: (x, y) ->
+    mat2d.translate @matrix, @matrix, vec2.fromValues(x, y)
+
+  clear: ->
+    @buffer.clear()
+
+  text: (text, x, y, color, center = true) ->
+    @buffer.writeText text, x, y, color, center
+
+  polyline: (points, color) ->
+    projected = (@_project point[0], point[1] for point in points)
+    for i in [1...projected.length]
+      bresenham projected[i-1]..., projected[i]...,
+        (x, y) => @buffer.setPixel x, y, color
+
+  # TODO: support for polygon holes
+  polygon: (points, color) ->
+    vertices = []
+    for point in points
+      vertices = vertices.concat @_project point[0], point[1]
+
+    triangles = earcut vertices
+    extract = (pointId) ->
+      [vertices[pointId*2], vertices[pointId*2+1]]
+
+    for i in [0...triangles.length] by 3
+      @_filledTriangle extract(triangles[i]), extract(triangles[i+1]), extract(triangles[i+2]), color
+
+  _bresenham: (pointA, pointB) ->
+    bresenham pointA[0], pointA[1],
+              pointB[0], pointB[1]
+
+  _project: (x, y) ->
+    point = vec2.transformMat2d vec2.create(), vec2.fromValues(x, y), @matrix
+    [Math.floor(point[0]), Math.floor(point[1])]
+
+  _filledRectangle: (x, y, width, height, color) ->
+    pointA = @_project x, y
+    pointB = @_project x+width, y
+    pointC = @_project x, y+height
+    pointD = @_project x+width, y+height
+
+    @_filledTriangle pointA, pointB, pointC, color
+    @_filledTriangle pointC, pointB, pointD, color
+
+  # Draws a filled triangle
+  _filledTriangle: (pointA, pointB, pointC, color) ->
+    a = @_bresenham pointB, pointC
+    b = @_bresenham pointA, pointC
+    c = @_bresenham pointA, pointB
+
+    # Filter out any points outside of the visible area
+    # TODO: benchmark - is it more effective to filter double points, or does
+    # it req more computing time than actually setting points multiple times?
+
+    last = null
+    points = a.concat(b).concat(c)
+    .filter (point) => 0 <= point.y < @height
+    .sort (a, b) -> if a.y is b.y then a.x - b.x else a.y-b.y
+    .filter (point) ->
+      [lastPoint, last] = [last, point]
+      not lastPoint or lastPoint.x isnt point.x or lastPoint.y isnt point.y
+
+    for i, point of points
+      next = points[i*1+1]
+
+      if point.y is next?.y
+        left = Math.max 0, point.x
+        right = Math.min @width, next?.x
+        @buffer.setPixel x, point.y, color for x in [left..right]
+
+      else
+        @buffer.setPixel point.x, point.y, color

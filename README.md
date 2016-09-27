@@ -27,7 +27,6 @@ No web browser around? No worries - discover the planet in your console!
 ## Behind the scenes
 ### Libraries
 #### Mastering the console
-  * [`drawille-canvas-blessed-contrib`](https://github.com/yaronn/drawille-canvas-blessed-contrib/) for [braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) rendering
   * [`x256`](https://github.com/substack/node-x256) for finding nearest xterm-256 [color codes](https://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg)
   * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
@@ -38,9 +37,10 @@ No web browser around? No worries - discover the planet in your console!
 * [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
 
 #### Juggling the vectors and numbers
-* [`pnltri`](https://github.com/jahting/pnltri.js) for polygon triangulation to draw 'em filled
+* [`earcut`](https://github.com/mapbox/earcut) for polygon triangulation
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
 * [`gl-matrix`](https://github.com/toji/gl-matrix) for vector and matrix operations
+* [`breseham`](https://github.com/madbence/node-bresenham) for line calculations
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
 ### TODOs

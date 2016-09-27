@@ -5,7 +5,6 @@
   The Console Vector Tile renderer - bäm!
 ###
 x256 = require 'x256'
-triangulator = new (require('pnltri')).Triangulator()
 
 Canvas = require './Canvas'
 LabelBuffer = require './LabelBuffer'
@@ -17,7 +16,8 @@ module.exports = class Renderer
     fillPolygons: true
     language: 'de'
 
-    drawOrder: ["admin", "building", "road", "water", "poi_label", "place_label", "housenum_label"]
+    #"poi_label", "housenum_label", "water",
+    drawOrder: ["admin", "building", "road", "place_label"]
 
     icons:
       car: "🚗"
@@ -77,14 +77,13 @@ module.exports = class Renderer
     #   @canvas.strokeStyle = x256 utils.hex2rgb(color)...
     #   @canvas.fillRect 0, 0, @width, @height
     # else
-    @canvas.clearRect 0, 0, @width, @height
+    @canvas.clear()
+    @canvas.reset()
 
-    @canvas.save()
     @canvas.translate @view[0], @view[1]
     @_drawLayers()
-    @canvas.restore()
 
-    @_write @canvas._canvas.frame()
+    @canvas.print()
 
     @isDrawing = false
 
@@ -114,9 +113,7 @@ module.exports = class Renderer
       return false
 
     toDraw = for points in feature.points
-      for point in points
-        x: point.x/scale
-        y: point.y/scale
+      [point.x/scale, point.y/scale] for point in points
 
     color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
 
@@ -124,16 +121,15 @@ module.exports = class Renderer
     if color instanceof Object
       color = color.stops[0][1]
 
-    @canvas.fillStyle = @canvas.strokeStyle = x256 utils.hex2rgb color
+    colorCode = x256 utils.hex2rgb color
 
     switch feature.type
       when "LineString"
-        @_drawWithLines points for points in toDraw
+        @canvas.polyline points, colorCode for points in toDraw
         true
 
       when "Polygon"
-        unless @config.fillPolygons and @_drawWithTriangles toDraw
-          @_drawWithLines points for points in toDraw
+        @canvas.polygon toDraw[0], colorCode
         true
 
       when "Point"
@@ -150,36 +146,10 @@ module.exports = class Renderer
             x = point.x - text.length
             #continue if x-@view[0] < 0
             if @labelBuffer.writeIfPossible text, x, point.y
-              @canvas.fillText text, x, point.y
+              @canvas.text text, x, point.y, colorCode
               wasDrawn = true
 
         wasDrawn
-
-  _drawWithTriangles: (points) ->
-    try
-      triangles = triangulator.triangulate_polygon points
-    catch
-      return false
-
-    return false unless triangles.length
-
-    # TODO: triangles are returned as vertex references to a flattened input.
-    #       optimize it!
-
-    arr = points.reduce (a, b) -> a.concat b
-    for triangle in triangles
-      try
-        @canvas.fillTriangle arr[triangle[0]], arr[triangle[1]], arr[triangle[2]]
-      catch
-        return false
-    true
-
-  _drawWithLines: (points) ->
-    @canvas.beginPath()
-    first = points.shift()
-    @canvas.moveTo first.x, first.y
-    @canvas.lineTo point.x, point.y for point in points
-    @canvas.stroke()
 
   _isOnScreen: (point) ->
     point.x+@view[0]>=4 and

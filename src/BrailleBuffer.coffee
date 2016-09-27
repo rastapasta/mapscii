@@ -5,8 +5,9 @@
   Simple pixel to barille character mapper
 
   Implementation inspired by node-drawille (https://github.com/madbence/node-drawille)
-  * added written text support
   * added color support
+  * added support for filled polygons
+  * added text label support
   * general optimizations
     -> more bit shifting/operations, less Math.floors
 
@@ -78,12 +79,5 @@ module.exports = class BrailleBuffer
     @colorBuffer[idx] = @termColor color
 
   writeText: (text, x, y, color, center = true) ->
-    x -= text.length/2 if center
+    x -= text.length/2+1 if center
     @setChar text.charAt(i), x+i*2, y, color for i in [0...text.length]
-
-# buffer = new BrailleBuffer 100, 16
-# for i in [0...255]
-#   buffer.setPixel i, 8+8*Math.cos(i/10*Math.PI/2), i
-#
-# buffer.writeText "ruth", 10, 0, 111
-# console.log buffer.frame()
