@@ -16,8 +16,10 @@ module.exports = class Renderer
     fillPolygons: true
     language: 'de'
 
-    #"poi_label", "housenum_label", "water",
-    drawOrder: ["admin", "building", "road", "poi_label"]
+    labelMargin: 5
+
+    #"poi_label", "water",
+    drawOrder: ["admin", "building", "road", "place_label", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -39,9 +41,13 @@ module.exports = class Renderer
       cinema: "C" #"🎦"
 
     layers:
-      housenum_label: minZoom: 1.5
+      housenum_label:
+        minZoom: 1.5
+        margin: 3
       building: minZoom: 3.8
-      poi_label: minZoom: 3
+      poi_label:
+        minZoom: 3
+        margin: 5
 
   isDrawing: false
   lastDrawAt: 0
@@ -76,6 +82,8 @@ module.exports = class Renderer
 
     @canvas.translate @view[0], @view[1]
     @_drawLayers()
+
+    process.stdout.cursorTo 0, 0
     @canvas.print()
 
     @isDrawing = false
@@ -141,7 +149,7 @@ module.exports = class Renderer
         for points in toDraw
           for point in points
             x = point[0] - text.length
-            if @labelBuffer.writeIfPossible text, x, point[1]
+            if @labelBuffer.writeIfPossible text, x, point[1], (@config.layers[layer]?.margin or @config.labelMargin)
               @canvas.text text, x, point[1], colorCode, false
 
   notify: (text) ->
