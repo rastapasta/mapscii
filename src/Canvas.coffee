@@ -2,7 +2,7 @@
   termap - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
-  Simple pixel to barille character mapper
+  Canvas-like painting abstraction for BrailleBuffer
 
   Implementation inspired by node-drawille-canvas (https://github.com/madbence/node-drawille-canvas)
   * added support for filled polygons

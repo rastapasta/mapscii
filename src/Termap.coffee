@@ -31,7 +31,7 @@ module.exports = class Termap
     lng: 12.096956
 
   zoom: 2
-  view: [0, 0]
+  view: [0, 100]
 
   scale: 4
 
@@ -66,7 +66,7 @@ module.exports = class Termap
 
   _resizeRenderer: (cb) ->
     @width = (process.stdout.columns-1) >> 1 << 2
-    @height = process.stdout.rows >> 2 << 4
+    @height = Math.ceil(process.stdout.rows/2) << 4
 
     @renderer.setSize @width, @height
 

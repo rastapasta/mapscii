@@ -27,7 +27,7 @@ No web browser around? No worries - discover the planet in your console!
 ## Behind the scenes
 ### Libraries
 #### Mastering the console
-  * [`x256`](https://github.com/substack/node-x256) for finding nearest xterm-256 [color codes](https://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg)
+  * [`x256`](https://github.com/substack/node-x256) for converting RGB values to closest xterm-256 [color code](https://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg)
   * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 
@@ -55,7 +55,7 @@ No web browser around? No worries - discover the planet in your console!
   * [x] support for point labels
   * [x] dynamic decluttering of labels
   * [x] centering text labels
-  * [ ] clipping fix when x<0 after repositioning
+  * [x] clipping fix when x<0 after repositioning
   * [ ] multi line label
   * [ ] label margin to avoid POI overlap?
   * [ ] translatable raster fonts
@@ -81,7 +81,6 @@ No web browser around? No worries - discover the planet in your console!
 * [x] accurate mouse drag&drop
 * [x] handle console resize
 * [x] styling
-* [ ] turn this into a [`blessed-contrib`](https://github.com/yaronn/blessed-contrib) widget
 
 ## License
 #### The MIT License (MIT)

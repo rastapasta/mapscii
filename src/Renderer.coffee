@@ -41,13 +41,7 @@ module.exports = class Renderer
     layers:
       housenum_label: minZoom: 1.5
       building: minZoom: 3.8
-
-      place_label: true
       poi_label: minZoom: 3
-
-      road: true
-      water: true
-      admin: true
 
   isDrawing: false
   lastDrawAt: 0
@@ -97,10 +91,17 @@ module.exports = class Renderer
       @notify "rendering #{layer}..."
       scale = Math.pow 2, @zoom
 
-      if @config.layers[layer].minZoom and @zoom > @config.layers[layer].minZoom
+      if @config.layers[layer]?.minZoom and @zoom > @config.layers[layer].minZoom
         continue
 
-      for feature in @features[layer].tree.search(minX: 0, minY: 0, maxX: 4096, maxY: 4096)
+      box =
+        minX: -@view[0]*scale
+        minY: -@view[1]*scale
+        maxX: (@width-@view[0])*scale
+        maxY: (@height-@view[1])*scale
+
+      for feature in @features[layer].tree.search box
+        #@notify "rendering #{feature.data.id}"
         @_drawFeature layer, feature.data, scale
 
   _drawFeature: (layer, feature, scale) ->
