@@ -40,7 +40,8 @@ module.exports = class Canvas
     @buffer.clear()
 
   text: (text, x, y, color, center = true) ->
-    @buffer.writeText text, x, y, color, center
+    position = @_project x, y
+    @buffer.writeText text, position[0], position[1], color, center
 
   polyline: (points, color) ->
     projected = (@_project point[0], point[1] for point in points)

@@ -73,7 +73,7 @@ module.exports = class BrailleBuffer
     output.join ''
 
   setChar: (char, x, y, color) ->
-    return unless 0 <= x < @width/2 and 0 <= y < @height/4
+    return unless 0 <= x < @width and 0 <= y < @height
     idx = @_project x, y
     @charBuffer[idx] = char
     @colorBuffer[idx] = @termColor color

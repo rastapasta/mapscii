@@ -17,7 +17,7 @@ module.exports = class Renderer
     language: 'de'
 
     #"poi_label", "housenum_label", "water",
-    drawOrder: ["admin", "building", "road", "place_label"]
+    drawOrder: ["admin", "building", "road", "poi_label"]
 
     icons:
       car: "🚗"
@@ -76,7 +76,6 @@ module.exports = class Renderer
 
     @canvas.translate @view[0], @view[1]
     @_drawLayers()
-
     @canvas.print()
 
     @isDrawing = false
@@ -88,7 +87,6 @@ module.exports = class Renderer
     for layer in @config.drawOrder
       continue unless @features?[layer]
 
-      @notify "rendering #{layer}..."
       scale = Math.pow 2, @zoom
 
       if @config.layers[layer]?.minZoom and @zoom > @config.layers[layer].minZoom
@@ -100,8 +98,9 @@ module.exports = class Renderer
         maxX: (@width-@view[0])*scale
         maxY: (@height-@view[1])*scale
 
-      for feature in @features[layer].tree.search box
-        #@notify "rendering #{feature.data.id}"
+      features = @features[layer].tree.search box
+      @notify "rendering #{features.length} #{layer} features.."
+      for feature in features
         @_drawFeature layer, feature.data, scale
 
   _drawFeature: (layer, feature, scale) ->
@@ -127,11 +126,9 @@ module.exports = class Renderer
     switch feature.type
       when "LineString"
         @canvas.polyline points, colorCode for points in toDraw
-        true
 
       when "Polygon"
         @canvas.polygon toDraw[0], colorCode
-        true
 
       when "Point"
         text = feature.properties["name_"+@config.language] or
@@ -140,23 +137,12 @@ module.exports = class Renderer
           #@config.icons[feature.properties.maki] or
           "◉"
 
-        wasDrawn = false
         # TODO: check in definition if points can actually own multiple geometries
         for points in toDraw
           for point in points
-            x = point.x - text.length
-            #continue if x-@view[0] < 0
-            if @labelBuffer.writeIfPossible text, x, point.y
-              @canvas.text text, x, point.y, colorCode
-              wasDrawn = true
-
-        wasDrawn
-
-  _isOnScreen: (point) ->
-    point.x+@view[0]>=4 and
-    point.x+@view[0]<@width-4 and
-    point.y+@view[1]>=0 and
-    point.y+@view[1]<@height
+            x = point[0] - text.length
+            if @labelBuffer.writeIfPossible text, x, point[1]
+              @canvas.text text, x, point[1], colorCode, false
 
   notify: (text) ->
     @_write "\r\x1B[K"+text
