@@ -21,18 +21,18 @@ module.exports = class LabelBuffer
   project: (x, y) ->
     [Math.floor(x/2), Math.floor(y/4)]
 
-  writeIfPossible: (text, x, y) ->
+  writeIfPossible: (text, x, y, margin = @margin) ->
     point = @project x, y
 
     if @_hasSpace text, point[0], point[1]
-      @tree.insert @_calculateArea text, point[0], point[1]
+      @tree.insert @_calculateArea text, point[0], point[1], margin
     else
       false
 
   _hasSpace: (text, x, y) ->
     not @tree.collides @_calculateArea text, x, y, 0
 
-  _calculateArea: (text, x, y, margin = @margin) ->
+  _calculateArea: (text, x, y, margin) ->
     minX: x-margin
     minY: y-margin
     maxX: x+margin+text.length

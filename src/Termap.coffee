@@ -66,7 +66,7 @@ module.exports = class Termap
 
   _resizeRenderer: (cb) ->
     @width = (process.stdout.columns-1) >> 1 << 2
-    @height = process.stdout.rows >> 2 << 4
+    @height = process.stdout.rows * 4 - 8 
 
     @renderer.setSize @width, @height
 
