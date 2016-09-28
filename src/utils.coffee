@@ -6,6 +6,17 @@
 ###
 
 utils =
+  # Based on W. Randolph Franklin (WRF)'s Point Inclusion in Polygon Test
+  # https://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+  pointInPolygon: (polygon, point) ->
+    inside = false
+    j = polygon.length-1
+    for i in [0...polygon.length]
+      if (polygon[i][1]>point[1]) isnt (polygon[j][1]>point[1]) and
+      point[0] < (polygon[j][0]-polygon[i][0]) * (point[1]-polygon[i][1]) / (polygon[j][1]-polygon[i][1]) + polygon[i][0]
+          inside = !inside
+      j = i
+
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
     angle * 0.017453292519943295
