@@ -49,6 +49,10 @@ module.exports = class Canvas
       bresenham projected[i-1]..., projected[i]...,
         (x, y) => @buffer.setPixel x, y, color
 
+  background: (x, y, color) ->
+    point = @_project x, y
+    @buffer.setBackground point[0], point[1], color
+
   # TODO: support for polygon holes
   polygon: (points, color) ->
     vertices = []

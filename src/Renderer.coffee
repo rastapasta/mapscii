@@ -19,7 +19,7 @@ module.exports = class Renderer
     labelMargin: 5
 
     #"poi_label", "water",
-    drawOrder: ["admin", "building", "road", "place_label", "poi_label", "housenum_label"]
+    drawOrder: ["water", "admin", "building", "road", "place_label", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -109,9 +109,11 @@ module.exports = class Renderer
       features = @features[layer].tree.search box
       @notify "rendering #{features.length} #{layer} features.."
       for feature in features
-        @_drawFeature layer, feature.data, scale
+        @_drawFeature layer, feature, scale
 
-  _drawFeature: (layer, feature, scale) ->
+  _drawFeature: (layer, data, scale) ->
+    feature = data.data
+
     # TODO: this is ugly :) need to be fixed @style
     #return false if feature.properties.class is "ferry"
     feature.type = "LineString" if layer is "building" or layer is "road"
@@ -137,6 +139,11 @@ module.exports = class Renderer
 
       when "Polygon"
         @canvas.polygon toDraw[0], colorCode
+        # points = toDraw[0]
+        # for y in [Math.max(0,Math.floor(data.minY/scale))..Math.min(@height, Math.floor(data.maxY/scale))] by 4
+        #   for x in [Math.max(0, Math.floor(data.minX/scale))..Math.min(@width, Math.floor(data.maxX/scale))] by 2
+        #     if utils.pointInPolygon points, [x, y]
+        #       @canvas.background x, y, colorCode
 
       when "Point"
         text = feature.properties["name_"+@config.language] or

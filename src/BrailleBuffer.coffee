@@ -34,7 +34,9 @@ module.exports = class BrailleBuffer
     @foregroundBuffer = []
     @backgroundBuffer = []
 
-  setBackground: (idx, color) ->
+  setBackground: (x, y, color) ->
+    return unless 0 <= x < @width and 0 <= y < @height
+    idx = @_project x, y
     @backgroundBuffer[idx] = color
 
   setPixel: (x, y, color) ->

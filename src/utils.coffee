@@ -16,6 +16,7 @@ utils =
       point[0] < (polygon[j][0]-polygon[i][0]) * (point[1]-polygon[i][1]) / (polygon[j][1]-polygon[i][1]) + polygon[i][0]
           inside = !inside
       j = i
+    inside
 
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
