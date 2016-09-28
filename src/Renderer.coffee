@@ -19,7 +19,7 @@ module.exports = class Renderer
     labelMargin: 5
 
     #"poi_label", "water",
-    drawOrder: ["water", "admin", "building", "road", "place_label", "poi_label", "housenum_label"]
+    drawOrder: ["admin", "building", "road", "place_label", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
@@ -122,8 +122,7 @@ module.exports = class Renderer
     unless style = @styler.getStyleFor layer, feature, 14
       return false
 
-    toDraw = for points in feature.points
-      [point.x/scale, point.y/scale] for point in points
+    toDraw = (@_scaleAndReduce points, scale for points in feature.points)
 
     color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
 
@@ -158,6 +157,23 @@ module.exports = class Renderer
             x = point[0] - text.length
             if @labelBuffer.writeIfPossible text, x, point[1], (@config.layers[layer]?.margin or @config.labelMargin)
               @canvas.text text, x, point[1], colorCode, false
+
+  _scaleAndReduce: (points, scale) ->
+    lastX = null
+    lastY = null
+    scaled = []
+
+    for point in points
+      x = Math.floor point.x/scale
+      y = Math.floor point.y/scale
+
+      if lastX isnt x or lastY isnt y
+        lastY = y
+        lastX = x
+        scaled.push [x, y]
+
+    scaled
+
 
   notify: (text) ->
     @_write "\r\x1B[K"+text
