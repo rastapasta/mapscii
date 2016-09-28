@@ -40,7 +40,7 @@ module.exports = class Canvas
   clear: ->
     @buffer.clear()
 
-  text: (text, x, y, color, center = true) ->
+  text: (text, x, y, color, center = false) ->
     position = @_project x, y
     @buffer.writeText text, position[0], position[1], color, center
 

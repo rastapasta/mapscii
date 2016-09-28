@@ -1799,7 +1799,7 @@
       "type": "symbol",
       "id": "housenum_label",
       "paint": {
-        "text-color": "#333"
+        "text-color": "#444"
       },
       "source-layer": "housenum_label"
     },

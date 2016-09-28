@@ -26,7 +26,6 @@ module.exports = class Renderer
       "building"
       "road"
 
-      "water_label"
       "place_label"
       "poi_label"
       "housenum_label"
@@ -147,7 +146,7 @@ module.exports = class Renderer
 
     switch feature.type
       when "LineString"
-        width = style.paint['line-width']?.base or 1
+        width = style.paint['line-width']?.base*1.4 or 1
         @canvas.polyline points, colorCode, width for points in toDraw
 
       when "Polygon"
@@ -166,12 +165,10 @@ module.exports = class Renderer
             x = point[0] - text.length
             margin = @config.layers[layer]?.margin or @config.labelMargin
 
-            write = (text) => @canvas.text text, x, point[1], colorCode, false
-
             if @labelBuffer.writeIfPossible text, x, point[1], margin
-              write text
-            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", x, point[1], 3
-              write "◉"
+              @canvas.text text, x, point[1], colorCode
+            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], 3
+              @canvas.text "◉", point[0], point[1], colorCode
 
   _scaleAndReduce: (points, scale) ->
     lastX = null
