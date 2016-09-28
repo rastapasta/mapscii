@@ -13,6 +13,7 @@ utils = require './utils'
 
 module.exports = class Renderer
   config:
+    baseZoom: 4
     fillPolygons: true
     language: 'de'
 
@@ -21,10 +22,11 @@ module.exports = class Renderer
     #"poi_label", "water",
     drawOrder: [
       "water"
-      "water_label"
       "admin"
       "building"
       "road"
+
+      "water_label"
       "place_label"
       "poi_label"
       "housenum_label"
@@ -145,7 +147,8 @@ module.exports = class Renderer
 
     switch feature.type
       when "LineString"
-        @canvas.polyline points, colorCode for points in toDraw
+        width = style.paint['line-width']?.base or 1
+        @canvas.polyline points, colorCode, width for points in toDraw
 
       when "Polygon"
         @canvas.polygon toDraw[0], colorCode
