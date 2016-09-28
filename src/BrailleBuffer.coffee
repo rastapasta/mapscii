@@ -19,10 +19,10 @@ module.exports = class BrailleBuffer
 
   pixelBuffer: null
   charBuffer: null
-  colorBuffer: null
+  foregroundBuffer: null
+  backgroundBuffer: null
 
-  termReset: "\x1B[39m"
-  termColor: (color) -> "\x1B[38;5;#{color}m"
+  termReset: "\x1B[39;49m"
 
   constructor: (@width, @height) ->
     @pixelBuffer = new Buffer @width*@height/8
@@ -31,12 +31,16 @@ module.exports = class BrailleBuffer
   clear: ->
     @pixelBuffer.fill 0
     @charBuffer = []
-    @colorBuffer = []
+    @foregroundBuffer = []
+    @backgroundBuffer = []
+
+  setBackground: (idx, color) ->
+    @backgroundBuffer[idx] = color
 
   setPixel: (x, y, color) ->
     @_locate x, y, (idx, mask) =>
       @pixelBuffer[idx] |= mask
-      @colorBuffer[idx] = @termColor color
+      @foregroundBuffer[idx] = color
 
   unsetPixel: (x, y) ->
     @_locate x, y, (idx, mask) =>
@@ -51,6 +55,16 @@ module.exports = class BrailleBuffer
     mask = @characterMap[y&3][x&1]
     cb idx, mask
 
+  _termColor: (foreground, background) ->
+    if foreground and background
+      "\x1B[38;5;#{foreground};48;5;#{background}m"
+    else if foreground
+      "\x1B[49;38;5;#{foreground}m"
+    else if background
+      "\x1B[39;48;5;#{background}m"
+    else
+      @termReset
+
   frame: ->
     output = []
     currentColor = null
@@ -59,7 +73,7 @@ module.exports = class BrailleBuffer
     for idx in [0...@pixelBuffer.length]
       output.push delimeter unless idx % (@width/2)
 
-      if currentColor isnt colorCode = @colorBuffer[idx] or @termReset
+      if currentColor isnt colorCode = @_termColor @foregroundBuffer[idx], @backgroundBuffer[idx]
         output.push currentColor = colorCode
 
       output.push if @charBuffer[idx]
@@ -76,7 +90,7 @@ module.exports = class BrailleBuffer
     return unless 0 <= x < @width and 0 <= y < @height
     idx = @_project x, y
     @charBuffer[idx] = char
-    @colorBuffer[idx] = @termColor color
+    @foregroundBuffer[idx] = color
 
   writeText: (text, x, y, color, center = true) ->
     x -= text.length/2+1 if center
