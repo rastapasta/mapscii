@@ -48,6 +48,7 @@ module.exports = class Renderer
       poi_label:
         minZoom: 3
         margin: 5
+        cluster: true
 
   isDrawing: false
   lastDrawAt: 0
@@ -138,11 +139,6 @@ module.exports = class Renderer
 
       when "Polygon"
         @canvas.polygon toDraw[0], colorCode
-        # points = toDraw[0]
-        # for y in [Math.max(0,Math.floor(data.minY/scale))..Math.min(@height, Math.floor(data.maxY/scale))] by 4
-        #   for x in [Math.max(0, Math.floor(data.minX/scale))..Math.min(@width, Math.floor(data.maxX/scale))] by 2
-        #     if utils.pointInPolygon points, [x, y]
-        #       @canvas.background x, y, colorCode
 
       when "Point"
         text = feature.properties["name_"+@config.language] or
@@ -155,8 +151,14 @@ module.exports = class Renderer
         for points in toDraw
           for point in points
             x = point[0] - text.length
-            if @labelBuffer.writeIfPossible text, x, point[1], (@config.layers[layer]?.margin or @config.labelMargin)
-              @canvas.text text, x, point[1], colorCode, false
+            margin = @config.layers[layer]?.margin or @config.labelMargin
+
+            write = (text) => @canvas.text text, x, point[1], colorCode, false
+
+            if @labelBuffer.writeIfPossible text, x, point[1],
+              write text
+            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", x, point[1], 3
+              write "◉"
 
   _scaleAndReduce: (points, scale) ->
     lastX = null
