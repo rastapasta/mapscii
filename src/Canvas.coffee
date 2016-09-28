@@ -16,6 +16,7 @@ glMatrix = require 'gl-matrix'
 earcut = require 'earcut'
 
 BrailleBuffer = require './BrailleBuffer'
+utils = require './utils'
 
 vec2 = glMatrix.vec2
 mat2d = glMatrix.mat2d
@@ -56,8 +57,15 @@ module.exports = class Canvas
   # TODO: support for polygon holes
   polygon: (points, color) ->
     vertices = []
+    lastPoint = [-1, -1]
     for point in points
-      vertices = vertices.concat @_project point[0], point[1]
+      point = @_project point[0], point[1]
+      point[0] = utils.clamp point[0], 0, @width
+      point[1] = utils.clamp point[1], 0, @height
+      
+      if point[0] isnt lastPoint[0] or point[1] isnt lastPoint[1]
+        vertices = vertices.concat point[0], point[1]
+        lastPoint = point
 
     triangles = earcut vertices
     extract = (pointId) ->

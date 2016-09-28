@@ -6,6 +6,9 @@
 ###
 
 utils =
+  clamp: (num, min, max) ->
+    if num <= min then min else if num >= max then max else num
+
   # Based on W. Randolph Franklin (WRF)'s Point Inclusion in Polygon Test
   # https://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
   pointInPolygon: (polygon, point) ->

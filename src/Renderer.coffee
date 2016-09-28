@@ -19,7 +19,7 @@ module.exports = class Renderer
     labelMargin: 5
 
     #"poi_label", "water",
-    drawOrder: ["admin", "building", "road", "place_label", "poi_label", "housenum_label"]
+    drawOrder: ["water", "admin", "building", "road", "place_label", "poi_label", "housenum_label"]
 
     icons:
       car: "🚗"
