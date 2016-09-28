@@ -73,7 +73,7 @@ module.exports = class BrailleBuffer
     delimeter = "\n"
 
     for idx in [0...@pixelBuffer.length]
-      output.push delimeter unless idx % (@width/2)
+      output.push delimeter if idx and (idx % (@width/2)) is 0
 
       if currentColor isnt colorCode = @_termColor @foregroundBuffer[idx], @backgroundBuffer[idx]
         output.push currentColor = colorCode

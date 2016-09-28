@@ -17,7 +17,7 @@ const Tile = require(__dirname+'/src/Tile')
 termap = new Termap();
 
 // TODO: abstracing this class, create loader class
-data = fs.readFileSync(__dirname+"/tiles/regensburg.pbf.gz");
+data = fs.readFileSync(__dirname+"/tiles/germany.pbf.gz");
 tile = new Tile(data);
 termap.renderer.features = tile.layers
 termap._draw();

@@ -1160,6 +1160,14 @@
     },
     {
       "type": "symbol",
+      "id": "water_label",
+      "paint": {
+        "text-color": "#333"
+      },
+      "source-layer": "housenum_label"
+    },
+    {
+      "type": "symbol",
       "id": "place_label_other",
       "paint": {
         "text-color": "#633"

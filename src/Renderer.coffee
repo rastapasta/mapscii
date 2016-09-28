@@ -19,7 +19,18 @@ module.exports = class Renderer
     labelMargin: 5
 
     #"poi_label", "water",
-    drawOrder: ["water", "admin", "building", "road", "place_label", "poi_label", "housenum_label"]
+    drawOrder: [
+      "water"
+      "water_label"
+      "admin"
+      "building"
+      "road"
+      "place_label"
+      "poi_label"
+      "housenum_label"
+      "country_label"
+      "state_label"
+    ]
 
     icons:
       car: "🚗"
@@ -155,7 +166,7 @@ module.exports = class Renderer
 
             write = (text) => @canvas.text text, x, point[1], colorCode, false
 
-            if @labelBuffer.writeIfPossible text, x, point[1],
+            if @labelBuffer.writeIfPossible text, x, point[1], margin
               write text
             else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", x, point[1], 3
               write "◉"
