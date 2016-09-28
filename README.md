@@ -2,6 +2,8 @@
 
 No web browser around? No worries - discover the planet in your console!
 
+<img src="http://i.imgur.com/yYVt7No.png" width="100%" />
+
 * Use your mouse or keys to navigate
 * Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
@@ -9,6 +11,8 @@ No web browser around? No worries - discover the planet in your console!
 * Highly customizable styling (colors, feature visibility, ...)
 * Compatible with Linux and OS X (Windows to be tested)
 * 99% pure Coffee-/JavaScript! :sunglasses:
+
+
 
 ## How to get it?
 
