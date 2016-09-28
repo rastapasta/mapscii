@@ -15,7 +15,7 @@ utils = require './utils'
 
 module.exports = class Termap
   config:
-    styleFile: __dirname+"/../styles/bright.json"
+    styleFile: __dirname+"/../styles/basic.json"
     zoomStep: 0.4
 
   width: null

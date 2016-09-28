@@ -22,6 +22,8 @@ module.exports = class BrailleBuffer
   foregroundBuffer: null
   backgroundBuffer: null
 
+  globalBackground: null
+
   termReset: "\x1B[39;49m"
 
   constructor: (@width, @height) ->
@@ -33,6 +35,8 @@ module.exports = class BrailleBuffer
     @charBuffer = []
     @foregroundBuffer = []
     @backgroundBuffer = []
+
+  setGlobalBackground: (@globalBackground) ->
 
   setBackground: (x, y, color) ->
     return unless 0 <= x < @width and 0 <= y < @height
@@ -58,6 +62,7 @@ module.exports = class BrailleBuffer
     cb idx, mask
 
   _termColor: (foreground, background) ->
+    background = background or @globalBackground
     if foreground and background
       "\x1B[38;5;#{foreground};48;5;#{background}m"
     else if foreground

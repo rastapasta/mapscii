@@ -50,6 +50,9 @@ module.exports = class Canvas
       bresenham projected[i-1]..., projected[i]...,
         (x, y) => @buffer.setPixel x, y, color
 
+  setBackground: (color) ->
+    @buffer.setGlobalBackground color
+
   background: (x, y, color) ->
     point = @_project x, y
     @buffer.setBackground point[0], point[1], color
@@ -62,7 +65,7 @@ module.exports = class Canvas
       point = @_project point[0], point[1]
       point[0] = utils.clamp point[0], 0, @width
       point[1] = utils.clamp point[1], 0, @height
-      
+
       if point[0] isnt lastPoint[0] or point[1] isnt lastPoint[1]
         vertices = vertices.concat point[0], point[1]
         lastPoint = point

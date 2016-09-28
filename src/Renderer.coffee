@@ -85,10 +85,9 @@ module.exports = class Renderer
     @labelBuffer.clear()
 
     # TODO: better way for background color instead of setting filling FG?
-    # if color = @styler.styleById['background']?.paint['background-color']
-    #   @canvas.strokeStyle = x256 utils.hex2rgb(color)...
-    #   @canvas.fillRect 0, 0, @width, @height
-    # else
+    if color = @styler.styleById['background']?.paint['background-color']
+      @canvas.setBackground x256 utils.hex2rgb color
+
     @canvas.clear()
     @canvas.reset()
 
