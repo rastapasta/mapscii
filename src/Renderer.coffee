@@ -76,7 +76,7 @@ module.exports = class Renderer
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
 
-  draw: (@view, @zoom) ->
+  draw: (@view, @zoom, @degree) ->
     return if @isDrawing
     @isDrawing = true
     @lastDrawAt = Date.now()

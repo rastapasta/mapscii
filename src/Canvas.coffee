@@ -37,6 +37,9 @@ module.exports = class Canvas
   translate: (x, y) ->
     mat2d.translate @matrix, @matrix, vec2.fromValues(x, y)
 
+  rotate: (angle) ->
+    mat2d.rotate @matrix, @matrix, angle/180*Math.PI
+
   clear: ->
     @buffer.clear()
 

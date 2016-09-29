@@ -26,6 +26,7 @@ module.exports = class Termap
   mousePosition: [0, 0]
   mouseDragging: false
 
+  degree: 0
   center:
     lat: 0
     lng: 0
@@ -110,23 +111,27 @@ module.exports = class Termap
 
       when "z" then @zoomBy @config.zoomStep
       when "a" then @zoomBy -@config.zoomStep
+
+      when "k" then @degree += 15
+      when "l" then @degree -= 15
+
       when "left" then @view[0] += 5
       when "right" then @view[0] -= 5
       when "up" then @view[1]+= 5
       when "down" then @view[1]-= 5
 
       else
-        false
+        null
 
-    if draw
+    if draw isnt null
       @_draw()
-    # else
-    #   # display debug info for unhandled keys
-    #   @notify JSON.stringify key
+    else
+      # display debug info for unhandled keys
+      @renderer.notify JSON.stringify key
 
 
   _draw: ->
-    @renderer.draw @view, @zoom
+    @renderer.draw @view, @zoom, @degree
     @renderer.notify @_getFooter()
 
   _getTiles: ->
