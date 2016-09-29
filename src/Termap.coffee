@@ -27,13 +27,11 @@ module.exports = class Termap
   mouseDragging: false
 
   center:
-    lat: 49.019855
-    lng: 12.096956
+    lat: 0
+    lng: 0
 
-  zoom: 2
+  zoom: 0
   view: [0, 0]
-
-  scale: 4
 
   constructor: ->
     @_initControls()
@@ -66,14 +64,14 @@ module.exports = class Termap
 
   _resizeRenderer: (cb) ->
     @width = process.stdout.columns >> 1 << 2
-    @height = process.stdout.rows * 4
+    @height = process.stdout.rows * 4 - 4
 
     @renderer.setSize @width, @height
 
   _onClick: (event) ->
     if @mouseDragging and event.button is "left"
-      @view[0] -= (@mouseDragging.x-@mousePosition.x)*2
-      @view[1] -= (@mouseDragging.y-@mousePosition.y)*4
+      @view[0] -= (@mouseDragging.x-@mousePosition.x)<<1
+      @view[1] -= (@mouseDragging.y-@mousePosition.y)<<2
       @_draw()
 
       @mouseDragging = false
@@ -88,11 +86,19 @@ module.exports = class Termap
     return unless event.x <= process.stdout.columns and event.y <= process.stdout.rows
 
     # start dragging
-    if not @mouseDragging and event.button is "left"
-      @mouseDragging = x: event.x, y: event.y
+    if event.button is "left"
+      if @mouseDragging
+        @view[0] -= (@mouseDragging.x-event.x)<<1
+        @view[1] -= (@mouseDragging.y-event.y)<<2
 
-    # update internal mouse tracker
-    @mousePosition = x: event.x, y: event.y
+        if not @renderer.isDrawing and @renderer.lastDrawAt < Date.now()-100
+          @_draw()
+          @mouseDragging = x: event.x, y: event.y
+      else
+        @mouseDragging = x: event.x, y: event.y
+
+      # update internal mouse tracker
+      @mousePosition = x: event.x, y: event.y
 
   _onKey: (key) ->
     # check if the pressed key is configured
@@ -121,23 +127,26 @@ module.exports = class Termap
     @renderer.draw @view, @zoom
     @renderer.notify @_getFooter()
 
+  _getTiles: ->
+
   _getBBox: ->
-    [x, y] = mercator.forward [@center.lng, @center.lat]
+    [x, y] = mercator.ll [@center.lng, @center.lat]
     width = @width * Math.pow(2, @zoom)
     height = @height * Math.pow(2, @zoom)
-
-    mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
+    zoom = 18-@zoom
+    [width, height, zoom]
+    #mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
 
   _getFooter: ->
-    "center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
-    # bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(',')}]"
+    #{}"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
+    "bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
+    #{}"#{@mouseDragging.x} #{@mouseDragging.y}   #{@mousePosition.x} #{@mousePosition.y}"
 
   zoomBy: (step) ->
-    return unless @scale+step > 0
+    return @zoom = 0 if @zoom+step < 0
 
-    before = @scale
-    @scale += step
+    before = @zoom
     @zoom += step
 
-    @view[0] = @view[0]*before/@scale + if step > 0 then 8 else -8
-    @view[1] = @view[1]*before/@scale + if step > 0 then 8 else -8
+    @view[0] = @view[0]*before/@zoom + if step > 0 then 8 else -8
+    @view[1] = @view[1]*before/@zoom + if step > 0 then 8 else -8
