@@ -100,6 +100,10 @@ module.exports = class Renderer
 
     @isDrawing = false
 
+  featuresAt: (x, y) ->
+    @labelBuffer.featuresAt x, y
+
+
   _write: (output) ->
     process.stdout.write output
 
@@ -165,9 +169,9 @@ module.exports = class Renderer
             x = point[0] - text.length
             margin = @config.layers[layer]?.margin or @config.labelMargin
 
-            if @labelBuffer.writeIfPossible text, x, point[1], margin
+            if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
               @canvas.text text, x, point[1], colorCode
-            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], 3
+            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
               @canvas.text "◉", point[0], point[1], colorCode
 
   _scaleAndReduce: (points, scale) ->

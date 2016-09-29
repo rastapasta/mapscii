@@ -9,7 +9,9 @@
 rbush = require 'rbush'
 
 module.exports = class LabelBuffer
+  treeWithMargin: null
   tree: null
+
   margin: 5
 
   constructor: (@width, @height) ->
@@ -18,22 +20,28 @@ module.exports = class LabelBuffer
   clear: ->
     @tree.clear()
 
+
   project: (x, y) ->
     [Math.floor(x/2), Math.floor(y/4)]
 
-  writeIfPossible: (text, x, y, margin = @margin) ->
+  writeIfPossible: (text, x, y, feature, margin = @margin) ->
     point = @project x, y
 
     if @_hasSpace text, point[0], point[1]
-      @tree.insert @_calculateArea text, point[0], point[1], margin
+      data = @_calculateArea text, point[0], point[1], margin
+      data.feature = feature
+      @tree.insert data
     else
       false
 
-  _hasSpace: (text, x, y) ->
-    not @tree.collides @_calculateArea text, x, y, 0
+  featuresAt: (x, y) ->
+    @tree.search minX: x, maxX: x, minY: y, maxY: y
 
-  _calculateArea: (text, x, y, margin) ->
+  _hasSpace: (text, x, y) ->
+    not @tree.collides @_calculateArea text, x, y
+
+  _calculateArea: (text, x, y, margin = 0) ->
     minX: x-margin
-    minY: y-margin
+    minY: y-margin/4
     maxX: x+margin+text.length
-    maxY: y+margin
+    maxY: y+margin/4

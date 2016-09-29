@@ -97,8 +97,10 @@ module.exports = class Termap
       else
         @mouseDragging = x: event.x, y: event.y
 
-      # update internal mouse tracker
-      @mousePosition = x: event.x, y: event.y
+    # update internal mouse tracker
+    @mousePosition = x: event.x, y: event.y
+    @renderer.notify @_getFooter()
+
 
   _onKey: (key) ->
     # check if the pressed key is configured
@@ -138,9 +140,13 @@ module.exports = class Termap
     #mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
 
   _getFooter: ->
-    #{}"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
-    "bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
-    #{}"#{@mouseDragging.x} #{@mouseDragging.y}   #{@mousePosition.x} #{@mousePosition.y}"
+    features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
+    "features: ["+features.map((f) -> f.feature.id).join(", ")+"] "+
+    "#{@mousePosition.x} #{@mousePosition.y}"
+    #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
+    #"bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
+
+    #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
   zoomBy: (step) ->
     return @zoom = 0 if @zoom+step < 0
