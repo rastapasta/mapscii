@@ -146,7 +146,12 @@ module.exports = class Termap
 
   _getFooter: ->
     features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
-    "features: ["+features.map((f) -> f.feature.id).join(", ")+"] "+
+    "features: ["+features.map((f) ->
+      JSON.stringify
+        name: f.feature.properties.name
+        type: f.feature.properties.type
+        rank: f.feature.properties.scalerank
+    ).join(", ")+"] "+
     "#{@mousePosition.x} #{@mousePosition.y}"
     #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
     #"bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"

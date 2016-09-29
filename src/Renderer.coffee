@@ -54,11 +54,8 @@ module.exports = class Renderer
 
     layers:
       housenum_label:
-        minZoom: 1.5
         margin: 3
-      building: minZoom: 3.8
       poi_label:
-        minZoom: 3
         margin: 5
         cluster: true
 
@@ -135,7 +132,7 @@ module.exports = class Renderer
     feature.type = "LineString" if layer is "building" or layer is "road"
 
     # TODO: zoom level
-    unless style = @styler.getStyleFor layer, feature, 14
+    unless style = @styler.getStyleFor layer, feature, 19-@zoom
       return false
 
     toDraw = (@_scaleAndReduce points, scale for points in feature.points)

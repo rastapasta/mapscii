@@ -3,13 +3,12 @@
   by Michael Strassburger <codepoet@cpan.org>
 
   Using 2D spatial indexing to avoid overlapping labels and markers
-  Future: to detect collision on mouse interaction
+  and to find labels underneath a mouse cursor's position
 ###
 
 rbush = require 'rbush'
 
 module.exports = class LabelBuffer
-  treeWithMargin: null
   tree: null
 
   margin: 5
@@ -19,7 +18,6 @@ module.exports = class LabelBuffer
 
   clear: ->
     @tree.clear()
-
 
   project: (x, y) ->
     [Math.floor(x/2), Math.floor(y/4)]
@@ -42,6 +40,6 @@ module.exports = class LabelBuffer
 
   _calculateArea: (text, x, y, margin = 0) ->
     minX: x-margin
-    minY: y-margin/4
+    minY: y-margin/2
     maxX: x+margin+text.length
-    maxY: y+margin/4
+    maxY: y+margin/2

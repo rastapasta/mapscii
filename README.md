@@ -48,7 +48,9 @@ No web browser around? No worries - discover the planet in your console!
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
 ### TODOs
-* [ ] mouse hover of POIs (maybe even polygons?)
+* [ ] mouse hover
+  * [x] of POIs/labels
+  * [ ] maybe even polygons/-lines?
 * [ ] termap-server - telnet and ssh access
 * [ ] cli linking
 * [ ] mapping of view to tiles to show
