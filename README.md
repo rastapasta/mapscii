@@ -48,47 +48,69 @@ No web browser around? No worries - discover the planet in your console!
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
 
 ### TODOs
-* [ ] mouse hover
-  * [x] of POIs/labels
-  * [ ] maybe even polygons/-lines?
-* [ ] termap-server - telnet and ssh access
-* [ ] cli linking
-* [ ] mapping of view to tiles to show
-* [x] abstracted MapBox style JSON support
-* [ ] giving render priority to features across layers (collect before render vs. direct)?
-* [ ] line drawing
-  * [ ] support for stroke width
-  * [ ] support for dashed/dotted lines?
-* [ ] label drawing
-  * [x] support for point labels
-  * [x] dynamic decluttering of labels
-  * [x] centering text labels
-  * [x] clipping fix when x<0 after repositioning
-  * [ ] multi line label
-  * [ ] label margin to avoid POI overlap?
-  * [ ] translatable raster fonts
-* [x] filled polygons
-  * [x] convert polygons to triangles
-  * [x] implement fillTriangle into drawille-canvas-blessed-contrib
-  * [ ] respect fill/line style file based setting
-* [ ] lat/lng-center + zoom based viewport
-  * [ ] bbox awareness
-  * [ ] zoom -> scale calculation
-* [ ] Tile parsing
-  * [ ] directly throw away features that aren't covered by any style
-* [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
-* [ ] tile request system
-  * [ ] from local mbtiles
-  * [ ] from remote url
-    * [ ] permanent caching of received files
-* [ ] zoom while keeping center
-* [ ] API
-  * [ ] setCenter
-  * [ ] setZoom
-* [x] start with zoom level which shows full vector tile
-* [x] accurate mouse drag&drop
+* Termap
+  * [ ] CLI support
+    * [ ] global linking for npm install -g
+    * [ ] startup parameters
+      * [ ] Style
+      * [ ] center position
+      * [ ] POI filter?
+      * [ ] VectorTile
+      * [ ] MBTile
+      * [ ] Tileserver
+  * [ ] termap-server
+    * [ ] telnet
+    * [ ] ssh
+  * [ ] Viewport
+    * [x] start with zoom level which shows full vector tile
+    * [ ] boundary based on current zoom & size
+    * [ ] determain tiles to show
+    * [ ] zoom while keeping center
+    * [ ] calculate tile areas
+    * [ ] center based on mercator
+    * [x] handle console resize
 * [x] handle console resize
-* [x] styling
+  * [ ] mouse control
+    * [x] accurate mouse drag&drop with instant update
+    * [x] hover POIs/labels
+    * [ ] hover maybe even polygons/-lines?
+  * [ ] API
+    * [ ] setCenter
+    * [ ] setZoom
+
+* Styler
+  * [x] compile filters to function chains
+  * [ ] support constants
+
+* Renderer
+  * [ ] position tiles accordingly
+  * [ ] line drawing
+    * [x] support for stroke width
+    * [ ] support for dashed/dotted lines?
+  * [x] feature selection for priority rerendering (roads -> warter -> roads:bridges)
+
+  * [ ] label drawing
+    * [x] support for point labels
+    * [x] dynamic decluttering of labels
+    * [x] centering text labels
+    * [x] clipping fix when x<0 after repositioning
+    * [ ] multi line label
+    * [x] label margin to avoid POI overlap?
+    * [ ] translatable raster fonts
+
+  * [x] filled polygons
+    * [x] convert polygons to triangles
+    * [x] use triangulation for filling
+    * [ ] respect fill/line style file based setting
+
+* Tile
+  * [x] directly throw away features that aren't covered by any style
+  * [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
+  * [ ] tile request system
+    * [ ] from local mbtiles
+    * [ ] from remote url
+      * [ ] permanent caching of received files
+
 
 ## License
 #### The MIT License (MIT)
