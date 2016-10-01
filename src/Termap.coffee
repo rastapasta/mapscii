@@ -15,6 +15,9 @@ utils = require './utils'
 
 module.exports = class Termap
   config:
+    input: process.stdin
+    output: process.stdout
+
     styleFile: __dirname+"/../styles/bright.json"
     zoomStep: 0.4
 
@@ -34,18 +37,23 @@ module.exports = class Termap
   zoom: 0
   view: [0, 0]
 
-  constructor: ->
-    @_initControls()
+  constructor: (options) ->
+    @config[key] = val for key, val of options
+
+    @_initKeyboard()
+    @_initMouse()
+
     @_initRenderer()
 
-  _initControls: ->
-    keypress process.stdin
-    process.stdin.setRawMode true
-    process.stdin.resume()
+  _initKeyboard: ->
+    keypress @config.input
+    @config.input.setRawMode true
+    @config.input.resume()
 
-    process.stdin.on 'keypress', (ch, key) => @_onKey key
+    @config.input.on 'keypress', (ch, key) => @_onKey key
 
-    @mouse = TermMouse()
+  _initMouse: ->
+    @mouse = TermMouse input: @config.input, output: @config.output
     @mouse.start()
 
     @mouse.on 'click', (event) => @_onClick event
@@ -53,10 +61,10 @@ module.exports = class Termap
     @mouse.on 'move', (event) => @_onMouseMove event
 
   _initRenderer: ->
-    @renderer = new Renderer()
+    @renderer = new Renderer @config.output
     @renderer.loadStyleFile @config.styleFile
 
-    process.stdout.on 'resize', =>
+    @config.output.on 'resize', =>
       @_resizeRenderer()
       @_draw()
 
@@ -64,8 +72,8 @@ module.exports = class Termap
     @zoom = Math.log(4096/@width)/Math.LN2
 
   _resizeRenderer: (cb) ->
-    @width = process.stdout.columns >> 1 << 2
-    @height = process.stdout.rows * 4 - 4
+    @width = @config.output.columns >> 1 << 2
+    @height = @config.output.rows * 4 - 4
 
     @renderer.setSize @width, @height
 
@@ -84,7 +92,7 @@ module.exports = class Termap
 
   _onMouseMove: (event) ->
     # only continue if x/y are valid
-    return unless event.x <= process.stdout.columns and event.y <= process.stdout.rows
+    return unless event.x <= @config.output.columns and event.y <= @config.output.rows
 
     # start dragging
     if event.button is "left"

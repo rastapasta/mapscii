@@ -69,7 +69,7 @@ No web browser around? No worries - discover the planet in your console!
     * [ ] calculate tile areas
     * [ ] center based on mercator
     * [x] handle console resize
-* [x] handle console resize
+  * [x] handle console resize
   * [ ] mouse control
     * [x] accurate mouse drag&drop with instant update
     * [x] hover POIs/labels

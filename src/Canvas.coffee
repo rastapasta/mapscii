@@ -31,8 +31,8 @@ module.exports = class Canvas
   reset: ->
     @matrix = mat2d.create()
 
-  print: ->
-    process.stdout.write @buffer.frame()
+  frame: ->
+    @buffer.frame()
 
   translate: (x, y) ->
     mat2d.translate @matrix, @matrix, vec2.fromValues(x, y)

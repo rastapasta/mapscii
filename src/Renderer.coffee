@@ -23,6 +23,7 @@ module.exports = class Renderer
     drawOrder: [
       "admin"
       "building"
+
       "road"
       "water"
       "road:structure=bridge"
@@ -65,7 +66,7 @@ module.exports = class Renderer
 
   labelBuffer: null
 
-  constructor: ->
+  constructor: (@output) ->
     @labelBuffer = new LabelBuffer()
 
   loadStyleFile: (file) ->
@@ -83,7 +84,6 @@ module.exports = class Renderer
 
     @labelBuffer.clear()
 
-    # TODO: better way for background color instead of setting filling FG?
     if color = @styler.styleById['background']?.paint['background-color']
       @canvas.setBackground x256 utils.hex2rgb color
 
@@ -93,14 +93,13 @@ module.exports = class Renderer
     @canvas.translate @view[0], @view[1]
     @_drawLayers()
 
-    process.stdout.cursorTo 0, 0
-    @canvas.print()
+    @output.write "\x1B[?6h"
+    @output.write @canvas.frame()
 
     @isDrawing = false
 
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
-
 
   _write: (output) ->
     process.stdout.write output
