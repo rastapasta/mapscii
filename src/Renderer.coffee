@@ -21,10 +21,11 @@ module.exports = class Renderer
 
     #"poi_label", "water",
     drawOrder: [
-      "water"
       "admin"
       "building"
       "road"
+      "water"
+      "road:structure=bridge"
 
       "place_label"
       "poi_label"
@@ -106,6 +107,12 @@ module.exports = class Renderer
 
   _drawLayers: ->
     for layer in @config.drawOrder
+      if layer.indexOf(':') isnt -1
+        [layer, filter] = layer.split /:/
+        [filterField, filterValue] = filter.split /=/
+      else
+        filter = false
+
       continue unless @features?[layer]
 
       scale = Math.pow 2, @zoom
@@ -122,7 +129,8 @@ module.exports = class Renderer
       features = @features[layer].tree.search box
       @notify "rendering #{features.length} #{layer} features.."
       for feature in features
-        @_drawFeature layer, feature, scale
+        if not filter or feature.data.properties[filterField] is filterValue
+          @_drawFeature layer, feature, scale
 
   _drawFeature: (layer, data, scale) ->
     feature = data.data
