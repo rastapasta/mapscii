@@ -19,7 +19,7 @@ module.exports = class Termap
     output: process.stdout
 
     styleFile: __dirname+"/../styles/bright.json"
-    zoomStep: 0.4
+    zoomStep: 0.2
 
   width: null
   height: null
@@ -32,7 +32,7 @@ module.exports = class Termap
   degree: 0
   center:
     lat: 0
-    lng: 0
+    lon: 0
 
   zoom: 0
   view: [0, 0]
@@ -69,7 +69,7 @@ module.exports = class Termap
       @_draw()
 
     @_resizeRenderer()
-    @zoom = Math.log(4096/@width)/Math.LN2
+    @zoom = 4-Math.log(4096/@width)/Math.LN2
 
   _resizeRenderer: (cb) ->
     @width = @config.output.columns >> 1 << 2
@@ -87,7 +87,7 @@ module.exports = class Termap
 
   _onMouseScroll: (event) ->
     # TODO: handle .x/y for directed zoom
-    @zoomBy @config.zoomStep * if event.button is "up" then 1 else -1
+    @zoomBy @config.zoomStep * if event.button is "up" then -1 else 1
     @_draw()
 
   _onMouseMove: (event) ->
@@ -117,8 +117,8 @@ module.exports = class Termap
       when "q"
         process.exit 0
 
-      when "z" then @zoomBy @config.zoomStep
-      when "a" then @zoomBy -@config.zoomStep
+      when "a" then @zoomBy @config.zoomStep
+      when "z" then @zoomBy -@config.zoomStep
 
       when "k" then @degree += 15
       when "l" then @degree -= 15
@@ -153,15 +153,16 @@ module.exports = class Termap
     #mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
 
   _getFooter: ->
-    features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
-    "features: ["+features.map((f) ->
-      JSON.stringify
-        name: f.feature.properties.name
-        type: f.feature.properties.type
-        rank: f.feature.properties.scalerank
-    ).join(", ")+"] "+
-    "#{@mousePosition.x} #{@mousePosition.y}"
-    #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}] zoom: #{utils.digits @zoom, 2}"
+    # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
+    # "features: ["+features.map((f) ->
+    #   JSON.stringify
+    #     name: f.feature.properties.name
+    #     type: f.feature.properties.type
+    #     rank: f.feature.properties.scalerank
+    # ).join(", ")+"] "+
+    # "#{@mousePosition.x} #{@mousePosition.y}"
+    #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
+    "zoom: #{utils.digits @zoom, 2} "
     #"bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
 
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
@@ -171,6 +172,3 @@ module.exports = class Termap
 
     before = @zoom
     @zoom += step
-
-    @view[0] = @view[0]*before/@zoom + if step > 0 then 8 else -8
-    @view[1] = @view[1]*before/@zoom + if step > 0 then 8 else -8

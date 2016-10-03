@@ -114,7 +114,7 @@ module.exports = class Renderer
 
       continue unless @features?[layer]
 
-      scale = Math.pow 2, @zoom
+      scale = ((4096/256)<<4)/Math.pow(2, @zoom+4)
 
       if @config.layers[layer]?.minZoom and @zoom > @config.layers[layer].minZoom
         continue
