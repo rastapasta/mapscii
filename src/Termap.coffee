@@ -37,6 +37,8 @@ module.exports = class Termap
   zoom: 0
   view: [0, 0]
 
+  minZoom: null
+
   constructor: (options) ->
     @config[key] = val for key, val of options
 
@@ -69,11 +71,13 @@ module.exports = class Termap
       @_draw()
 
     @_resizeRenderer()
-    @zoom = 4-Math.log(4096/@width)/Math.LN2
+    @zoom = @minZoom
 
   _resizeRenderer: (cb) ->
     @width = @config.output.columns >> 1 << 2
     @height = @config.output.rows * 4 - 4
+
+    @minZoom = 4-Math.log(4096/@width)/Math.LN2
 
     @renderer.setSize @width, @height
 
@@ -168,7 +172,7 @@ module.exports = class Termap
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
   zoomBy: (step) ->
-    return @zoom = 0 if @zoom+step < 0
+    return @zoom = @minZoom if @zoom+step < @minZoom
 
     before = @zoom
     @zoom += step
