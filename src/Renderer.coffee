@@ -19,6 +19,9 @@ module.exports = class Renderer
 
     labelMargin: 5
 
+    tileSize: 4096
+    projectSize: 256
+
     #"poi_label", "water",
     drawOrder: [
       "admin"
@@ -78,7 +81,6 @@ module.exports = class Renderer
   draw: (@view, @zoom, @degree) ->
     return if @isDrawing
     @isDrawing = true
-    @lastDrawAt = Date.now()
 
     @notify "rendering..."
 
@@ -93,16 +95,23 @@ module.exports = class Renderer
     @canvas.translate @view[0], @view[1]
     @_drawLayers()
 
+    unless @lastDrawAt
+      @_clearScreen()
+
     @output.write "\x1B[?6h"
     @output.write @canvas.frame()
 
     @isDrawing = false
+    @lastDrawAt = Date.now()
 
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
 
+  _clearScreen: ->
+    @output.write "\x1B[2J"
+
   _write: (output) ->
-    process.stdout.write output
+    @output.write output
 
   _drawLayers: ->
     for layer in @config.drawOrder
@@ -114,7 +123,7 @@ module.exports = class Renderer
 
       continue unless @features?[layer]
 
-      scale = ((4096/256)<<4)/Math.pow(2, @zoom+4)
+      scale = (@config.tileSize/@config.projectSize)/Math.pow(2, @zoom)
 
       if @config.layers[layer]?.minZoom and @zoom > @config.layers[layer].minZoom
         continue
