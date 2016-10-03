@@ -64,20 +64,44 @@ module.exports = class Canvas
     point = @_project x, y
     @buffer.setBackground point[0], point[1], color
 
-  # TODO: support for polygon holes
-  polygon: (points, color) ->
+  polygon: (polylines, color) ->
     vertices = []
-    lastPoint = [-1, -1]
-    for point in points
-      point = @_project point[0], point[1]
-      point[0] = utils.clamp point[0], 0, @width
-      point[1] = utils.clamp point[1], 0, @height
+    holes = []
 
-      if point[0] isnt lastPoint[0] or point[1] isnt lastPoint[1]
-        vertices = vertices.concat point[0], point[1]
-        lastPoint = point
+    xs = {}
+    ys = {}
 
-    triangles = earcut vertices
+    for points in polylines
+      if vertices.length
+        continue
+        holes.push vertices.length/2
+
+      lastPoint = [-1, -1]
+      for point in points
+        point = @_project point[0], point[1]
+        point[0] = utils.clamp point[0], 0, @width
+        point[1] = utils.clamp point[1], 0, @height
+
+        if point[0] isnt lastPoint[0] or point[1] isnt lastPoint[1]
+          vertices = vertices.concat point[0], point[1]
+
+          xs[point[0]] = ys[point[1]] = true
+          lastPoint = point
+
+      # Check if we actually got a valid polygon after projection and clamping
+      if Object.keys(xs).length is 1 or Object.keys(ys).length is 1
+        if vertices.length
+          # TODO: a line-hole - skip it for now
+          continue
+        else
+          # TODO: a line instead of a polygon - skip it for now
+          return false
+
+    try
+      triangles = earcut vertices, holes
+    catch e
+      return false
+
     extract = (pointId) ->
       [vertices[pointId*2], vertices[pointId*2+1]]
 
