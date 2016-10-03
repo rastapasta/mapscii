@@ -93,7 +93,7 @@ module.exports = class Renderer
     @canvas.reset()
 
     @canvas.translate @view[0], @view[1]
-    @_drawLayers()
+    @_renderLayers()
 
     unless @lastDrawAt
       @_clearScreen()
@@ -113,7 +113,7 @@ module.exports = class Renderer
   _write: (output) ->
     @output.write output
 
-  _drawLayers: ->
+  _renderLayers: ->
     for layer in @config.drawOrder
       if layer.indexOf(':') isnt -1
         [layer, filter] = layer.split /:/

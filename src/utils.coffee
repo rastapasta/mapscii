@@ -5,6 +5,9 @@
   methods used all around
 ###
 
+constants =
+  RADIUS: 6378137
+
 utils =
   clamp: (num, min, max) ->
     if num <= min then min else if num >= max then max else num
@@ -20,6 +23,25 @@ utils =
           inside = !inside
       j = i
     inside
+
+  ll2xy: (lon, lat) ->
+    [
+      utils.deg2rad(lon)*constants.RADIUS,
+      Math.log(Math.tan(Math.PI/4 + utils.deg2rad(lat)/2)) * constants.RADIUS
+    ]
+
+  ll2tile: (lon, lat, zoom) ->
+    x: Math.floor (lon+180)/360*Math.pow(2, zoom)
+    y: Math.floor (1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2, zoom)
+
+  tile2ll: (x, y, zoom) ->
+    n = Math.PI - 2*Math.PI*y/Math.pow(2, zoom)
+
+    lon: x/Math.pow(2, zoom)*360-180
+    lat: 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)))
+
+  metersPerPixel: (zoom, lat = 0) ->
+    (Math.cos(lat * Math.PI/180) * 2 * Math.PI * constants.RADIUS) / (256 * Math.pow(2, zoom))
 
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
@@ -44,8 +66,5 @@ utils =
 
   digits: (number, digits) ->
     Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
-
-  metersPerPixel: (zoom, lat = 0) ->
-    utils.rad2deg(40075017*Math.cos(utils.deg2rad(lat))/Math.pow(2, zoom+8))
 
 module.exports = utils

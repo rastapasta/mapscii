@@ -31,8 +31,10 @@ module.exports = class Termap
 
   degree: 0
   center:
-    lat: 0
-    lon: 0
+    #lat: 49.0189
+    #lon: 12.0990
+    lat: 0 #26.7
+    lon: 0 #20.2
 
   zoom: 0
   view: [0, 0]
@@ -149,12 +151,14 @@ module.exports = class Termap
   _getTiles: ->
 
   _getBBox: ->
-    [x, y] = mercator.ll [@center.lng, @center.lat]
-    width = @width * Math.pow(2, @zoom)
-    height = @height * Math.pow(2, @zoom)
-    zoom = 18-@zoom
-    [width, height, zoom]
-    #mercator.inverse([x - width/2, y + width/2]).concat mercator.inverse([x + width/2, y - width/2])
+    [x, y] = utils.ll2xy @center.lon, @center.lat
+    meterPerPixel = utils.metersPerPixel @zoom, @center.lat
+
+    width = @width * meterPerPixel * .5
+    height = @height * meterPerPixel * .5
+
+    mercator.inverse([x - width, y + height]).concat mercator.inverse([x + width, y - height])
+
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
@@ -166,8 +170,8 @@ module.exports = class Termap
     # ).join(", ")+"] "+
     # "#{@mousePosition.x} #{@mousePosition.y}"
     #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
-    "zoom: #{utils.digits @zoom, 2} "
-    #"bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
+    "zoom: #{utils.digits @zoom, 2} "+
+    "bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
 
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 

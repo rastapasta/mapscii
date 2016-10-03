@@ -1,5 +1,14 @@
 {
   "name": "Bright",
+  "constants": {
+    "@water": "#55c",
+    "@country_label_1": "#ff0",
+    "@country_label_2": "#ff0",
+    "@country_label_3": "#ff0",
+    "@country_label_4": "#ff0",
+    "@admin_level_2": "#f00",
+    "@admin_level_3": "#ccf"
+  },
   "layers": [
     {
       "type": "background",
@@ -183,7 +192,7 @@
       "type": "fill",
       "id": "water",
       "paint": {
-        "fill-color": "#303090"
+        "fill-color": "@water"
       },
       "source-layer": "water"
     },
@@ -1418,7 +1427,7 @@
       "type": "line",
       "id": "admin_level_3",
       "paint": {
-        "line-color": "#9e9cab",
+        "line-color": "@admin_level_3",
         "line-width": {
           "base": 1,
           "stops": [
@@ -1456,7 +1465,7 @@
       "type": "line",
       "id": "admin_level_2",
       "paint": {
-        "line-color": "#9e9cab",
+        "line-color": "@admin_level_2",
         "line-width": {
           "base": 1,
           "stops": [
@@ -2205,7 +2214,7 @@
       "type": "symbol",
       "id": "country_label_4",
       "paint": {
-        "text-color": "#334"
+        "text-color": "@country_label_4"
       },
       "source-layer": "country_label",
       "filter": [
@@ -2232,7 +2241,7 @@
       "type": "symbol",
       "id": "country_label_3",
       "paint": {
-        "text-color": "#334"
+        "text-color": "@country_label_3"
       },
       "source-layer": "country_label",
       "filter": [
@@ -2259,7 +2268,7 @@
       "type": "symbol",
       "id": "country_label_2",
       "paint": {
-        "text-color": "#334"
+        "text-color": "@country_label_2"
       },
       "source-layer": "country_label",
       "filter": [
@@ -2286,7 +2295,7 @@
       "type": "symbol",
       "id": "country_label_1",
       "paint": {
-        "text-color": "#334"
+        "text-color": "@country_label_1"
       },
       "source-layer": "country_label",
       "filter": [
