@@ -19,6 +19,8 @@ module.exports = class Styler
     json = JSON.parse fs.readFileSync(file).toString()
     @styleName = json.name
 
+    @_replaceConstants json.constants, json.layers if json.constants
+
     for style in json.layers
       continue if style.ref
 
@@ -37,7 +39,19 @@ module.exports = class Styler
       if style.appliesTo(feature) and ((layer is "road") or (not style.minzoom) or style.minzoom <= zoom)
           return style
 
-    false
+    return false
+
+  _replaceConstants: (constants, tree) ->
+    for id, node of tree
+      switch typeof node
+        when 'object'
+          continue if node.constructor.name.match /Stream/
+          @_replaceConstants constants, node
+
+        when 'string'
+          if node.charAt(0) is '@'
+            tree[id] = constants[node]
+    null
 
   _compileFilter: (filter) ->
     switch filter?[0]
