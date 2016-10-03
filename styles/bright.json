@@ -1809,7 +1809,7 @@
       "type": "symbol",
       "id": "place_label_other",
       "paint": {
-        "text-color": "#633"
+        "text-color": "#733"
       },
       "source-layer": "place_label",
       "filter": [
@@ -1841,7 +1841,7 @@
       "type": "symbol",
       "id": "place_label_village",
       "paint": {
-        "text-color": "#333"
+        "text-color": "#a33"
       },
       "source-layer": "place_label",
       "filter": [
@@ -1869,7 +1869,7 @@
       "type": "symbol",
       "id": "place_label_town",
       "paint": {
-        "text-color": "#333"
+        "text-color": "#933"
       },
       "source-layer": "place_label",
       "filter": [

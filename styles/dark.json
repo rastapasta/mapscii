@@ -1,0 +1,126 @@
+{
+  "name": "black background",
+  "constants": {
+    "@name": "{name}",
+    "@land": "#111",
+    "@water": "#00f",
+    "@park": "#0f0",
+    "@building": "#ccc",
+    "@label": "#888",
+
+
+    "@road-secondary-filter": ["in", "type", "secondary"],
+    "@road-secondary": "#0f0",
+    "@road-secondary-width": 1,
+
+    "@road-tertiary-filter": ["in", "type", "tertiary"],
+    "@road-tertiary": "#ff0",
+    "@road-local-width": 1,
+
+    "@road-local-filter": ["in", "type", "pedestrian", "footway", "living_street", "residential"],
+    "@road-local": "#f00",
+    "@road-local-width": 1,
+
+
+    "@road-major": "#fcc",
+    "@road-minor": "#fff",
+    "@road-major-width": {
+      "base": 1.4,
+      "stops": [[6, 0.5], [20, 30]]
+    },
+    "@road-minor-width": {
+      "base": 1.55,
+      "stops": [[4, 0.25], [20, 30]]
+    },
+    "@major_rail_hatching_width": {
+      "stops": [[12, 5], [20, 10]]
+    },
+    "@major_rail_hatching_dasharray": [0.05, 10],
+    "@railroad": "#333",
+    "@path": "#555",
+    "@path_width": {
+      "base": 1,
+      "stops": [[15, 1.25], [20, 2]]
+    },
+    "@path_steps_width": {
+      "base": 1.3,
+      "stops": [[15, 1.5], [20, 10]]
+    },
+    "@path_dasharray_primary": [3, 1]
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "@land"
+      }
+    }, {
+      "id": "road_local",
+      "type": "line",
+      "source-layer": "road",
+      "filter": ["all", ["==", "$type", "LineString"], "@road-local-filter"],
+      "paint": {
+        "line-color": "@road-local",
+        "line-width": "@road-local-width"
+      }
+    }, {
+      "id": "road_secondary",
+      "type": "line",
+      "source-layer": "road",
+      "filter": ["all", ["==", "$type", "LineString"], "@road-secondary-filter"],
+      "paint": {
+        "line-color": "@road-secondary",
+        "line-width": "@road-secondary-width"
+      }
+    }, {
+      "id": "road_tertiary",
+      "type": "line",
+      "source-layer": "road",
+      "filter": ["all", ["==", "$type", "LineString"], "@road-tertiary-filter"],
+      "paint": {
+        "line-color": "@road-tertiary",
+        "line-width": "@road-tertiary-width"
+      }
+    }, {
+      "id": "water",
+      "type": "fill",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "@water"
+      }
+    }, {
+      "id": "building",
+      "type": "fill",
+      "source-layer": "building",
+      "paint": {
+        "fill-color": "@building"
+      }
+    }, {
+      "id": "tunnel_minor",
+      "type": "line",
+      "source-layer": "road",
+      "filter": [
+        "all",
+        ["==", "$type", "LineString"],
+        ["==", "structure", "tunnel"],
+        ["in", "type", "motorway_link", "street", "street_limited", "service", "driveway", "path"]
+      ],
+      "paint": {
+        "line-color": "@road-minor",
+        "line-width": "@road-minor-width",
+        "line-dasharray": [0.36, 0.18]
+      }
+    }, {
+      "id": "tunnel_major",
+      "type": "line",
+      "source-layer": "tunnel",
+      "filter": ["all", ["==", "$type", "LineString"], ["type", "class", "motorway", "main"]],
+      "paint": {
+        "line-color": "@road-major",
+        "line-width": "@road-major-width",
+        "line-dasharray": [0.28, 0.14]
+      }
+    }
+  ]
+}
