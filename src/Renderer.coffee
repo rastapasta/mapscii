@@ -167,7 +167,7 @@ module.exports = class Renderer
         @canvas.polyline points, colorCode, width for points in toDraw
 
       when "Polygon"
-        @canvas.polygon toDraw[0], colorCode
+        @canvas.polygon toDraw, colorCode
 
       when "Point"
         text = feature.properties["name_"+@config.language] or

@@ -31,10 +31,10 @@ module.exports = class Termap
 
   degree: 0
   center:
-    #lat: 49.0189
-    #lon: 12.0990
-    lat: 0 #26.7
-    lon: 0 #20.2
+    lat: 49.0189
+    lon: 12.0990
+    #lat: 0 #26.7
+    #lon: 0 #20.2
 
   zoom: 0
   view: [0, 0]
@@ -150,15 +150,33 @@ module.exports = class Termap
 
   _getTiles: ->
 
-  _getBBox: ->
+  _getBBox: (zoom = @zoom) ->
     [x, y] = utils.ll2xy @center.lon, @center.lat
-    meterPerPixel = utils.metersPerPixel @zoom, @center.lat
+    meterPerPixel = utils.metersPerPixel zoom, @center.lat
 
-    width = @width * meterPerPixel * .5
-    height = @height * meterPerPixel * .5
+    width = @width * meterPerPixel
+    height = @height * meterPerPixel
 
-    mercator.inverse([x - width, y + height]).concat mercator.inverse([x + width, y - height])
+    west = x - width*.5
+    east = x + width*.5
+    south = y + height*.5
+    north = y - height*.5
 
+    box = mercator
+    .inverse([west+1, south])
+    .concat mercator.inverse([east-1, north])
+
+  _tilesInBBox: (bbox, zoom = @zoom) ->
+    tile = utils.ll2tile bbox[0], bbox[1], Math.floor zoom
+    tiles =
+      minX: Math.max 0, tile[0]
+      minY: Math.max 0, tile[1]
+
+    tile = utils.ll2tile bbox[2], bbox[3], Math.floor zoom
+    tiles.maxX = Math.max 0, tile[0]
+    tiles.maxY = Math.max 0, tile[1]
+
+    tiles
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
@@ -170,8 +188,12 @@ module.exports = class Termap
     # ).join(", ")+"] "+
     # "#{@mousePosition.x} #{@mousePosition.y}"
     #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
+    bbox = @_getBBox()
+
     "zoom: #{utils.digits @zoom, 2} "+
-    "bbox: [#{@_getBBox().map((z) -> utils.digits(z, 2)).join(', ')}]"
+    #{}"bbox: [#{bbox.map((z) -> utils.digits(z, 2)).join(', ')}]"+
+    "tiles: "+(v for k,v of @_tilesInBBox(bbox) when typeof v is "number").join(",")
+
 
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
