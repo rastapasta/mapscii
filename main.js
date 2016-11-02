@@ -15,9 +15,4 @@ const Termap = require(__dirname+'/src/Termap');
 const Tile = require(__dirname+'/src/Tile')
 
 termap = new Termap();
-
-// TODO: abstracing this class, create loader class
-data = fs.readFileSync(__dirname+"/tiles/world.pbf.gz");
-tile = new Tile(data);
-termap.renderer.features = tile.layers
-termap._draw();
+termap.init();

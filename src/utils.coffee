@@ -48,6 +48,7 @@ utils =
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
     angle * 0.017453292519943295
+
   rad2deg: (angle) ->
     angle / Math.PI * 180
 

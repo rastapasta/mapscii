@@ -7,10 +7,11 @@
 
 keypress = require 'keypress'
 TermMouse = require 'term-mouse'
-
+Promise = require 'bluebird'
 mercator = new (require('sphericalmercator'))()
 
 Renderer = require './Renderer'
+TileSource = require './TileSource'
 utils = require './utils'
 
 module.exports = class Termap
@@ -18,6 +19,7 @@ module.exports = class Termap
     input: process.stdin
     output: process.stdout
 
+    source: __dirname+"/../tiles/planet.z0-z8.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
     zoomStep: 0.2
 
@@ -29,12 +31,14 @@ module.exports = class Termap
   mousePosition: [0, 0]
   mouseDragging: false
 
+  tileSource: null
+
   degree: 0
   center:
-    lat: 49.0189
-    lon: 12.0990
-    #lat: 0 #26.7
-    #lon: 0 #20.2
+    #lat: 49.0189
+    #lon: 12.0990
+    lat: 54.133028
+    lon: 10.609505
 
   zoom: 0
   view: [0, 0]
@@ -44,10 +48,26 @@ module.exports = class Termap
   constructor: (options) ->
     @config[key] = val for key, val of options
 
-    @_initKeyboard()
-    @_initMouse()
+  init: ->
+    Promise
+    .resolve()
+    .then =>
+      @_initKeyboard()
+      @_initMouse()
 
-    @_initRenderer()
+      console.log "loading tilesource"
+      @_initTileSource()
+
+    .then =>
+      console.log "loaded"
+      @_initRenderer()
+
+    .then =>
+      @_draw()
+
+  _initTileSource: ->
+    @tileSource = new TileSource()
+    @tileSource.init @config.source
 
   _initKeyboard: ->
     keypress @config.input
@@ -65,7 +85,7 @@ module.exports = class Termap
     @mouse.on 'move', (event) => @_onMouseMove event
 
   _initRenderer: ->
-    @renderer = new Renderer @config.output
+    @renderer = new Renderer @config.output, @tileSource
     @renderer.loadStyleFile @config.styleFile
 
     @config.output.on 'resize', =>
@@ -129,10 +149,10 @@ module.exports = class Termap
       when "k" then @degree += 15
       when "l" then @degree -= 15
 
-      when "left" then @view[0] += 5
-      when "right" then @view[0] -= 5
-      when "up" then @view[1]+= 5
-      when "down" then @view[1]-= 5
+      when "left" then @center.lon -= 1
+      when "right" then @center.lon += 1
+      when "up" then @center.lat += 1
+      when "down" then @center.lat -= 1
 
       else
         null
@@ -143,40 +163,11 @@ module.exports = class Termap
       # display debug info for unhandled keys
       @renderer.notify JSON.stringify key
 
-
   _draw: ->
-    @renderer.draw @view, @zoom, @degree
-    @renderer.notify @_getFooter()
-
-  _getTiles: ->
-
-  _getBBox: (zoom = @zoom) ->
-    [x, y] = utils.ll2xy @center.lon, @center.lat
-    meterPerPixel = utils.metersPerPixel zoom, @center.lat
-
-    width = @width * meterPerPixel
-    height = @height * meterPerPixel
-
-    west = x - width*.5
-    east = x + width*.5
-    south = y + height*.5
-    north = y - height*.5
-
-    box = mercator
-    .inverse([west+1, south])
-    .concat mercator.inverse([east-1, north])
-
-  _tilesInBBox: (bbox, zoom = @zoom) ->
-    tile = utils.ll2tile bbox[0], bbox[1], Math.floor zoom
-    tiles =
-      minX: Math.max 0, tile[0]
-      minY: Math.max 0, tile[1]
-
-    tile = utils.ll2tile bbox[2], bbox[3], Math.floor zoom
-    tiles.maxX = Math.max 0, tile[0]
-    tiles.maxY = Math.max 0, tile[1]
-
-    tiles
+    @renderer
+    .draw @center, @zoom, @degree
+    .then =>
+      @renderer.notify @_getFooter()
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
@@ -188,11 +179,11 @@ module.exports = class Termap
     # ).join(", ")+"] "+
     # "#{@mousePosition.x} #{@mousePosition.y}"
     #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
-    bbox = @_getBBox()
-
-    "zoom: #{utils.digits @zoom, 2} "+
+    # bbox = @_getBBox()
+    # tiles = @_tilesInBBox(bbox)
+    "zoom: #{utils.digits @zoom, 2} "
     #{}"bbox: [#{bbox.map((z) -> utils.digits(z, 2)).join(', ')}]"+
-    "tiles: "+(v for k,v of @_tilesInBBox(bbox) when typeof v is "number").join(",")
+    # "tiles: "+("#{k}: #{v}" for k,v of @_tilesInBBox(bbox) when typeof v is "number").join(",")
 
 
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")

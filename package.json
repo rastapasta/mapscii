@@ -20,6 +20,7 @@
   "author": "Michael Straßburger <codepoet@cpan.org>",
   "license": "MIT",
   "dependencies": {
+    "bluebird": "^3.4.6",
     "bresenham": "0.0.4",
     "coffee-script": "^1.10.0",
     "earcut": "^2.1.1",
