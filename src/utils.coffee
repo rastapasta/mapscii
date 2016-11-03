@@ -4,6 +4,7 @@
 
   methods used all around
 ###
+mercator = new (require('sphericalmercator'))()
 
 constants =
   RADIUS: 6378137
@@ -42,6 +43,22 @@ utils =
     lon: x/Math.pow(2, zoom)*360-180
     lat: 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n)))
 
+  geoBBox: (center, zoom, width, height) ->
+    [x, y] = utils.ll2xy center.lon, center.lat
+    meterPerPixel = utils.metersPerPixel zoom, center.lat
+
+    width *= meterPerPixel
+    height *= meterPerPixel
+
+    west = x - width*.5
+    east = x + width*.5
+    south = y + height*.5
+    north = y - height*.5
+
+    box = mercator
+    .inverse([west+1, south])
+    .concat mercator.inverse([east-1, north])
+
   metersPerPixel: (zoom, lat = 0) ->
     (Math.cos(lat * Math.PI/180) * 2 * Math.PI * constants.RADIUS) / (256 * Math.pow(2, zoom))
 
@@ -69,5 +86,6 @@ utils =
 
   digits: (number, digits) ->
     Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
+
 
 module.exports = utils

@@ -178,22 +178,6 @@ module.exports = class Renderer
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
 
-  _getBBox: (center, zoom) ->
-    [x, y] = utils.ll2xy center.lon, center.lat
-    meterPerPixel = utils.metersPerPixel zoom, center.lat
-
-    width = @width * meterPerPixel
-    height = @height * meterPerPixel
-
-    west = x - width*.5
-    east = x + width*.5
-    south = y + height*.5
-    north = y - height*.5
-
-    box = mercator
-    .inverse([west+1, south])
-    .concat mercator.inverse([east-1, north])
-
   _tilesInBBox: (bbox, zoom) ->
     tiles = {}
     [tiles.minX, tiles.minY] = utils.ll2tile bbox[0], bbox[1], Math.floor zoom

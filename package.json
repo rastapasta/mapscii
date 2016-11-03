@@ -1,11 +1,15 @@
 {
-  "name": "termap",
+  "name": "mapscii",
   "version": "0.1.0",
   "description": "Terminal Map Viewer",
-  "main": "termap.coffee",
+  "main": "main.js",
   "scripts": {
     "start": "node main",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rastapasta/mapscii.git"
   },
   "keywords": [
     "map",
@@ -14,7 +18,6 @@
     "ascii",
     "osm",
     "vectortile",
-    "render",
     "mbtiles"
   ],
   "author": "Michael Straßburger <codepoet@cpan.org>",
@@ -29,6 +32,8 @@
     "mbtiles": "^0.9.0",
     "pbf": "^3.0.0",
     "rbush": "^2.0.1",
+    "request": "^2.76.0",
+    "request-promise": "^4.1.1",
     "sphericalmercator": "^1.0.5",
     "term-mouse": "^0.1.1",
     "vector-tile": "^1.3.0",

@@ -8,7 +8,6 @@
 keypress = require 'keypress'
 TermMouse = require 'term-mouse'
 Promise = require 'bluebird'
-mercator = new (require('sphericalmercator'))()
 
 Renderer = require './Renderer'
 TileSource = require './TileSource'
@@ -19,7 +18,8 @@ module.exports = class Termap
     input: process.stdin
     output: process.stdout
 
-    source: __dirname+"/../mbtiles/regensburg.mbtiles"
+    source: "http://nachbar.io/data/osm2vectortiles/"
+    #source: __dirname+"/../mbtiles/regensburg.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
     zoomStep: 0.2
 
