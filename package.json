@@ -11,6 +11,9 @@
     "type": "git",
     "url": "https://github.com/rastapasta/mapscii.git"
   },
+  "bin": {
+    "mapscii": "./bin/mapscii.sh"
+  },
   "keywords": [
     "map",
     "console",

@@ -1,6 +1,6 @@
-# termap - Terminal Map Viewer
+# MapSCII - Map Viewer for your console
 
-No web browser around? No worries - discover the planet in your console!
+No web browser around? Don't worry - and discover the planet in your console!
 
 <img src="http://i.imgur.com/yYVt7No.png" width="100%" />
 
@@ -8,24 +8,23 @@ No web browser around? No worries - discover the planet in your console!
 * Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
 * Use an online map server or work offline with VectorTile/MBTiles
-* Highly customizable styling (colors, feature visibility, ...)
-* Compatible with Linux and OS X (Windows to be tested)
+* Highly customizable styling (reuse your [mapbox-gl-style](https://github.com/mapbox/mapbox-gl-styles)s)
+* Compatible with Linux' and OS X' terminals, Windows support via [PuTTY](http://www.putty.org/)
 * 99% pure Coffee-/JavaScript! :sunglasses:
-
-
 
 ## How to get it?
 
 * Make sure to have at least [node.js](https://nodejs.org/) version 4 installed
-* Install `termap` with
+* Open your terminal!
+* Install `mapscii` with
 
-  `npm install -g termap`
+  `npm install -g mapscii`
 
 ## How to use it?
 #### Basic usage
-* Start `termap` with
+* Start `mapscii` with
 
-  ` termap`
+  ` mapscii`
 
 
 ## Behind the scenes
@@ -63,7 +62,7 @@ No web browser around? No worries - discover the planet in your console!
       * [ ] VectorTile
       * [ ] MBTile
       * [ ] Tileserver
-  * [ ] termap-server
+  * [ ] mapscii-server
     * [ ] telnet
     * [ ] ssh
   * [ ] Viewport
