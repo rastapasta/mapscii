@@ -156,10 +156,10 @@ module.exports = class Termap
       when "k" then @rotation += 15
       when "l" then @rotation -= 15
 
-      when "left" then @center.lon -= 1
-      when "right" then @center.lon += 1
-      when "up" then @center.lat += 1
-      when "down" then @center.lat -= 1
+      when "left" then @center.lon -= 8/Math.pow(2, @zoom)
+      when "right" then @center.lon += 8/Math.pow(2, @zoom)
+      when "up" then @center.lat += 6/Math.pow(2, @zoom)
+      when "down" then @center.lat -= 6/Math.pow(2, @zoom)
 
       else
         null
