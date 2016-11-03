@@ -48,6 +48,7 @@ module.exports = class Termap
 
 
   minZoom: null
+  maxZoom: 14.9
 
   constructor: (options) ->
     @config[key] = val for key, val of options
@@ -198,6 +199,6 @@ module.exports = class Termap
 
   zoomBy: (step) ->
     return @zoom = @minZoom if @zoom+step < @minZoom
+    return @zoom = @maxZoom if @zoom+step > @maxZoom
 
-    before = @zoom
     @zoom += step

@@ -103,12 +103,15 @@ module.exports = class Renderer
     Promise
     .resolve @_visibleTiles center, zoom
     .map (tile) => @_getTile tile.xyz, tile
-    .then (tiles) =>
-      for tile in tiles
-        @_renderTile tile.data, zoom, tile.meta.position
-
+    .map (tile) => @_getTileFeatures tile
+    .then (tiles) => @_renderTiles tiles
+    .then =>
       @_writeFrame()
 
+    .catch (e) ->
+      console.log e
+
+    .finally =>
       @isDrawing = false
       @lastDrawAt = Date.now()
 
@@ -117,7 +120,9 @@ module.exports = class Renderer
     xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
 
     tiles = []
-    tileSize = @config.tileSize / @_scaleAtZoom(zoom)
+    scale = @_scaleAtZoom zoom
+    tileSize = @config.tileSize / scale
+
     for y in [Math.floor(xyz[1])-1..Math.floor(xyz[1])+1]
       for x in [Math.floor(xyz[0])-1..Math.floor(xyz[0])+1]
         tile = x: x, y: y, z: z
@@ -136,7 +141,7 @@ module.exports = class Renderer
         position[1]>@height
           continue
 
-        tiles.push xyz: tile, position: position
+        tiles.push xyz: tile, position: position, scale: scale
 
     tiles
 
@@ -147,40 +152,56 @@ module.exports = class Renderer
       data: data
       meta: meta
 
-  _renderTile: (tile, zoom, position) ->
-    @canvas.reset()
-    @canvas.translate position[0], position[1]
+  _getTileFeatures: (tile) ->
+    zoom = tile.meta.xyz.z
+    position = tile.meta.position
+    scale = tile.meta.zoom
 
-    scale = @_scaleAtZoom zoom
+    #TODO: if not filter or feature.data.properties[filterField] is filterValue
 
     box =
       minX: -position[0]*scale
       minY: -position[1]*scale
       maxX: (@width-position[0])*scale
       maxY: (@height-position[1])*scale
-    # console.log box
-    # process.exit 0
 
+    features = {}
     for layer in @config.drawOrder
+      idx = layer
       if layer.indexOf(':') isnt -1
         [layer, filter] = layer.split /:/
         [filterField, filterValue] = filter.split /=/
       else
         filter = false
 
-      continue unless tile.layers?[layer]
+      continue unless tile.data.layers?[layer]
 
       if @config.layers[layer]?.minZoom and zoom > @config.layers[layer].minZoom
         continue
 
-      # TODO: reimplement tree based lookup
-      #features = tile.layers[layer].tree.search box
+      features[idx] = tile.data.layers[layer].tree.all() #search box
 
-      #@notify "rendering #{features.length} #{layer} features.."
-      for feature in tile.layers[layer].features
-        feature = data: feature
-        if not filter or feature.data.properties[filterField] is filterValue
-          @_drawFeature layer, feature, scale, zoom
+    tile.features = features
+    tile
+
+  _renderTiles: (tiles) ->
+    drawn = {}
+
+    for layer in @config.drawOrder
+      short = layer.split(":")[0]
+      @notify "rendering #{layer}.."
+
+      for tile in tiles
+        continue unless tile.features[layer]?.length
+
+        @canvas.reset()
+        @canvas.translate tile.meta.position[0], tile.meta.position[1]
+
+        for feature in tile.features[layer]
+          continue if feature.data.id and drawn[feature.data.id]
+          drawn[feature.data.id] = true
+          
+          @_drawFeature short, feature, tile.meta.scale, tile.meta.xyz.z
 
   _writeFrame: ->
     unless @lastDrawAt
