@@ -8,6 +8,7 @@ x256 = require 'x256'
 mercator = new (require('sphericalmercator'))()
 tilebelt = require 'tilebelt'
 MBTiles = require 'mbtiles'
+Promise = require 'bluebird'
 
 Canvas = require './Canvas'
 LabelBuffer = require './LabelBuffer'
@@ -99,40 +100,52 @@ module.exports = class Renderer
 
     # TODO: tiles = @_tilesInBBox @_getBBox()
 
-    z = Math.max 0, Math.floor zoom
-    xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
-    tile =
-      size: tileSize
-      x: Math.floor xyz[0]
-      y: Math.floor xyz[1]
-      z: z
+    Promise
+    .resolve @_visibleTiles center, zoom
+    .map (tile) => @_getTile tile.xyz, tile
+    .then (tiles) =>
+      for tile in tiles
+        @_renderTile tile.data, zoom, tile.meta.position
 
-    tileSize = @config.tileSize / @_scaleAtZoom(zoom)
-    position = [
-      @width/2-(xyz[0]-tile.x)*tileSize
-      @height/2-(xyz[1]-tile.y)*tileSize
-    ]
-
-    @_getTile tile
-    .then (data) =>
-      @_renderTile data, zoom, position
       @_writeFrame()
 
       @isDrawing = false
       @lastDrawAt = Date.now()
 
-  _getTile: (tile) ->
-    cacheKey = [tile.z, tile.x, tile.y].join "-"
+  _visibleTiles: (center, zoom) ->
+    z = Math.max 0, Math.floor zoom
+    xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
 
-    # if data = @cache[cacheKey]
-    #   console.log cacheKey
-    #   console.log data
-    #   return Promise.resolve data
+    tiles = []
+    tileSize = @config.tileSize / @_scaleAtZoom(zoom)
+    for y in [Math.floor(xyz[1])-1..Math.floor(xyz[1])+1]
+      for x in [Math.floor(xyz[0])-1..Math.floor(xyz[0])+1]
+        tile = x: x, y: y, z: z
 
+        position = [
+          @width/2-(xyz[0]-tile.x)*tileSize
+          @height/2-(xyz[1]-tile.y)*tileSize
+        ]
+
+        tile.x %= Math.pow 2, z
+        tile.y %= Math.pow 2, z
+
+        if position[0]+tileSize < 0 or
+        position[1]+tileSize < 0 or
+        position[0]>@width or
+        position[1]>@height
+          continue
+
+        tiles.push xyz: tile, position: position
+
+    tiles
+
+  _getTile: (tile, meta = {}) ->
     @tileSource
     .getTile tile.z, tile.x, tile.y
     .then (data) =>
-      @cache[cacheKey] = data
+      data: data
+      meta: meta
 
   _renderTile: (tile, zoom, position) ->
     @canvas.reset()
@@ -160,6 +173,7 @@ module.exports = class Renderer
       if @config.layers[layer]?.minZoom and zoom > @config.layers[layer].minZoom
         continue
 
+      # TODO: reimplement tree based lookup
       #features = tile.layers[layer].tree.search box
 
       #@notify "rendering #{features.length} #{layer} features.."

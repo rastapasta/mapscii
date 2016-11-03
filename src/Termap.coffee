@@ -174,6 +174,8 @@ module.exports = class Termap
     .draw @center, @zoom, @rotation
     .then =>
       @renderer.notify @_getFooter()
+    .catch =>
+      @renderer.notify "renderer is busy"
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
