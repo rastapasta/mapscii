@@ -85,7 +85,7 @@ module.exports = class Renderer
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
 
-  draw: (center, zoom, rotation) ->
+  draw: (center, zoom, rotation = 0) ->
     return Promise.reject() if @isDrawing
     @isDrawing = true
 
@@ -102,11 +102,10 @@ module.exports = class Renderer
 
     Promise
     .resolve @_visibleTiles center, zoom
-    .map (tile) => @_getTile tile.xyz, tile
+    .map (tile) => @_getTile tile
     .map (tile) => @_getTileFeatures tile
     .then (tiles) => @_renderTiles tiles
-    .then =>
-      @_writeFrame()
+    .then => @_writeFrame()
 
     .catch (e) ->
       console.log e
@@ -145,19 +144,17 @@ module.exports = class Renderer
 
     tiles
 
-  _getTile: (tile, meta = {}) ->
+  _getTile: (tile) ->
     @tileSource
-    .getTile tile.z, tile.x, tile.y
+    .getTile tile.xyz.z, tile.xyz.x, tile.xyz.y
     .then (data) =>
-      data: data
-      meta: meta
+      tile.data = data
+      tile
 
   _getTileFeatures: (tile) ->
-    zoom = tile.meta.xyz.z
-    position = tile.meta.position
-    scale = tile.meta.zoom
-
-    #TODO: if not filter or feature.data.properties[filterField] is filterValue
+    zoom = tile.xyz.z
+    position = tile.position
+    scale = tile.scale
 
     box =
       minX: -position[0]*scale
@@ -175,11 +172,8 @@ module.exports = class Renderer
         filter = false
 
       continue unless tile.data.layers?[layer]
-
-      if @config.layers[layer]?.minZoom and zoom > @config.layers[layer].minZoom
-        continue
-
-      features[idx] = tile.data.layers[layer].tree.all() #search box
+      #if not filter or feature.data.properties[filterField] is filterValue
+      features[idx] = tile.data.layers[layer].tree.search box
 
     tile.features = features
     tile
@@ -194,14 +188,16 @@ module.exports = class Renderer
       for tile in tiles
         continue unless tile.features[layer]?.length
 
-        @canvas.reset()
-        @canvas.translate tile.meta.position[0], tile.meta.position[1]
+        @canvas.save()
+        @canvas.translate tile.position[0], tile.position[1]
 
         for feature in tile.features[layer]
           continue if feature.data.id and drawn[feature.data.id]
           drawn[feature.data.id] = true
-          
-          @_drawFeature short, feature, tile.meta.scale, tile.meta.xyz.z
+
+          @_drawFeature short, feature, tile.scale, tile.xyz.z
+
+        @canvas.restore()
 
   _writeFrame: ->
     unless @lastDrawAt

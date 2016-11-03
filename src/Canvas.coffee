@@ -23,6 +23,7 @@ mat2d = glMatrix.mat2d
 
 module.exports = class Canvas
   matrix: null
+  stack: []
 
   constructor: (@width, @height) ->
     @buffer = new BrailleBuffer @width, @height
@@ -39,6 +40,13 @@ module.exports = class Canvas
 
   rotate: (angle) ->
     mat2d.rotate @matrix, @matrix, angle/180*Math.PI
+
+  save: ->
+    @stack.push mat2d.clone mat2d.create(), @matrix
+
+  restore: ->
+    return unless last = @stack.pop()
+    @matrix = last
 
   clear: ->
     @buffer.clear()
