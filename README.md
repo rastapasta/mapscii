@@ -69,7 +69,7 @@ No web browser around? No worries - discover the planet in your console!
   * [ ] Viewport
     * [x] start with zoom level which shows full vector tile
     * [X] boundary based on current zoom & size
-    * [ ] determain tiles to show
+    * [X] determain tiles to show
     * [X] zoom while keeping center
     * [ ] calculate tile areas
     * [X] center based on mercator
@@ -94,7 +94,7 @@ No web browser around? No worries - discover the planet in your console!
   * [ ] line drawing
     * [x] support for stroke width
     * [ ] support for dashed/dotted lines?
-  * [x] feature selection for priority rerendering (roads -> warter -> roads:bridges)
+  * [ ] feature selection for priority rerendering (roads -> warter -> roads:bridges)
 
   * [ ] label drawing
     * [x] support for point labels

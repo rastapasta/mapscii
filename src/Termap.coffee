@@ -46,9 +46,8 @@ module.exports = class Termap
     lat: 49.0189
     lon: 12.0990
 
-
   minZoom: null
-  maxZoom: 14.9
+  maxZoom: 18
 
   constructor: (options) ->
     @config[key] = val for key, val of options

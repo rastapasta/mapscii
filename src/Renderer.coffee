@@ -19,7 +19,6 @@ utils = require './utils'
 module.exports = class Renderer
   cache: {}
   config:
-    baseZoom: 4
     fillPolygons: true
     language: 'de'
 
@@ -27,6 +26,7 @@ module.exports = class Renderer
 
     tileSize: 4096
     projectSize: 256
+    maxZoom: 14
 
     #"poi_label", "water",
     drawOrder: [
@@ -115,7 +115,7 @@ module.exports = class Renderer
       @lastDrawAt = Date.now()
 
   _visibleTiles: (center, zoom) ->
-    z = Math.max 0, Math.floor zoom
+    z = Math.min @config.maxZoom, Math.max 0, Math.floor zoom
     xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
 
     tiles = []
@@ -222,7 +222,7 @@ module.exports = class Renderer
     @output.write output
 
   _scaleAtZoom: (zoom) ->
-    baseZoom = Math.floor Math.max 0, zoom
+    baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom
     (@config.tileSize/@config.projectSize)/Math.pow(2, zoom-baseZoom)
 
   _drawFeature: (layer, data, scale, zoom) ->
@@ -256,6 +256,7 @@ module.exports = class Renderer
 
       when "Point"
         text = feature.properties["name_"+@config.language] or
+          feature.properties["name_en"] or
           feature.properties["name"] or
           feature.properties.house_num or
           #@config.icons[feature.properties.maki] or
