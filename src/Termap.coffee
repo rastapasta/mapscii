@@ -19,7 +19,7 @@ module.exports = class Termap
     input: process.stdin
     output: process.stdout
 
-    source: __dirname+"/../tiles/planet.z0-z8.mbtiles"
+    source: __dirname+"/../mbtiles/regensburg.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
     zoomStep: 0.2
 
@@ -33,15 +33,19 @@ module.exports = class Termap
 
   tileSource: null
 
-  degree: 0
-  center:
-    #lat: 49.0189
-    #lon: 12.0990
-    lat: 54.133028
-    lon: 10.609505
-
   zoom: 0
-  view: [0, 0]
+  rotation: 0
+  center:
+    # sf
+    # lat: 37.787946
+    # lon: -122.407522
+    # iceland
+    # lat: 64.124229
+    # lon: -21.811552
+    # rgbg
+    lat: 49.0189
+    lon: 12.0990
+
 
   minZoom: null
 
@@ -105,8 +109,9 @@ module.exports = class Termap
 
   _onClick: (event) ->
     if @mouseDragging and event.button is "left"
-      @view[0] -= (@mouseDragging.x-@mousePosition.x)<<1
-      @view[1] -= (@mouseDragging.y-@mousePosition.y)<<2
+      # TODO lat/lng based drag&drop
+      # @view[0] -= (@mouseDragging.x-@mousePosition.x)<<1
+      # @view[1] -= (@mouseDragging.y-@mousePosition.y)<<2
       @_draw()
 
       @mouseDragging = false
@@ -123,8 +128,9 @@ module.exports = class Termap
     # start dragging
     if event.button is "left"
       if @mouseDragging
-        @view[0] -= (@mouseDragging.x-event.x)<<1
-        @view[1] -= (@mouseDragging.y-event.y)<<2
+        # TODO lat/lng based drag&drop
+        # @view[0] -= (@mouseDragging.x-event.x)<<1
+        # @view[1] -= (@mouseDragging.y-event.y)<<2
 
         if not @renderer.isDrawing and @renderer.lastDrawAt < Date.now()-100
           @_draw()
@@ -146,8 +152,8 @@ module.exports = class Termap
       when "a" then @zoomBy @config.zoomStep
       when "z" then @zoomBy -@config.zoomStep
 
-      when "k" then @degree += 15
-      when "l" then @degree -= 15
+      when "k" then @rotation += 15
+      when "l" then @rotation -= 15
 
       when "left" then @center.lon -= 1
       when "right" then @center.lon += 1
@@ -165,7 +171,7 @@ module.exports = class Termap
 
   _draw: ->
     @renderer
-    .draw @center, @zoom, @degree
+    .draw @center, @zoom, @rotation
     .then =>
       @renderer.notify @_getFooter()
 

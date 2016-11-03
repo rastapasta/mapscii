@@ -13,12 +13,12 @@ MBTiles = require 'mbtiles'
 Tile = require './Tile'
 
 module.exports = class TileSource
+  cache: {}
   modes:
     MBTiles: 1
     VectorTile: 2
 
   mode: null
-  cache: {}
 
   mbtiles: null
 
@@ -32,8 +32,8 @@ module.exports = class TileSource
   loadMBtils: (source) ->
     new Promise (resolve, reject) =>
       new MBTiles source, (err, @mbtiles) =>
-        return reject err if err
-        resolve()
+        if err then reject err
+        else resolve()
 
   getTile: (z, x, y) ->
     unless @mode
@@ -41,12 +41,16 @@ module.exports = class TileSource
 
     z = Math.max 0, Math.floor z
 
-    cacheKey = [z, x, y].join "-"
+    if cached = @cache[[z,x,y].join("-")]
+      return Promise.resolve cached
 
-    return if cached = @cache[cacheKey]
-      Promise.resolve cached
-    else if @mode is @modes.MBTiles
-      new Promise (resolve, reject) =>
-        @mbtiles.getTile z, x, y, (err, tileData) =>
-          return reject err if err
-          resolve @cache[cacheKey] = new Tile tileData
+    if @mode is @modes.MBTiles
+      @_getMBTile z, x, y
+
+  _getMBTile: (z, x, y) ->
+    new Promise (resolve, reject) =>
+      @mbtiles.getTile z, x, y, (err, tileData) =>
+        return reject err if err
+
+        tile = @cache[[z,x,y].join("-")] = new Tile()
+        resolve tile.load tileData

@@ -26,6 +26,7 @@
     "earcut": "^2.1.1",
     "gl-matrix": "^2.3.2",
     "keypress": "^0.2.1",
+    "mbtiles": "^0.9.0",
     "pbf": "^3.0.0",
     "rbush": "^2.0.1",
     "sphericalmercator": "^1.0.5",

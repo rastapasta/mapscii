@@ -7,32 +7,41 @@
 
 VectorTile = require('vector-tile').VectorTile
 Protobuf = require 'pbf'
+Promise = require 'bluebird'
 zlib = require 'zlib'
-Rbush = require 'rbush'
+rbush = require 'rbush'
 
-module.exports = class Tile
-  tree: null
+class Tile
   layers: {}
 
-  constructor: (buffer, @styler = null) ->
-    @tree = new Rbush()
-    @tile = @_loadTile buffer
-
-    @_loadFeatures()
+  load: (buffer) ->
+    @_unzipIfNeeded buffer
+    .then (data) => @_loadTile data
+    .then (tile) => @_loadLayers tile
+    .then => this
 
   _loadTile: (buffer) ->
-    buffer = zlib.gunzipSync buffer if @_isGzipped buffer
-    new VectorTile new Protobuf buffer
+    @tile = new VectorTile new Protobuf buffer
+
+  _unzipIfNeeded: (buffer) ->
+    new Promise (resolve, reject) =>
+      if @_isGzipped buffer
+        zlib.gunzip buffer, (err, data) ->
+          return reject err if err
+          resolve data
+      else
+        resolve buffer
 
   _isGzipped: (buffer) ->
     buffer.slice(0,2).indexOf(Buffer.from([0x1f, 0x8b])) is 0
 
-  _loadFeatures: ->
-    for name, layer of @tile.layers
-      tree = new Rbush()
+  _loadLayers: (tile) ->
+    layers = {}
+    for name, layer of tile.layers
+      tree = rbush()
       features = for i in [0...layer.length]
         # TODO: caching of similar attributes to avoid looking up the style each time
-        continue if @styler and not @styler.getStyleFor layer, feature
+        #continue if @styler and not @styler.getStyleFor layer, feature
 
         feature = layer.feature i
 
@@ -48,7 +57,9 @@ module.exports = class Tile
         @_addToTree tree, data
         data
 
-      @layers[name] = tree: tree, features: features
+      layers[name] = tree: tree, features: features
+
+    @layers = layers
 
   _addToTree: (tree, data) ->
     [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity]
@@ -65,3 +76,5 @@ module.exports = class Tile
       minY: minY
       maxY: maxY
       data: data
+
+module.exports = Tile

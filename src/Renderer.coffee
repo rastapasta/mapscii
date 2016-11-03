@@ -16,6 +16,7 @@ Tile = require './Tile'
 utils = require './utils'
 
 module.exports = class Renderer
+  cache: {}
   config:
     baseZoom: 4
     fillPolygons: true
@@ -83,7 +84,7 @@ module.exports = class Renderer
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
 
-  draw: (@center, @zoom, @degree) ->
+  draw: (center, zoom, rotation) ->
     return Promise.reject() if @isDrawing
     @isDrawing = true
 
@@ -98,26 +99,74 @@ module.exports = class Renderer
 
     # TODO: tiles = @_tilesInBBox @_getBBox()
 
-    z = Math.max 0, Math.floor @zoom
-    xyz = tilebelt.pointToTileFraction @center.lon, @center.lat, z
+    z = Math.max 0, Math.floor zoom
+    xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
     tile =
       size: tileSize
       x: Math.floor xyz[0]
       y: Math.floor xyz[1]
       z: z
 
-    tileSize = @config.tileSize / @_scaleAtZoom()
+    tileSize = @config.tileSize / @_scaleAtZoom(zoom)
     position = [
-      @width/2-(xyz[0]-Math.floor(xyz[0]))*tileSize
-      @height/2-(xyz[1]-Math.floor(xyz[1]))*tileSize
+      @width/2-(xyz[0]-tile.x)*tileSize
+      @height/2-(xyz[1]-tile.y)*tileSize
     ]
 
-    @_renderTile tile, position
-    .then =>
+    @_getTile tile
+    .then (data) =>
+      @_renderTile data, zoom, position
       @_writeFrame()
 
       @isDrawing = false
       @lastDrawAt = Date.now()
+
+  _getTile: (tile) ->
+    cacheKey = [tile.z, tile.x, tile.y].join "-"
+
+    # if data = @cache[cacheKey]
+    #   console.log cacheKey
+    #   console.log data
+    #   return Promise.resolve data
+
+    @tileSource
+    .getTile tile.z, tile.x, tile.y
+    .then (data) =>
+      @cache[cacheKey] = data
+
+  _renderTile: (tile, zoom, position) ->
+    @canvas.reset()
+    @canvas.translate position[0], position[1]
+
+    scale = @_scaleAtZoom zoom
+
+    box =
+      minX: -position[0]*scale
+      minY: -position[1]*scale
+      maxX: (@width-position[0])*scale
+      maxY: (@height-position[1])*scale
+    # console.log box
+    # process.exit 0
+
+    for layer in @config.drawOrder
+      if layer.indexOf(':') isnt -1
+        [layer, filter] = layer.split /:/
+        [filterField, filterValue] = filter.split /=/
+      else
+        filter = false
+
+      continue unless tile.layers?[layer]
+
+      if @config.layers[layer]?.minZoom and zoom > @config.layers[layer].minZoom
+        continue
+
+      #features = tile.layers[layer].tree.search box
+
+      #@notify "rendering #{features.length} #{layer} features.."
+      for feature in tile.layers[layer].features
+        feature = data: feature
+        if not filter or feature.data.properties[filterField] is filterValue
+          @_drawFeature layer, feature, scale, zoom
 
   _writeFrame: ->
     unless @lastDrawAt
@@ -129,7 +178,7 @@ module.exports = class Renderer
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
 
-  _getBBox: (center = @center, zoom = @zoom) ->
+  _getBBox: (center, zoom) ->
     [x, y] = utils.ll2xy center.lon, center.lat
     meterPerPixel = utils.metersPerPixel zoom, center.lat
 
@@ -145,7 +194,7 @@ module.exports = class Renderer
     .inverse([west+1, south])
     .concat mercator.inverse([east-1, north])
 
-  _tilesInBBox: (bbox, zoom = @zoom) ->
+  _tilesInBBox: (bbox, zoom) ->
     tiles = {}
     [tiles.minX, tiles.minY] = utils.ll2tile bbox[0], bbox[1], Math.floor zoom
     [tiles.maxX, tiles.maxY] = utils.ll2tile bbox[2], bbox[3], Math.floor zoom
@@ -157,49 +206,11 @@ module.exports = class Renderer
   _write: (output) ->
     @output.write output
 
-  _renderTile: (tile, position) ->
-    @tileSource
-    .getTile tile.z, tile.x, tile.y
-    .then (tile) =>
-      @canvas.reset()
-      @canvas.translate position[0], position[1]
-
-      scale = @_scaleAtZoom()
-
-      box =
-        minX: -position[0]*scale
-        minY: -position[1]*scale
-        maxX: (@width-position[0])*scale
-        maxY: (@height-position[1])*scale
-      # console.log box
-      # process.exit 0
-
-      for layer in @config.drawOrder
-        if layer.indexOf(':') isnt -1
-          [layer, filter] = layer.split /:/
-          [filterField, filterValue] = filter.split /=/
-        else
-          filter = false
-
-        continue unless tile?[layer]
-
-        if @config.layers[layer]?.minZoom and @zoom > @config.layers[layer].minZoom
-          continue
-
-        features = tile[layer].tree.search box
-
-        @notify "rendering #{features.length} #{layer} features.."
-        for feature in features
-          if not filter or feature.data.properties[filterField] is filterValue
-            @_drawFeature layer, feature, scale
-
-        #@draw @center, @zoom+.3, @degree
-
-  _scaleAtZoom: (zoom = @zoom) ->
+  _scaleAtZoom: (zoom) ->
     baseZoom = Math.floor Math.max 0, zoom
     (@config.tileSize/@config.projectSize)/Math.pow(2, zoom-baseZoom)
 
-  _drawFeature: (layer, data, scale) ->
+  _drawFeature: (layer, data, scale, zoom) ->
     feature = data.data
 
     # TODO: this is ugly :) need to be fixed @style
@@ -207,7 +218,7 @@ module.exports = class Renderer
     feature.type = "LineString" if layer is "building" or layer is "road"
 
     # TODO: zoom level
-    unless style = @styler.getStyleFor layer, feature, 19-@zoom
+    unless style = @styler.getStyleFor layer, feature, 19-zoom
       return false
 
     toDraw = (@_scaleAndReduce points, scale for points in feature.points)
