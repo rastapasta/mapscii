@@ -36,9 +36,9 @@ No web browser around? No worries - discover the planet in your console!
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
 
 #### Discovering the map data
-* [`node-mbtiles`](https://github.com/mapbox/node-mbtiles) for [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.2/spec.md) parsing
+* [`vector-tile`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
 * [`pbf`](https://github.com/mapbox/pbf) for [Protobuf](https://developers.google.com/protocol-buffers/) decoding
-* [`vector-tile-js`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
+* [`mbtiles`](https://github.com/mapbox/node-mbtiles) for [MBTiles](https://github.com/mapbox/mbtiles-spec/blob/master/1.2/spec.md) parsing
 
 #### Juggling the vectors and numbers
 * [`earcut`](https://github.com/mapbox/earcut) for polygon triangulation
@@ -46,9 +46,14 @@ No web browser around? No worries - discover the planet in your console!
 * [`gl-matrix`](https://github.com/toji/gl-matrix) for vector and matrix operations
 * [`breseham`](https://github.com/madbence/node-bresenham) for line calculations
 * [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
+* [`tilebelt`](https://github.com/mapbox/tilebelt) for some [slippy map tilename](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) calculations
+
+#### Handling the flow
+* [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic
+* [`request-promise`](https://github.com/request/request-promise) for promisified HTTP request handling
 
 ### TODOs
-* Termap
+* MapSCII
   * [ ] CLI support
     * [ ] global linking for npm install -g
     * [ ] startup parameters
@@ -63,27 +68,29 @@ No web browser around? No worries - discover the planet in your console!
     * [ ] ssh
   * [ ] Viewport
     * [x] start with zoom level which shows full vector tile
-    * [ ] boundary based on current zoom & size
+    * [X] boundary based on current zoom & size
     * [ ] determain tiles to show
-    * [ ] zoom while keeping center
+    * [X] zoom while keeping center
     * [ ] calculate tile areas
-    * [ ] center based on mercator
+    * [X] center based on mercator
     * [x] handle console resize
   * [x] handle console resize
   * [ ] mouse control
     * [x] accurate mouse drag&drop with instant update
     * [x] hover POIs/labels
     * [ ] hover maybe even polygons/-lines?
+    * [ ] get hover lat/lng
+    * [ ] zoom into mouse pos
   * [ ] API
     * [ ] setCenter
     * [ ] setZoom
 
 * Styler
   * [x] compile filters to function chains
-  * [ ] support constants
+  * [x] support constants
 
 * Renderer
-  * [ ] position tiles accordingly
+  * [x] position tiles accordingly
   * [ ] line drawing
     * [x] support for stroke width
     * [ ] support for dashed/dotted lines?
@@ -105,12 +112,12 @@ No web browser around? No worries - discover the planet in your console!
 
 * Tile
   * [x] directly throw away features that aren't covered by any style
-  * [ ] TileSource class (abstracting URL, mbtiles, single vector tile source)
-  * [ ] tile request system
-    * [ ] from local mbtiles
-    * [ ] from remote url
+  * [x] TileSource class (abstracting URL, mbtiles, single vector tile source)
+  * [x] tile request system
+    * [ ] from single vector-tile
+    * [x] from local mbtiles
+    * [x] from remote url
       * [ ] permanent caching of received files
-
 
 ## License
 #### The MIT License (MIT)
