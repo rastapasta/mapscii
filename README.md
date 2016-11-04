@@ -50,29 +50,33 @@ No web browser around? Don't worry - and discover the planet in your console!
 #### Handling the flow
 * [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic
 * [`request-promise`](https://github.com/request/request-promise) for promisified HTTP request handling
+* [`userhome`](https://github.com/shama/userhome) to determine where to persist downloaded tiles
 
 ### TODOs
 * MapSCII
   * [ ] CLI support
-    * [ ] global linking for npm install -g
+    * [X] global linking for npm install -g
     * [ ] startup parameters
+      * TileSource
+        * [ ] VectorTile
+        * [ ] MBTile
+        * [ ] Tileserver
       * [ ] Style
       * [ ] center position
       * [ ] POI filter?
-      * [ ] VectorTile
-      * [ ] MBTile
-      * [ ] Tileserver
-  * [ ] mapscii-server
-    * [ ] telnet
-    * [ ] ssh
   * [ ] Viewport
-    * [x] start with zoom level which shows full vector tile
+    * [x] start with zoom level which shows full
+      * [X] world
+      * [ ] vector tile
     * [X] boundary based on current zoom & size
     * [X] determain tiles to show
     * [X] zoom while keeping center
     * [ ] calculate tile areas
     * [X] center based on mercator
     * [x] handle console resize
+  * [ ] mapscii-server
+    * [ ] telnet
+    * [ ] ssh
   * [x] handle console resize
   * [ ] mouse control
     * [x] accurate mouse drag&drop with instant update
@@ -116,7 +120,7 @@ No web browser around? Don't worry - and discover the planet in your console!
     * [ ] from single vector-tile
     * [x] from local mbtiles
     * [x] from remote url
-      * [ ] permanent caching of received files
+      * [x] permanent caching of received files
 
 ## License
 #### The MIT License (MIT)

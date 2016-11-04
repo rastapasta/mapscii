@@ -9,13 +9,17 @@
 
 Promise = require 'bluebird'
 MBTiles = require 'mbtiles'
-
+userhome = require 'userhome'
 request = require 'request'
 rp = require 'request-promise'
+fs = require 'fs'
 
 Tile = require './Tile'
 
 module.exports = class TileSource
+  config:
+    persistDownloadedTiles: true
+
   cache: {}
   modes:
     MBTiles: 1
@@ -28,6 +32,8 @@ module.exports = class TileSource
 
   init: (@source) ->
     if @source.startsWith "http"
+      @_initPersistence() if @config.persistDownloadedTiles
+
       @mode = @modes.HTTP
 
     else if @source.endsWith ".mbtiles"
@@ -57,9 +63,18 @@ module.exports = class TileSource
       when @modes.HTTP then @_getHTTP z, x, y
 
   _getHTTP: (z, x, y) ->
-    rp
-      uri: @source+[z,x,y].join("/")+".pbf"
-      encoding: null
+    promise =
+      if @config.persistDownloadedTiles and tile = @_getPersited z, x, y
+        Promise.resolve tile
+      else
+        rp
+          uri: @source+[z,x,y].join("/")+".pbf"
+          encoding: null
+        .then (buffer) =>
+          @_persistTile z, x, y, buffer if @config.persistDownloadedTiles
+          buffer
+
+    promise
     .then (buffer) =>
       @_createTile z, x, y, buffer
 
@@ -72,3 +87,29 @@ module.exports = class TileSource
   _createTile: (z, x, y, buffer) ->
     tile = @cache[[z,x,y].join("-")] = new Tile()
     tile.load buffer
+
+  _initPersistence: ->
+    try
+      @_createFolder userhome ".mapscii"
+      @_createFolder userhome ".mapscii", "cache"
+    catch error
+      @config.persistDownloadedTiles = false
+      return
+
+  _persistTile: (z, x, y, buffer) ->
+    zoom = z.toString()
+    @_createFolder userhome ".mapscii", "cache", zoom
+    fs.writeFile userhome(".mapscii", "cache", zoom, "#{x}-#{y}.pbf"), buffer
+
+  _getPersited: (z, x, y) ->
+    try
+      fs.readFileSync userhome ".mapscii", "cache", z.toString(), "#{x}-#{y}.pbf"
+    catch error
+      false
+
+  _createFolder: (path) ->
+    try
+      fs.mkdirSync path
+      true
+    catch e
+      e.code is "EEXIST"

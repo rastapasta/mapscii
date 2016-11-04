@@ -7,7 +7,6 @@
 x256 = require 'x256'
 mercator = new (require('sphericalmercator'))()
 tilebelt = require 'tilebelt'
-MBTiles = require 'mbtiles'
 Promise = require 'bluebird'
 
 Canvas = require './Canvas'
