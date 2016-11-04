@@ -91,6 +91,7 @@ No web browser around? Don't worry - and discover the planet in your console!
 * Styler
   * [x] compile filters to function chains
   * [x] support constants
+  * [x] respect minzoom
 
 * Renderer
   * [x] position tiles accordingly

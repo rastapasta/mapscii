@@ -25,7 +25,7 @@ module.exports = class Renderer
 
     tileSize: 4096
     projectSize: 256
-    maxZoom: 4
+    maxZoom: 14
 
     #"poi_label", "water",
     drawOrder: [
@@ -38,7 +38,10 @@ module.exports = class Renderer
 
       "country_label"
       "state_label"
+
+      "water_label"
       "place_label"
+      "rail_station_label"
       "poi_label"
       "housenum_label"
     ]
@@ -128,18 +131,22 @@ module.exports = class Renderer
       for x in [Math.floor(xyz[0])-1..Math.floor(xyz[0])+1]
         tile = x: x, y: y, z: z
 
-        position = [
-          @width/2-(xyz[0]-tile.x)*tileSize
-          @height/2-(xyz[1]-tile.y)*tileSize
-        ]
+        position =
+          x: @width/2-(xyz[0]-tile.x)*tileSize
+          y: @height/2-(xyz[1]-tile.y)*tileSize
 
-        tile.x %= Math.pow 2, z
-        tile.y %= Math.pow 2, z
+        gridSize = Math.pow 2, z
 
-        if position[0]+tileSize < 0 or
-        position[1]+tileSize < 0 or
-        position[0]>@width or
-        position[1]>@height
+        tile.x %= gridSize
+        if tile.x < 0
+          tile.x = if z is 0 then 0 else tile.x+gridSize
+
+        if tile.y < 0 or
+        tile.y >= gridSize or
+        position.x+tileSize < 0 or
+        position.y+tileSize < 0 or
+        position.x>@width or
+        position.y>@height
           continue
 
         tiles.push xyz: tile, zoom: zoom, position: position, scale: scale
@@ -159,10 +166,10 @@ module.exports = class Renderer
     scale = tile.scale
 
     box =
-      minX: -position[0]*scale
-      minY: -position[1]*scale
-      maxX: (@width-position[0])*scale
-      maxY: (@height-position[1])*scale
+      minX: -position.x*scale
+      minY: -position.y*scale
+      maxX: (@width-position.x)*scale
+      maxY: (@height-position.y)*scale
 
     features = {}
     for layer in @config.drawOrder
@@ -191,7 +198,7 @@ module.exports = class Renderer
         continue unless tile.features[layer]?.length
 
         @canvas.save()
-        @canvas.translate tile.position[0], tile.position[1]
+        @canvas.translate tile.position.x, tile.position.y
 
         for feature in tile.features[layer]
           continue if feature.data.id and drawn[feature.data.id]
@@ -234,7 +241,6 @@ module.exports = class Renderer
     #return false if feature.properties.class is "ferry"
     feature.type = "LineString" if layer is "building" or layer is "road"
 
-    # TODO: zoom level
     unless style = @styler.getStyleFor layer, feature, zoom
       return false
 

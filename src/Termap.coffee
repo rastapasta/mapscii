@@ -154,10 +154,10 @@ module.exports = class Termap
       when "k" then @rotation += 15
       when "l" then @rotation -= 15
 
-      when "left" then @center.lon -= 8/Math.pow(2, @zoom)
-      when "right" then @center.lon += 8/Math.pow(2, @zoom)
-      when "up" then @center.lat += 6/Math.pow(2, @zoom)
-      when "down" then @center.lat -= 6/Math.pow(2, @zoom)
+      when "left" then @moveBy 0, -8/Math.pow(2, @zoom)
+      when "right" then @moveBy 0, 8/Math.pow(2, @zoom)
+      when "up" then @moveBy 6/Math.pow(2, @zoom), 0
+      when "down" then @moveBy -6/Math.pow(2, @zoom), 0
 
       else
         null
@@ -200,3 +200,11 @@ module.exports = class Termap
     return @zoom = @maxZoom if @zoom+step > @maxZoom
 
     @zoom += step
+
+  moveBy: (lat, lon) ->
+    @center.lat += lat
+    @center.lon += lon
+
+    @center.lon = (@center.lon+180)%360-180
+    @center.lat = 85.0511 if @center.lat > 85.0511
+    @center.lat = -85.0511 if @center.lat < -85.0511

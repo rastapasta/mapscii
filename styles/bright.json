@@ -2324,19 +2324,6 @@
           ]
         }
       }
-    },
-    {
-      "type": "line",
-      "id": "ferry_road",
-      "paint": {
-        "line-color": "#303090"
-      },
-      "source-layer": "road",
-      "filter": [
-        "==",
-        "class",
-        "ferry"
-      ]
     }
   ]
 }
