@@ -6,8 +6,9 @@
     "@country_label_2": "#ff0",
     "@country_label_3": "#ff0",
     "@country_label_4": "#ff0",
-    "@admin_level_2": "#f00",
-    "@admin_level_3": "#ccf"
+    "@admin_level_2": "#fff",
+    "@admin_level_3": "#aac",
+    "@admin_level_4": "#777"
   },
   "layers": [
     {
@@ -281,14 +282,14 @@
       "minzoom": 11
     },
     {
-      "type": "fill",
+      "type": "line",
       "id": "building",
       "paint": {
         "fill-color": {
           "base": 1,
           "stops": [
             [
-              15.5,
+              14.5,
               "#525652"
             ],
             [
@@ -299,7 +300,7 @@
         }
       },
       "source-layer": "building",
-      "minzoom": 15.5
+      "minzoom": 14.5
     },
     {
       "type": "line",
@@ -1425,32 +1426,38 @@
     },
     {
       "type": "line",
-      "id": "admin_level_3",
+      "id": "admin_level_4",
       "paint": {
-        "line-color": "@admin_level_3",
-        "line-width": {
-          "base": 1,
-          "stops": [
-            [
-              4,
-              0.4
-            ],
-            [
-              5,
-              1
-            ],
-            [
-              12,
-              3
-            ]
-          ]
-        }
+        "line-color": "@admin_level_4",
+        "line-width": 1
       },
       "source-layer": "admin",
       "filter": [
         "all",
         [
           ">=",
+          "admin_level",
+          4
+        ],
+        [
+          "==",
+          "maritime",
+          0
+        ]
+      ]
+    },
+    {
+      "type": "line",
+      "id": "admin_level_3",
+      "paint": {
+        "line-color": "@admin_level_3",
+        "line-width": 1
+      },
+      "source-layer": "admin",
+      "filter": [
+        "all",
+        [
+          "==",
           "admin_level",
           3
         ],
@@ -1811,7 +1818,7 @@
       "paint": {
         "text-color": "#444"
       },
-      "minzoom": 17.5,
+      "minzoom": 16.5,
       "source-layer": "housenum_label"
     },
     {

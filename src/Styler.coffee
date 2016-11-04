@@ -36,7 +36,7 @@ module.exports = class Styler
     return false unless @styleByLayer[layer]
 
     for style in @styleByLayer[layer]
-      if style.appliesTo(feature) and ((layer is "road") or (not style.minzoom) or style.minzoom <= zoom)
+      if style.appliesTo(feature) and ((not style.minzoom) or style.minzoom <= zoom)
           return style
 
     return false
@@ -76,6 +76,12 @@ module.exports = class Styler
         (feature) ->
           return false for value in filter[2..] when feature.properties[filter[1]] is value
           true
+
+      when ">="
+        (feature) -> feature.properties[filter[1]] >= filter[2]
+
+      when "<="
+        (feature) -> feature.properties[filter[1]] <= filter[2]
 
       else
         -> true

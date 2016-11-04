@@ -25,22 +25,22 @@ module.exports = class Renderer
 
     tileSize: 4096
     projectSize: 256
-    maxZoom: 14
+    maxZoom: 4
 
     #"poi_label", "water",
     drawOrder: [
       "admin"
+
       "building"
-
-      "road"
       "water"
-      "road:structure=bridge"
+      "road"
+#      "road:structure=bridge"
 
+      "country_label"
+      "state_label"
       "place_label"
       "poi_label"
       "housenum_label"
-      "country_label"
-      "state_label"
     ]
 
     icons:
@@ -68,6 +68,9 @@ module.exports = class Renderer
       poi_label:
         margin: 5
         cluster: true
+
+      place_label: cluster: true
+      state_label: cluster: true
 
   isDrawing: false
   lastDrawAt: 0
@@ -139,7 +142,7 @@ module.exports = class Renderer
         position[1]>@height
           continue
 
-        tiles.push xyz: tile, position: position, scale: scale
+        tiles.push xyz: tile, zoom: zoom, position: position, scale: scale
 
     tiles
 
@@ -194,7 +197,7 @@ module.exports = class Renderer
           continue if feature.data.id and drawn[feature.data.id]
           drawn[feature.data.id] = true
 
-          @_drawFeature short, feature, tile.scale, tile.xyz.z
+          @_drawFeature short, feature, tile.scale, tile.zoom
 
         @canvas.restore()
 
@@ -232,7 +235,7 @@ module.exports = class Renderer
     feature.type = "LineString" if layer is "building" or layer is "road"
 
     # TODO: zoom level
-    unless style = @styler.getStyleFor layer, feature, 19-zoom
+    unless style = @styler.getStyleFor layer, feature, zoom
       return false
 
     toDraw = (@_scaleAndReduce points, scale for points in feature.points)

@@ -32,6 +32,7 @@ module.exports = class Termap
   mouseDragging: false
 
   tileSource: null
+  renderer: null
 
   zoom: 0
   rotation: 0
@@ -59,11 +60,9 @@ module.exports = class Termap
       @_initKeyboard()
       @_initMouse()
 
-      console.log "loading tilesource"
       @_initTileSource()
 
     .then =>
-      console.log "loaded"
       @_initRenderer()
 
     .then =>
