@@ -8,7 +8,12 @@
     "@country_label_4": "#ff0",
     "@admin_level_2": "#fff",
     "@admin_level_3": "#aac",
-    "@admin_level_4": "#777"
+    "@admin_level_4": "#777",
+
+    "@poi_label_1": "#ff0",
+    "@poi_label_2": "#ee0",
+    "@poi_label_3": "#cc0",
+    "@poi_label_4": "#aa0"
   },
   "layers": [
     {
@@ -1650,7 +1655,7 @@
       "type": "symbol",
       "id": "poi_label_4",
       "paint": {
-        "text-color": "#aa0"
+        "text-color": "@poi_label_4"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1675,7 +1680,7 @@
       "type": "symbol",
       "id": "poi_label_3",
       "paint": {
-        "text-color": "#cc0"
+        "text-color": "@poi_label_3"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1700,7 +1705,7 @@
       "type": "symbol",
       "id": "poi_label_2",
       "paint": {
-        "text-color": "#ee0"
+        "text-color": "@poi_label_2"
       },
       "source-layer": "poi_label",
       "filter": [
@@ -1736,7 +1741,7 @@
       "type": "symbol",
       "id": "poi_label_1",
       "paint": {
-        "text-color": "#ff0"
+        "text-color": "@poi_label_1"
       },
       "source-layer": "poi_label",
       "filter": [
