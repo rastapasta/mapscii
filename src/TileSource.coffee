@@ -8,13 +8,20 @@
 ###
 
 Promise = require 'bluebird'
-MBTiles = require 'mbtiles'
 userhome = require 'userhome'
 request = require 'request'
 rp = require 'request-promise'
 fs = require 'fs'
 
 Tile = require './Tile'
+
+# https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
+# To maximize mapscii's compatibility, MBTiles support must be manually added via
+# $> npm install -g mbtiles
+MBTiles = try
+  require 'mbtiles'
+catch
+  null
 
 module.exports = class TileSource
   config:
@@ -37,6 +44,9 @@ module.exports = class TileSource
       @mode = @modes.HTTP
 
     else if @source.endsWith ".mbtiles"
+      unless MBTiles
+        throw new Error "MBTiles support must be installed with following command: 'npm install -g mbtiles'"
+
       @mode = @modes.MBTiles
       @loadMBtils source
 
