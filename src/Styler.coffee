@@ -61,6 +61,18 @@ module.exports = class Styler
           return false for appliesTo in filters when not appliesTo feature
           true
 
+      when "any"
+        filters = (@_compileFilter subFilter for subFilter in filter[1..])
+        (feature) ->
+          return true for appliesTo in filters when appliesTo feature
+          false
+
+      when "none"
+        filters = (@_compileFilter subFilter for subFilter in filter[1..])
+        (feature) ->
+          return false for appliesTo in filters when appliesTo feature
+          true
+
       when "=="
         (feature) -> feature.properties[filter[1]] is filter[2]
 
@@ -77,8 +89,20 @@ module.exports = class Styler
           return false for value in filter[2..] when feature.properties[filter[1]] is value
           true
 
+      when "has"
+        (feature) -> !!feature.properties[filter[1]]
+
+      when "!has"
+        (feature) -> !feature.properties[filter[1]]
+
+      when ">"
+        (feature) -> feature.properties[filter[1]] > filter[2]
+
       when ">="
         (feature) -> feature.properties[filter[1]] >= filter[2]
+
+      when "<"
+        (feature) -> feature.properties[filter[1]] < filter[2]
 
       when "<="
         (feature) -> feature.properties[filter[1]] <= filter[2]
