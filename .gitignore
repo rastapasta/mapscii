@@ -3,3 +3,4 @@ bundle*
 *.log
 tmp
 mbtiles
+tiles

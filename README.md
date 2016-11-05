@@ -1,4 +1,4 @@
-# MapSCII - Map Viewer for your console
+# MapSCII - the whole world in your console.
 
 No web browser around? Don't worry - and discover the planet in your console!
 
@@ -8,7 +8,7 @@ No web browser around? Don't worry - and discover the planet in your console!
 * Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
 * Use an online map server or work offline with VectorTile/MBTiles
-* Highly customizable styling (reuse your [mapbox-gl-style](https://github.com/mapbox/mapbox-gl-styles)s)
+* Highly customizable styling (reuse your [mapbox-gl-styles](https://github.com/mapbox/mapbox-gl-styles))
 * Compatible with Linux' and OS X' terminals, Windows support via [PuTTY](http://www.putty.org/)
 * 99% pure Coffee-/JavaScript! :sunglasses:
 
@@ -20,11 +20,9 @@ No web browser around? Don't worry - and discover the planet in your console!
 
   `npm install -g mapscii`
 
-## How to use it?
-#### Basic usage
-* Start `mapscii` with
+* Start it with
 
-  ` mapscii`
+  `mapscii`
 
 
 ## Behind the scenes
