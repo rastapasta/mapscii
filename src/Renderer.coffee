@@ -81,6 +81,10 @@ module.exports = class Renderer
   labelBuffer: null
   tileSource: null
 
+  terminal:
+    CLEAR: "\x1B[2J"
+    MOVE: "\x1B[?6h"
+
   constructor: (@output, @tileSource) ->
     @labelBuffer = new LabelBuffer()
 
@@ -93,8 +97,6 @@ module.exports = class Renderer
   draw: (center, zoom, rotation = 0) ->
     return Promise.reject() if @isDrawing
     @isDrawing = true
-
-    @notify "rendering..."
 
     @labelBuffer.clear()
 
@@ -110,14 +112,16 @@ module.exports = class Renderer
     .map (tile) => @_getTile tile
     .map (tile) => @_getTileFeatures tile
     .then (tiles) => @_renderTiles tiles
-    .then => @_writeFrame()
+    .then => @_getFrame()
 
     .catch (e) ->
       console.log e
 
-    .finally =>
+    .finally (frame) =>
       @isDrawing = false
       @lastDrawAt = Date.now()
+
+      frame
 
   _visibleTiles: (center, zoom) ->
     z = Math.min @config.maxZoom, Math.max 0, Math.floor zoom
@@ -192,7 +196,6 @@ module.exports = class Renderer
 
     for layer in @config.drawOrder
       short = layer.split(":")[0]
-      @notify "rendering #{layer}.."
 
       for tile in tiles
         continue unless tile.features[layer]?.length
@@ -208,12 +211,12 @@ module.exports = class Renderer
 
         @canvas.restore()
 
-  _writeFrame: ->
-    unless @lastDrawAt
-      @_clearScreen()
-
-    @output.write "\x1B[?6h"
-    @output.write @canvas.frame()
+  _getFrame: ->
+    frame = ""
+    frame += @terminal.CLEAR unless @lastDrawAt
+    frame += @terminal.MOVE
+    frame += @canvas.frame()
+    frame
 
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
@@ -223,12 +226,6 @@ module.exports = class Renderer
     [tiles.minX, tiles.minY] = utils.ll2tile bbox[0], bbox[1], Math.floor zoom
     [tiles.maxX, tiles.maxY] = utils.ll2tile bbox[2], bbox[3], Math.floor zoom
     tiles
-
-  _clearScreen: ->
-    @output.write "\x1B[2J"
-
-  _write: (output) ->
-    @output.write output
 
   _scaleAtZoom: (zoom) ->
     baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom
@@ -296,7 +293,3 @@ module.exports = class Renderer
         scaled.push [x, y]
 
     scaled
-
-
-  notify: (text) ->
-    @_write "\r\x1B[K"+text

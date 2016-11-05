@@ -21,15 +21,20 @@ module.exports = class Termap
     source: "http://nachbar.io/data/osm2vectortiles/"
     #source: __dirname+"/../mbtiles/regensburg.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
+
     zoomStep: 0.2
+    maxZoom: 18
+
+    headless: false
 
   width: null
   height: null
   canvas: null
   mouse: null
 
-  mousePosition: [0, 0]
   mouseDragging: false
+  mousePosition:
+    x: 0, y: 0
 
   tileSource: null
   renderer: null
@@ -37,18 +42,13 @@ module.exports = class Termap
   zoom: 0
   rotation: 0
   center:
-    # sf
-    # lat: 37.787946
-    # lon: -122.407522
-    # iceland
-    # lat: 64.124229
-    # lon: -21.811552
+    # sf lat: 37.787946, lon: -122.407522
+    # iceland lat: 64.124229, lon: -21.811552
     # rgbg
     lat: 49.0189
     lon: 12.0990
 
   minZoom: null
-  maxZoom: 18
 
   constructor: (options) ->
     @config[key] = val for key, val of options
@@ -57,8 +57,9 @@ module.exports = class Termap
     Promise
     .resolve()
     .then =>
-      @_initKeyboard()
-      @_initMouse()
+      unless @config.headless
+        @_initKeyboard()
+        @_initMouse()
 
       @_initTileSource()
 
@@ -99,8 +100,12 @@ module.exports = class Termap
     @zoom = @minZoom
 
   _resizeRenderer: (cb) ->
-    @width = @config.output.columns >> 1 << 2
-    @height = @config.output.rows * 4 - 4
+    unless @config.headless
+      @width = @config.output.columns >> 1 << 2
+      @height = @config.output.rows * 4 - 4
+    else
+      @width = 256
+      @height = 152
 
     @minZoom = 4-Math.log(4096/@width)/Math.LN2
 
@@ -139,8 +144,7 @@ module.exports = class Termap
 
     # update internal mouse tracker
     @mousePosition = x: event.x, y: event.y
-    @renderer.notify @_getFooter()
-
+    @notify @_getFooter()
 
   _onKey: (key) ->
     # check if the pressed key is configured
@@ -166,15 +170,16 @@ module.exports = class Termap
       @_draw()
     else
       # display debug info for unhandled keys
-      @renderer.notify JSON.stringify key
+      @notify JSON.stringify key
 
   _draw: ->
     @renderer
     .draw @center, @zoom, @rotation
-    .then =>
-      @renderer.notify @_getFooter()
+    .then (frame) =>
+      @_write frame
+      @notify @_getFooter()
     .catch =>
-      @renderer.notify "renderer is busy"
+      @notify "renderer is busy"
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
@@ -184,7 +189,7 @@ module.exports = class Termap
     #     type: f.feature.properties.type
     #     rank: f.feature.properties.scalerank
     # ).join(", ")+"] "+
-    # "#{@mousePosition.x} #{@mousePosition.y}"
+    "#{@mousePosition.x} #{@mousePosition.y} " +
     #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
     # bbox = @_getBBox()
     # tiles = @_tilesInBBox(bbox)
@@ -195,9 +200,15 @@ module.exports = class Termap
 
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
+  notify: (text) ->
+    @_write "\r\x1B[K"+text
+
+  _write: (output) ->
+    @config.output.write output
+
   zoomBy: (step) ->
     return @zoom = @minZoom if @zoom+step < @minZoom
-    return @zoom = @maxZoom if @zoom+step > @maxZoom
+    return @zoom = @config.maxZoom if @zoom+step > @config.maxZoom
 
     @zoom += step
 
