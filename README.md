@@ -4,26 +4,40 @@ No web browser around? Don't worry - and discover the planet in your console!
 
 <img src="http://i.imgur.com/yYVt7No.png" width="100%" />
 
-* Use your mouse or keys to navigate
 * Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
-* Use an online map server or work offline with VectorTile/MBTiles
 * Highly customizable styling (reuse your [mapbox-gl-styles](https://github.com/mapbox/mapbox-gl-styles))
-* Compatible with Linux' and OS X' terminals, Windows support via [PuTTY](http://www.putty.org/)
+* Compatible with Linux and OSX terminals, Windows support via [PuTTY](http://www.putty.org/)
+* Use the default or your own map server - or work offline with VectorTile/MBTiles
 * 99% pure Coffee-/JavaScript! :sunglasses:
 
-## How to get it?
+## How to install
 
-* Make sure to have at least [node.js](https://nodejs.org/) version 4 installed
-* Open your terminal!
-* Install `mapscii` with
+If you haven't already got Node.js >= version 4, then [go get it](http://nodejs.org/).
 
-  `npm install -g mapscii`
+```
+npm install -g mapscii
+```
 
-* Start it with
+If you're on OSX, or get an error about file permissions, you may need to do ```sudo npm install -g mapscii```
 
-  `mapscii`
+## Running
 
+This is pretty simple too.
+
+```
+mapscii
+```
+
+## Keyboard shortcuts
+
+* Arrows **up**, **down**, **left**, **right** to scroll around
+* Press **a** or **z** to zoom in and out
+* Press **q** to quit
+
+## Mouse control
+
+If your terminal supports mouse events you can drag the map and use your scroll wheel to zoom in and out.
 
 ## Behind the scenes
 ### Libraries
