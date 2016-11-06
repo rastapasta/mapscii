@@ -22,9 +22,9 @@ module.exports = class Termap
     #source: __dirname+"/../mbtiles/regensburg.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
 
-    initialZoom: 14
+    initialZoom: null
     maxZoom: 18
-    zoomStep: 0.2
+    zoomStep: 0.1
 
     headless: false
     # size:
@@ -155,6 +155,7 @@ module.exports = class Termap
       when "q"
         process.exit 0
 
+      when "w" then @zoomy = true
       when "a" then @zoomBy @config.zoomStep
       when "z" then @zoomBy -@config.zoomStep
 
@@ -172,7 +173,6 @@ module.exports = class Termap
       # display debug info for unhandled keys
       @notify JSON.stringify key
 
-  drawn: 0
   _draw: ->
     @renderer
     .draw @center, @zoom
@@ -181,8 +181,12 @@ module.exports = class Termap
       @notify @_getFooter()
     .catch =>
       @notify "renderer is busy"
-    # .then =>
-    #   @_draw() if @drawn++ < 20
+    .then =>
+      if @zoomy and @zoom < @config.maxZoom
+        @zoom += @config.zoomStep
+        @_draw()
+      else
+        @zoomy = false
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)

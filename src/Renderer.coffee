@@ -23,7 +23,7 @@ module.exports = class Renderer
 
     labelMargin: 5
 
-    tileSize: 4096 #512
+    tileSize: 512
     projectSize: 256
     maxZoom: 14
 
@@ -81,6 +81,7 @@ module.exports = class Renderer
 
   labelBuffer: null
   tileSource: null
+  tilePadding: 64
 
   constructor: (@output, @tileSource) ->
     @labelBuffer = new LabelBuffer()
@@ -187,8 +188,8 @@ module.exports = class Renderer
         continue unless tile.features[layer]?.length
 
         for feature in tile.features[layer]
-          continue if feature.id and drawn[feature.id]
-          drawn[feature.id] = true
+          # continue if feature.id and drawn[feature.id]
+          # drawn[feature.id] = true
 
           @_drawFeature tile, feature
 
@@ -252,13 +253,12 @@ module.exports = class Renderer
 
   _scaleAndReduce: (tile, feature) ->
     reduced = []
-    seen = {}
     for points in feature.points
-
+      seen = {}
       lastX = null
       lastY = null
 
-      firstOutside = null
+      outside = null
       scaled = []
 
       for point in points
@@ -271,7 +271,10 @@ module.exports = class Renderer
         lastY = y
         lastX = x
 
-        if x < 0 or y < 0 or x > @width or y > @width
+        if x < -@tilePadding or
+        y < -@tilePadding or
+        x > @width+@tilePadding or
+        y > @height+@tilePadding
           continue if outside
           outside = true
         else
@@ -282,9 +285,8 @@ module.exports = class Renderer
         scaled.push [x, y]
 
       if scaled.length is 2
-        ka = scaled[0].concat(scaled[1]).join '-'
-        kb = scaled[1].concat(scaled[0]).join '-'
-        if seen[ka] or seen[kb]
+        if seen[ka = scaled[0].concat(scaled[1]).join '-'] or
+        seen[kb = scaled[1].concat(scaled[0]).join '-']
           continue
 
         seen[ka] = seen[kb] = true
