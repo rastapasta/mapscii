@@ -30,7 +30,6 @@
     "bresenham": "0.0.4",
     "coffee-script": "^1.10.0",
     "earcut": "^2.1.1",
-    "gl-matrix": "^2.3.2",
     "keypress": "^0.2.1",
     "pbf": "^3.0.0",
     "rbush": "^2.0.1",

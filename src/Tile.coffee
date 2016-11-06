@@ -53,7 +53,7 @@ class Tile
            continue unless style
 
         # TODO: monkey patching test case for tiles with a reduced extent
-        points = @_reduceGeometry feature, 8
+        points = feature.loadGeometry() #@_reduceGeometry feature, 8
 
         data =
           style: style

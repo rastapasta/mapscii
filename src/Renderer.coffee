@@ -23,7 +23,7 @@ module.exports = class Renderer
 
     labelMargin: 5
 
-    tileSize: 512
+    tileSize: 4096 #512
     projectSize: 256
     maxZoom: 14
 
@@ -186,16 +186,11 @@ module.exports = class Renderer
       for tile in tiles
         continue unless tile.features[layer]?.length
 
-        @canvas.save()
-        @canvas.translate tile.position.x, tile.position.y
-
         for feature in tile.features[layer]
           continue if feature.id and drawn[feature.id]
           drawn[feature.id] = true
 
           @_drawFeature tile, feature
-
-        @canvas.restore()
 
   _getFrame: ->
     frame = ""
@@ -214,7 +209,8 @@ module.exports = class Renderer
   _drawFeature: (tile, feature) ->
     return false if feature.style.minzoom and tile.zoom < feature.style.minzoom
 
-    toDraw = (@_scaleAndReduce points, tile.scale for points in feature.points)
+    toDraw = @_scaleAndReduce tile, feature
+    return false unless toDraw.length
 
     color =
       feature.style.paint['line-color'] or
@@ -254,18 +250,48 @@ module.exports = class Renderer
             else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
               @canvas.text "◉", point[0], point[1], colorCode
 
-  _scaleAndReduce: (points, scale) ->
-    lastX = null
-    lastY = null
-    scaled = []
+  _scaleAndReduce: (tile, feature) ->
+    reduced = []
+    seen = {}
+    for points in feature.points
 
-    for point in points
-      x = Math.floor point.x/scale
-      y = Math.floor point.y/scale
+      lastX = null
+      lastY = null
 
-      if lastX isnt x or lastY isnt y
+      firstOutside = null
+      scaled = []
+
+      for point in points
+        x = Math.floor tile.position.x+point.x/tile.scale
+        y = Math.floor tile.position.y+point.y/tile.scale
+
+        if lastX is x and lastY is y
+          continue
+
         lastY = y
         lastX = x
+
+        if x < 0 or y < 0 or x > @width or y > @width
+          continue if outside
+          outside = true
+        else
+          if outside
+            outside = null
+            scaled.push [lastX, lastY]
+
         scaled.push [x, y]
 
-    scaled
+      if scaled.length is 2
+        ka = scaled[0].concat(scaled[1]).join '-'
+        kb = scaled[1].concat(scaled[0]).join '-'
+        if seen[ka] or seen[kb]
+          continue
+
+        seen[ka] = seen[kb] = true
+
+      unless scaled.length > 1 or feature.type is "symbol"
+        continue
+
+      reduced.push scaled
+
+    reduced

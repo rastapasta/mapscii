@@ -12,65 +12,38 @@
 ###
 
 bresenham = require 'bresenham'
-glMatrix = require 'gl-matrix'
 earcut = require 'earcut'
 
 BrailleBuffer = require './BrailleBuffer'
 utils = require './utils'
 
-vec2 = glMatrix.vec2
-mat2d = glMatrix.mat2d
-
 module.exports = class Canvas
-  matrix: null
   stack: []
 
   constructor: (@width, @height) ->
     @buffer = new BrailleBuffer @width, @height
-    @reset()
-
-  reset: ->
-    @matrix = mat2d.create()
 
   frame: ->
     @buffer.frame()
-
-  translate: (x, y) ->
-    mat2d.translate @matrix, @matrix, vec2.fromValues(x, y)
-
-  rotate: (angle) ->
-    mat2d.rotate @matrix, @matrix, angle/180*Math.PI
-
-  save: ->
-    @stack.push mat2d.clone mat2d.create(), @matrix
-
-  restore: ->
-    return unless last = @stack.pop()
-    @matrix = last
 
   clear: ->
     @buffer.clear()
 
   text: (text, x, y, color, center = false) ->
-    position = @_project x, y
-    @buffer.writeText text, position[0], position[1], color, center
+    @buffer.writeText text, x, y, color, center
 
   line: (from, to, color, width = 1) ->
-    from = @_project from[0], from[1]
-    to = @_project to[0], to[1]
     @_line from, to, color, width
 
   polyline: (points, color, width = 1) ->
-    projected = (@_project point[0], point[1] for point in points)
-    for i in [1...projected.length]
-      @_line projected[i-1], projected[i], width, color
+    for i in [1...points.length]
+      @_line points[i-1], points[i], width, color
 
   setBackground: (color) ->
     @buffer.setGlobalBackground color
 
   background: (x, y, color) ->
-    point = @_project x, y
-    @buffer.setBackground point[0], point[1], color
+    @buffer.setBackground x, y, color
 
   polygon: (polylines, color) ->
     vertices = []
@@ -86,15 +59,8 @@ module.exports = class Canvas
 
       lastPoint = [-1, -1]
       for point in points
-        point = @_project point[0], point[1]
-        point[0] = utils.clamp point[0], 0, @width
-        point[1] = utils.clamp point[1], 0, @height
-
-        if point[0] isnt lastPoint[0] or point[1] isnt lastPoint[1]
-          vertices = vertices.concat point[0], point[1]
-
-          xs[point[0]] = ys[point[1]] = true
-          lastPoint = point
+        vertices = vertices.concat point[0], point[1]
+        xs[point[0]] = ys[point[1]] = true
 
       # Check if we actually got a valid polygon after projection and clamping
       if Object.keys(xs).length is 1 or Object.keys(ys).length is 1
@@ -162,15 +128,11 @@ module.exports = class Canvas
          err += dx
          y0 += sy
 
-  _project: (x, y) ->
-    point = vec2.transformMat2d vec2.create(), vec2.fromValues(x, y), @matrix
-    [Math.floor(point[0]), Math.floor(point[1])]
-
   _filledRectangle: (x, y, width, height, color) ->
-    pointA = @_project x, y
-    pointB = @_project x+width, y
-    pointC = @_project x, y+height
-    pointD = @_project x+width, y+height
+    pointA = [x, y]
+    pointB = [x+width, y]
+    pointC = [x, y+height]
+    pointD = [x+width, y+height]
 
     @_filledTriangle pointA, pointB, pointC, color
     @_filledTriangle pointC, pointB, pointD, color
