@@ -193,7 +193,7 @@ module.exports = class Renderer
           continue if feature.id and drawn[feature.id]
           drawn[feature.id] = true
 
-          @_drawFeature layer, feature, tile.scale, tile.zoom
+          @_drawFeature tile, feature
 
         @canvas.restore()
 
@@ -211,14 +211,15 @@ module.exports = class Renderer
     baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom
     @config.tileSize / @config.projectSize / Math.pow(2, zoom-baseZoom)
 
-  _drawFeature: (layer, feature, scale, zoom) ->
-    style = feature.style
+  _drawFeature: (tile, feature) ->
+    return false if feature.style.minzoom and tile.zoom < feature.style.minzoom
 
-    return false if style.minzoom and zoom < style.minzoom
+    toDraw = (@_scaleAndReduce points, tile.scale for points in feature.points)
 
-    toDraw = (@_scaleAndReduce points, scale for points in feature.points)
-
-    color = style.paint['line-color'] or style.paint['fill-color'] or style.paint['text-color']
+    color =
+      feature.style.paint['line-color'] or
+      feature.style.paint['fill-color'] or
+      feature.style.paint['text-color']
 
     # TODO: zoom calculation todo for perfect styling
     if color instanceof Object
@@ -226,15 +227,15 @@ module.exports = class Renderer
 
     colorCode = x256 utils.hex2rgb color
 
-    switch feature.type
-      when "LineString"
-        width = style.paint['line-width']?.base*1.4 or 1
+    switch feature.style.type
+      when "line"
+        width = feature.style.paint['line-width']?.base*1.4 or 1
         @canvas.polyline points, colorCode, width for points in toDraw
 
-      when "Polygon"
+      when "fill"
         @canvas.polygon toDraw, colorCode
 
-      when "Point"
+      when "symbol"
         text = feature.properties["name_"+@config.language] or
           feature.properties["name_en"] or
           feature.properties["name"] or
@@ -246,11 +247,11 @@ module.exports = class Renderer
         for points in toDraw
           for point in points
             x = point[0] - text.length
-            margin = @config.layers[layer]?.margin or @config.labelMargin
+            margin = @config.layers[feature.layer]?.margin or @config.labelMargin
 
             if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
               @canvas.text text, x, point[1], colorCode
-            else if @config.layers[layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
+            else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
               @canvas.text "◉", point[0], point[1], colorCode
 
   _scaleAndReduce: (points, scale) ->

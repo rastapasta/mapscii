@@ -46,9 +46,7 @@ class Tile
         #continue if @styler and not @styler.getStyleFor layer, feature
 
         feature = layer.feature i
-
-        feature.properties.$type = type =
-          [undefined, "Point", "LineString", "Polygon"][feature.type]
+        feature.properties.$type = [undefined, "Point", "LineString", "Polygon"][feature.type]
 
         if @styler
            style = @styler.getStyleFor name, feature
@@ -62,7 +60,7 @@ class Tile
           points: points
           properties: feature.properties
           id: feature.id
-          type: type
+          layer: name
 
         @_addToTree tree, data
         data
