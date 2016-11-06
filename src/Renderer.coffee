@@ -23,22 +23,19 @@ module.exports = class Renderer
 
     labelMargin: 5
 
-    tileSize: 4096
+    tileSize: 512
     projectSize: 256
     maxZoom: 14
 
     #"poi_label", "water",
     drawOrder: [
       "admin"
-
-      "building"
       "water"
+      "marine_label"
+      "building"
       "road"
-#      "road:structure=bridge"
-
       "country_label"
       "state_label"
-
       "water_label"
       "place_label"
       "rail_station_label"
@@ -75,15 +72,15 @@ module.exports = class Renderer
       place_label: cluster: true
       state_label: cluster: true
 
+  terminal:
+    CLEAR: "\x1B[2J"
+    MOVE: "\x1B[?6h"
+
   isDrawing: false
   lastDrawAt: 0
 
   labelBuffer: null
   tileSource: null
-
-  terminal:
-    CLEAR: "\x1B[2J"
-    MOVE: "\x1B[?6h"
 
   constructor: (@output, @tileSource) ->
     @labelBuffer = new LabelBuffer()
@@ -94,7 +91,7 @@ module.exports = class Renderer
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
 
-  draw: (center, zoom, rotation = 0) ->
+  draw: (center, zoom) ->
     return Promise.reject() if @isDrawing
     @isDrawing = true
 
@@ -104,8 +101,6 @@ module.exports = class Renderer
       @canvas.setBackground x256 utils.hex2rgb color
 
     @canvas.clear()
-
-    # TODO: tiles = @_tilesInBBox @_getBBox()
 
     Promise
     .resolve @_visibleTiles center, zoom
@@ -177,16 +172,8 @@ module.exports = class Renderer
 
     features = {}
     for layer in @config.drawOrder
-      idx = layer
-      if layer.indexOf(':') isnt -1
-        [layer, filter] = layer.split /:/
-        [filterField, filterValue] = filter.split /=/
-      else
-        filter = false
-
       continue unless tile.data.layers?[layer]
-      #if not filter or feature.data.properties[filterField] is filterValue
-      features[idx] = tile.data.layers[layer].tree.search box
+      features[layer] = tile.data.layers[layer].tree.search box
 
     tile.features = features
     tile
@@ -220,12 +207,6 @@ module.exports = class Renderer
 
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
-
-  _tilesInBBox: (bbox, zoom) ->
-    tiles = {}
-    [tiles.minX, tiles.minY] = utils.ll2tile bbox[0], bbox[1], Math.floor zoom
-    [tiles.maxX, tiles.maxY] = utils.ll2tile bbox[2], bbox[3], Math.floor zoom
-    tiles
 
   _scaleAtZoom: (zoom) ->
     baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom

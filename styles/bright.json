@@ -1,7 +1,11 @@
 {
   "name": "Bright",
   "constants": {
-    "@water": "#55c",
+    "@background": "#000",
+    "@water": "#5f87ff",
+
+    "@building": "#606060",
+
     "@country_label_1": "#ff0",
     "@country_label_2": "#ff0",
     "@country_label_3": "#ff0",
@@ -20,7 +24,7 @@
       "type": "background",
       "id": "background",
       "paint": {
-        "background-color": "#000"
+        "background-color": "@background"
       }
     },
     {
@@ -290,19 +294,7 @@
       "type": "line",
       "id": "building",
       "paint": {
-        "fill-color": {
-          "base": 1,
-          "stops": [
-            [
-              14.5,
-              "#525652"
-            ],
-            [
-              16,
-              "#5f5b57"
-            ]
-          ]
-        }
+        "line-color": "@building"
       },
       "source-layer": "building",
       "minzoom": 14.5

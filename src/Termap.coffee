@@ -22,10 +22,14 @@ module.exports = class Termap
     #source: __dirname+"/../mbtiles/regensburg.mbtiles"
     styleFile: __dirname+"/../styles/bright.json"
 
-    zoomStep: 0.2
+    initialZoom: 14
     maxZoom: 18
+    zoomStep: 0.2
 
     headless: false
+    # size:
+    #   width: 40*2
+    #   height: 10*4
 
   width: null
   height: null
@@ -40,7 +44,6 @@ module.exports = class Termap
   renderer: null
 
   zoom: 0
-  rotation: 0
   center:
     # sf lat: 37.787946, lon: -122.407522
     # iceland lat: 64.124229, lon: -21.811552
@@ -97,15 +100,15 @@ module.exports = class Termap
       @_draw()
 
     @_resizeRenderer()
-    @zoom = @minZoom
+    @zoom = if @config.initialZoom isnt null then @config.initialZoom else @minZoom
 
   _resizeRenderer: (cb) ->
-    unless @config.headless
+    if @config.size
+      @width = @config.size.width
+      @height = @config.size.height
+    else
       @width = @config.output.columns >> 1 << 2
       @height = @config.output.rows * 4 - 4
-    else
-      @width = 256
-      @height = 152
 
     @minZoom = 4-Math.log(4096/@width)/Math.LN2
 
@@ -155,9 +158,6 @@ module.exports = class Termap
       when "a" then @zoomBy @config.zoomStep
       when "z" then @zoomBy -@config.zoomStep
 
-      when "k" then @rotation += 15
-      when "l" then @rotation -= 15
-
       when "left" then @moveBy 0, -8/Math.pow(2, @zoom)
       when "right" then @moveBy 0, 8/Math.pow(2, @zoom)
       when "up" then @moveBy 6/Math.pow(2, @zoom), 0
@@ -174,7 +174,7 @@ module.exports = class Termap
 
   _draw: ->
     @renderer
-    .draw @center, @zoom, @rotation
+    .draw @center, @zoom
     .then (frame) =>
       @_write frame
       @notify @_getFooter()
@@ -201,7 +201,7 @@ module.exports = class Termap
     #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
   notify: (text) ->
-    @_write "\r\x1B[K"+text
+    @_write "\r\x1B[K"+text unless @config.headless
 
   _write: (output) ->
     @config.output.write output

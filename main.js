@@ -7,12 +7,9 @@
 
   TODO: params parsing and so on
 #*/
-
 require('coffee-script/register');
 
-const fs = require('fs');
-const Termap = require(__dirname+'/src/Termap');
-const Tile = require(__dirname+'/src/Tile')
+const Termap = require('./src/Termap');
 
 termap = new Termap();
 termap.init();

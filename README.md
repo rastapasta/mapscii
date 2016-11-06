@@ -9,7 +9,7 @@ No web browser around? Don't worry - and discover the planet in your console!
 * Highly customizable styling (reuse your [mapbox-gl-styles](https://github.com/mapbox/mapbox-gl-styles))
 * Compatible with Linux and OSX terminals, Windows support via [PuTTY](http://www.putty.org/)
 * Use the default or your own map server - or work offline with VectorTile/MBTiles
-* 99% pure Coffee-/JavaScript! :sunglasses:
+* 100% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to install
 

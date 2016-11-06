@@ -48,8 +48,23 @@ class Tile
         type = feature.properties.$type =
           [undefined, "Point", "LineString", "Polygon"][feature.type]
 
+        # TODO: monkey patching test case for tiles with a reduced extent
+        geo = for sub, i in feature.loadGeometry()
+          points = []
+          last = null
+          for point, j in sub
+            p =
+              x: Math.floor point.x/8
+              y: Math.floor point.y/8
+
+            if last and last.x is p.x and last.y is p.y
+              continue
+            points.push p
+            last = p
+          points
+
         data =
-          points: feature.loadGeometry()
+          points: geo
           properties: feature.properties
           id: feature.id
           type: type
