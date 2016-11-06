@@ -4,12 +4,13 @@
     "@background": "#000",
     "@water": "#5f87ff",
 
-    "@building": "#606060",
+    "@building": "#99b",
 
     "@country_label_1": "#ff0",
     "@country_label_2": "#ff0",
     "@country_label_3": "#ff0",
     "@country_label_4": "#ff0",
+
     "@admin_level_2": "#fff",
     "@admin_level_3": "#aac",
     "@admin_level_4": "#777",
@@ -17,7 +18,12 @@
     "@poi_label_1": "#ff0",
     "@poi_label_2": "#ee0",
     "@poi_label_3": "#cc0",
-    "@poi_label_4": "#aa0"
+    "@poi_label_4": "#aa0",
+
+    "@place_label_city": "#f00",
+    "@place_label_town": "#d33",
+    "@place_label_village": "#c33",
+    "@place_label_other": "#b33"
   },
   "layers": [
     {
@@ -1822,7 +1828,7 @@
       "type": "symbol",
       "id": "place_label_other",
       "paint": {
-        "text-color": "#733"
+        "text-color": "@place_label_other"
       },
       "source-layer": "place_label",
       "filter": [
@@ -1854,7 +1860,7 @@
       "type": "symbol",
       "id": "place_label_village",
       "paint": {
-        "text-color": "#a33"
+        "text-color": "@place_label_village"
       },
       "source-layer": "place_label",
       "filter": [
@@ -1882,7 +1888,7 @@
       "type": "symbol",
       "id": "place_label_town",
       "paint": {
-        "text-color": "#933"
+        "text-color": "@place_label_town"
       },
       "source-layer": "place_label",
       "filter": [
@@ -1910,7 +1916,7 @@
       "type": "symbol",
       "id": "place_label_city",
       "paint": {
-        "text-color": "#f00"
+        "text-color": "@place_label_city"
       },
       "source-layer": "place_label",
       "filter": [
