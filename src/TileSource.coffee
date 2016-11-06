@@ -34,8 +34,8 @@ module.exports = class TileSource
     HTTP: 3
 
   mode: null
-
   mbtiles: null
+  styler: null
 
   init: (@source) ->
     if @source.startsWith "http"
@@ -58,6 +58,8 @@ module.exports = class TileSource
       new MBTiles source, (err, @mbtiles) =>
         if err then reject err
         else resolve()
+
+  useStyler: (@styler) ->
 
   getTile: (z, x, y) ->
     unless @mode
@@ -95,7 +97,7 @@ module.exports = class TileSource
         resolve @_createTile z, x, y, buffer
 
   _createTile: (z, x, y, buffer) ->
-    tile = @cache[[z,x,y].join("-")] = new Tile()
+    tile = @cache[[z,x,y].join("-")] = new Tile @styler
     tile.load buffer
 
   _initPersistence: ->

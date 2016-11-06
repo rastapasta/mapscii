@@ -87,6 +87,7 @@ module.exports = class Renderer
 
   loadStyleFile: (file) ->
     @styler = new Styler file
+    @tileSource.useStyler @styler
 
   setSize: (@width, @height) ->
     @canvas = new Canvas @width, @height
@@ -173,7 +174,7 @@ module.exports = class Renderer
     features = {}
     for layer in @config.drawOrder
       continue unless tile.data.layers?[layer]
-      features[layer] = tile.data.layers[layer].tree.search box
+      features[layer] = tile.data.layers[layer].search box
 
     tile.features = features
     tile
@@ -182,8 +183,6 @@ module.exports = class Renderer
     drawn = {}
 
     for layer in @config.drawOrder
-      short = layer.split(":")[0]
-
       for tile in tiles
         continue unless tile.features[layer]?.length
 
@@ -191,10 +190,10 @@ module.exports = class Renderer
         @canvas.translate tile.position.x, tile.position.y
 
         for feature in tile.features[layer]
-          continue if feature.data.id and drawn[feature.data.id]
-          drawn[feature.data.id] = true
+          continue if feature.id and drawn[feature.id]
+          drawn[feature.id] = true
 
-          @_drawFeature short, feature, tile.scale, tile.zoom
+          @_drawFeature layer, feature, tile.scale, tile.zoom
 
         @canvas.restore()
 
@@ -210,17 +209,12 @@ module.exports = class Renderer
 
   _scaleAtZoom: (zoom) ->
     baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom
-    (@config.tileSize/@config.projectSize)/Math.pow(2, zoom-baseZoom)
+    @config.tileSize / @config.projectSize / Math.pow(2, zoom-baseZoom)
 
-  _drawFeature: (layer, data, scale, zoom) ->
-    feature = data.data
+  _drawFeature: (layer, feature, scale, zoom) ->
+    style = feature.style
 
-    # TODO: this is ugly :) need to be fixed @style
-    #return false if feature.properties.class is "ferry"
-    feature.type = "LineString" if layer is "building" or layer is "road"
-
-    unless style = @styler.getStyleFor layer, feature, zoom
-      return false
+    return false if style.minzoom and zoom < style.minzoom
 
     toDraw = (@_scaleAndReduce points, scale for points in feature.points)
 

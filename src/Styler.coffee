@@ -32,11 +32,10 @@ module.exports = class Styler
       @styleById[style.id] = style
 
   getStyleFor: (layer, feature, zoom) ->
-    # Skip all layers that don't have any styles set
     return false unless @styleByLayer[layer]
 
     for style in @styleByLayer[layer]
-      if style.appliesTo(feature) and ((not style.minzoom) or style.minzoom <= zoom)
+      if style.appliesTo feature
           return style
 
     return false

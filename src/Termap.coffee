@@ -172,6 +172,7 @@ module.exports = class Termap
       # display debug info for unhandled keys
       @notify JSON.stringify key
 
+  drawn: 0
   _draw: ->
     @renderer
     .draw @center, @zoom
@@ -180,6 +181,8 @@ module.exports = class Termap
       @notify @_getFooter()
     .catch =>
       @notify "renderer is busy"
+    # .then =>
+    #   @_draw() if @drawn++ < 20
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)

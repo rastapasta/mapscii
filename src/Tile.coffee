@@ -14,9 +14,11 @@ rbush = require 'rbush'
 class Tile
   layers: {}
 
+  constructor: (@styler) ->
+
   load: (buffer) ->
     @_unzipIfNeeded buffer
-    .then (data) => @_loadTile data
+    .then (buffer) => @_loadTile buffer
     .then (tile) => @_loadLayers tile
     .then => this
 
@@ -45,26 +47,19 @@ class Tile
 
         feature = layer.feature i
 
-        type = feature.properties.$type =
+        feature.properties.$type = type =
           [undefined, "Point", "LineString", "Polygon"][feature.type]
 
-        # TODO: monkey patching test case for tiles with a reduced extent
-        geo = for sub, i in feature.loadGeometry()
-          points = []
-          last = null
-          for point, j in sub
-            p =
-              x: Math.floor point.x/8
-              y: Math.floor point.y/8
+        if @styler
+           style = @styler.getStyleFor name, feature
+           continue unless style
 
-            if last and last.x is p.x and last.y is p.y
-              continue
-            points.push p
-            last = p
-          points
+        # TODO: monkey patching test case for tiles with a reduced extent
+        points = @_reduceGeometry feature, 8
 
         data =
-          points: geo
+          style: style
+          points: points
           properties: feature.properties
           id: feature.id
           type: type
@@ -72,7 +67,7 @@ class Tile
         @_addToTree tree, data
         data
 
-      layers[name] = tree: tree, features: features
+      layers[name] = tree
 
     @layers = layers
 
@@ -85,11 +80,27 @@ class Tile
         minY = p.y if p.y < minY
         maxY = p.y if p.y > maxY
 
-    tree.insert
-      minX: minX
-      maxX: maxX
-      minY: minY
-      maxY: maxY
-      data: data
+    data.minX = minX
+    data.maxX = maxX
+    data.minY = minY
+    data.maxY = maxY
+
+    tree.insert data
+
+  _reduceGeometry: (feature, factor) ->
+    for points, i in feature.loadGeometry()
+      reduced = []
+      last = null
+      for point, j in points
+        p =
+          x: Math.floor point.x/factor
+          y: Math.floor point.y/factor
+
+        if last and last.x is p.x and last.y is p.y
+          continue
+
+        reduced.push last = p
+
+      reduced
 
 module.exports = Tile
