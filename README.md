@@ -1,14 +1,15 @@
-# MapSCII - the whole world in your console.
+# MapSCII - The Whole World In Your Console.
 
-No web browser around? Don't worry - and discover the planet in your console!
+MapSCII is node.js based [Vector Tile](https://github.com/mapbox/vector-tile-spec) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
 <img src="http://i.imgur.com/yYVt7No.png" width="100%" />
 
 * Discover the globe or zoom in to explore your neighbourhood
 * See Point-of-Interest around any given location
-* Highly customizable styling (reuse your [mapbox-gl-styles](https://github.com/mapbox/mapbox-gl-styles))
+* Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/)
 * Compatible with Linux and OSX terminals, Windows support via [PuTTY](http://www.putty.org/)
-* Use the default or your own map server - or work offline with VectorTile/MBTiles
+* Connect to any vector tile server - or just use my custom [OpenStreetMap](https://en.wikipedia.org/wiki/OpenStreetMap) based one
+* Work offline and discover local VectorTile/MBTiles
 * 100% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to install
@@ -123,7 +124,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
   * [x] filled polygons
     * [x] convert polygons to triangles
     * [x] use triangulation for filling
-    * [ ] respect fill/line style file based setting
+    * [x] respect fill/line style file based setting
 
 * Tile
   * [x] directly throw away features that aren't covered by any style

@@ -51,25 +51,19 @@ module.exports = class Canvas
 
     xs = {}
     ys = {}
+    #
+    # for points in polylines
+    #   if vertices.length
+    #     continue
+    #     holes.push vertices.length/2
 
-    for points in polylines
-      if vertices.length
-        continue
-        holes.push vertices.length/2
+    for point in polylines
+      vertices = vertices.concat point
+      xs[point[0]] = ys[point[1]] = true
 
-      lastPoint = [-1, -1]
-      for point in points
-        vertices = vertices.concat point[0], point[1]
-        xs[point[0]] = ys[point[1]] = true
-
-      # Check if we actually got a valid polygon after projection and clamping
-      if Object.keys(xs).length is 1 or Object.keys(ys).length is 1
-        if vertices.length
-          # TODO: a line-hole - skip it for now
-          continue
-        else
-          # TODO: a line instead of a polygon - skip it for now
-          return false
+    # Check if we actually got a valid polygon after projection and clamping
+    if Object.keys(xs).length is 1 or Object.keys(ys).length is 1
+      return false
 
     try
       triangles = earcut vertices, holes

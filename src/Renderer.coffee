@@ -5,7 +5,6 @@
   The Console Vector Tile renderer - bäm!
 ###
 x256 = require 'x256'
-mercator = new (require('sphericalmercator'))()
 tilebelt = require 'tilebelt'
 Promise = require 'bluebird'
 
@@ -98,6 +97,7 @@ module.exports = class Renderer
     @isDrawing = true
 
     @labelBuffer.clear()
+    @_seen = {}
 
     if color = @styler.styleById['background']?.paint['background-color']
       @canvas.setBackground x256 utils.hex2rgb color
@@ -173,6 +173,7 @@ module.exports = class Renderer
       maxY: (@height-position.y)*scale
 
     features = {}
+
     for layer in @config.drawOrder
       continue unless tile.data.layers?[layer]
       features[layer] = tile.data.layers[layer].search box
@@ -186,7 +187,6 @@ module.exports = class Renderer
     for layer in @config.drawOrder
       for tile in tiles
         continue unless tile.features[layer]?.length
-
         for feature in tile.features[layer]
           # continue if feature.id and drawn[feature.id]
           # drawn[feature.id] = true
@@ -208,10 +208,12 @@ module.exports = class Renderer
     @config.tileSize / @config.projectSize / Math.pow(2, zoom-baseZoom)
 
   _drawFeature: (tile, feature) ->
-    return false if feature.style.minzoom and tile.zoom < feature.style.minzoom
+    if feature.style.minzoom and tile.zoom < feature.style.minzoom
+      return false
 
-    toDraw = @_scaleAndReduce tile, feature
-    return false unless toDraw.length
+    points = @_scaleAndReduce tile, feature
+    unless points.length
+      return false
 
     color =
       feature.style.paint['line-color'] or
@@ -227,12 +229,12 @@ module.exports = class Renderer
     switch feature.style.type
       when "line"
         width = feature.style.paint['line-width']?.base*1.4 or 1
-        @canvas.polyline points, colorCode, width for points in toDraw
+        @canvas.polyline points, colorCode, width
 
       when "fill"
-        @canvas.polygon toDraw, colorCode
+        @canvas.polygon points, colorCode
 
-      when "symbol"
+      when "symbola"
         text = feature.properties["name_"+@config.language] or
           feature.properties["name_en"] or
           feature.properties["name"] or
@@ -240,60 +242,53 @@ module.exports = class Renderer
           #@config.icons[feature.properties.maki] or
           "◉"
 
-        # TODO: check in definition if points can actually own multiple geometries
-        for points in toDraw
-          for point in points
-            x = point[0] - text.length
-            margin = @config.layers[feature.layer]?.margin or @config.labelMargin
+        for point in points
+          x = point[0] - text.length
+          margin = @config.layers[feature.layer]?.margin or @config.labelMargin
 
-            if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
-              @canvas.text text, x, point[1], colorCode
-            else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
-              @canvas.text "◉", point[0], point[1], colorCode
+          if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
+            @canvas.text text, x, point[1], colorCode
+          else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
+            @canvas.text "◉", point[0], point[1], colorCode
 
+  _seen: {}
   _scaleAndReduce: (tile, feature) ->
-    reduced = []
-    for points in feature.points
-      seen = {}
-      lastX = null
-      lastY = null
+    lastX = null
+    lastY = null
+    outside = false
+    scaled = []
 
-      outside = null
-      scaled = []
+    for point in feature.points
+      x = Math.floor tile.position.x+point.x/tile.scale
+      y = Math.floor tile.position.y+point.y/tile.scale
 
-      for point in points
-        x = Math.floor tile.position.x+point.x/tile.scale
-        y = Math.floor tile.position.y+point.y/tile.scale
-
-        if lastX is x and lastY is y
-          continue
-
-        lastY = y
-        lastX = x
-
-        if x < -@tilePadding or
-        y < -@tilePadding or
-        x > @width+@tilePadding or
-        y > @height+@tilePadding
-          continue if outside
-          outside = true
-        else
-          if outside
-            outside = null
-            scaled.push [lastX, lastY]
-
-        scaled.push [x, y]
-
-      if scaled.length is 2
-        if seen[ka = scaled[0].concat(scaled[1]).join '-'] or
-        seen[kb = scaled[1].concat(scaled[0]).join '-']
-          continue
-
-        seen[ka] = seen[kb] = true
-
-      unless scaled.length > 1 or feature.type is "symbol"
+      if lastX is x and lastY is y
         continue
 
-      reduced.push scaled
+      lastY = y
+      lastX = x
+      #
+      # if x < -@tilePadding or
+      # y < -@tilePadding or
+      # x > @width+@tilePadding or
+      # y > @height+@tilePadding
+      #   continue if outside
+      #   outside = true
+      # else
+      #   if outside
+      #     outside = null
+      #     scaled.push [lastX, lastY]
 
-    reduced
+      scaled.push [x, y]
+
+    if scaled.length is 2
+      if @_seen[ka = scaled[0].concat(scaled[1]).join '-'] or
+      @_seen[kb = scaled[1].concat(scaled[0]).join '-']
+        return []
+
+      @_seen[ka] = @_seen[kb] = true
+
+    unless scaled.length > 1 or feature.type is "symbol"
+      return []
+
+    scaled

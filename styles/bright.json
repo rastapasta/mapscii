@@ -35,45 +35,6 @@
     },
     {
       "type": "fill",
-      "id": "landuse_overlay_national_park",
-      "paint": {
-        "fill-color": "#d8e8c8"
-      },
-      "source-layer": "landuse_overlay",
-      "filter": [
-        "==",
-        "class",
-        "national_park"
-      ]
-    },
-    {
-      "type": "fill",
-      "id": "landuse_park",
-      "paint": {
-        "fill-color": "#d8e8c8"
-      },
-      "source-layer": "landuse",
-      "filter": [
-        "==",
-        "class",
-        "park"
-      ]
-    },
-    {
-      "type": "fill",
-      "id": "landuse_cemetery",
-      "paint": {
-        "fill-color": "#e0e4dd"
-      },
-      "source-layer": "landuse",
-      "filter": [
-        "==",
-        "class",
-        "cemetery"
-      ]
-    },
-    {
-      "type": "fill",
       "id": "landuse_hospital",
       "paint": {
         "fill-color": "#fde"
@@ -86,33 +47,6 @@
       ]
     },
     {
-      "type": "fill",
-      "id": "landuse_school",
-      "paint": {
-        "fill-color": "#f0e8f8"
-      },
-      "source-layer": "landuse",
-      "filter": [
-        "==",
-        "class",
-        "school"
-      ]
-    },
-    {
-      "type": "fill",
-      "id": "landuse_wood",
-      "paint": {
-        "fill-color": "#6a4"
-      },
-      "source-layer": "landuse",
-      "filter": [
-        "==",
-        "class",
-        "wood"
-      ]
-    },
-    {
-      "hide": true,
       "type": "line",
       "id": "waterway",
       "paint": {

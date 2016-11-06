@@ -24,9 +24,9 @@ module.exports = class Termap
 
     initialZoom: null
     maxZoom: 18
-    zoomStep: 0.1
-
+    zoomStep: 0.25
     headless: false
+
     # size:
     #   width: 40*2
     #   height: 10*4
