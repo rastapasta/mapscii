@@ -210,20 +210,19 @@ module.exports = class Renderer
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
       return false
 
-    points = @_scaleAndReduce tile, feature
-
-    unless points.length
-      return false
-
     switch feature.style.type
       when "line"
+        points = @_scaleAndReduce tile, feature, feature.points
+
         width = feature.style.paint['line-width']
         width = width.stops[0][1] if width instanceof Object
 
-        @canvas.polyline points, feature.color, width
+        @canvas.polyline points, feature.color, width if points.length
 
       when "fill"
-        @canvas.polygon points, feature.color
+        vertices = (@_scaleAndReduce tile, feature, points, false for points in feature.points)
+        @canvas.polygon vertices[0], feature.color
+        true
 
       when "symbol"
         text = feature.properties["name_"+@config.language] or
@@ -233,6 +232,7 @@ module.exports = class Renderer
           #@config.icons[feature.properties.maki] or
           "◉"
 
+        points = @_scaleAndReduce tile, feature, feature.points
         for point in points
           x = point[0] - text.length
           margin = @config.layers[feature.layer]?.margin or @config.labelMargin
@@ -243,13 +243,13 @@ module.exports = class Renderer
             @canvas.text "◉", point[0], point[1], feature.color
 
   _seen: {}
-  _scaleAndReduce: (tile, feature) ->
+  _scaleAndReduce: (tile, feature, points, filter = true) ->
     lastX = null
     lastY = null
     outside = false
     scaled = []
 
-    for point in feature.points
+    for point in points
       x = Math.floor tile.position.x+(point.x/tile.scale)
       y = Math.floor tile.position.y+(point.y/tile.scale)
 
@@ -259,29 +259,31 @@ module.exports = class Renderer
       lastY = y
       lastX = x
 
-      if tile.xyz.z > 1 and (
-        x < -@tilePadding or
-        y < -@tilePadding or
-        x > @width+@tilePadding or
-        y > @height+@tilePadding
-      )
-        continue if outside
-        outside = true
-      else
-        if outside
-          outside = null
-          scaled.push [lastX, lastY]
+      if filter
+        if tile.xyz.z > 1 and (
+          x < -@tilePadding or
+          y < -@tilePadding or
+          x > @width+@tilePadding or
+          y > @height+@tilePadding
+        )
+          continue if outside
+          outside = true
+        else
+          if outside
+            outside = null
+            scaled.push [lastX, lastY]
 
       scaled.push [x, y]
 
-    if scaled.length is 2
-      if @_seen[ka = scaled[0].concat(scaled[1]).join '-'] or
-      @_seen[kb = scaled[1].concat(scaled[0]).join '-']
+    if filter
+      if scaled.length is 2
+        if @_seen[ka = scaled[0].concat(scaled[1]).join '-'] or
+        @_seen[kb = scaled[1].concat(scaled[0]).join '-']
+          return []
+
+        @_seen[ka] = @_seen[kb] = true
+
+      if scaled.length < 2 and feature.style.type isnt "symbol"
         return []
-
-      @_seen[ka] = @_seen[kb] = true
-
-    if scaled.length < 2 and feature.style.type isnt "symbol"
-      return []
 
     scaled

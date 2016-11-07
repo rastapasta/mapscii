@@ -45,7 +45,7 @@ class Tile
     colorCache = {}
 
     for name, layer of tile.layers
-      tree = rbush()
+      nodes = []
       for i in [0...layer.length]
         # TODO: caching of similar attributes to avoid looking up the style each time
         #continue if @styler and not @styler.getStyleFor layer, feature
@@ -74,17 +74,17 @@ class Tile
 
         # TODO: handling polygon holes, only handling outer area for now
         if style.type is "fill"
-          @_addToTree tree,
+          nodes.push @_addBoundaries
             id: feature.id
             layer: name
             style: style
             properties: feature.properties
-            points: geometries[0]
+            points: geometries
             color: colorCode
 
         else
           for points in geometries
-            @_addToTree tree,
+            nodes.push @_addBoundaries
               id: feature.id
               layer: name
               style: style
@@ -92,25 +92,31 @@ class Tile
               points: points
               color: colorCode
 
+      tree = rbush()
+      tree.load nodes
       layers[name] = tree
 
     @layers = layers
 
-  _addToTree: (tree, data) ->
+  _addBoundaries: (data) ->
     [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity]
+    minMax = (points) ->
+      for p in points
+        minX = p.x if p.x < minX
+        maxX = p.x if p.x > maxX
+        minY = p.y if p.y < minY
+        maxY = p.y if p.y > maxY
 
-    for p in data.points
-      minX = p.x if p.x < minX
-      maxX = p.x if p.x > maxX
-      minY = p.y if p.y < minY
-      maxY = p.y if p.y > maxY
+    if data.points[0] instanceof Array
+      minMax points for points in data.points
+    else
+      minMax data.points
 
     data.minX = minX
     data.maxX = maxX
     data.minY = minY
     data.maxY = maxY
-
-    tree.insert data
+    data
 
   _reduceGeometry: (feature, factor) ->
     for points, i in feature.loadGeometry()

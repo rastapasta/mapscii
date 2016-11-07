@@ -74,7 +74,14 @@ module.exports = class Canvas
       [vertices[pointId*2], vertices[pointId*2+1]]
 
     for i in [0...triangles.length] by 3
-      @_filledTriangle extract(triangles[i]), extract(triangles[i+1]), extract(triangles[i+2]), color
+      pa = extract(triangles[i])
+      pb = extract(triangles[i+1])
+      pc = extract(triangles[i+2])
+
+      if (0 <= pa[0] < @width and 0 <= pa[1] < @height) or
+      (0 <= pb[0] < @width and 0 <= pb[1] < @height) or
+      (0 <= pc[0] < @width and 0 <= pc[1] < @height)
+        @_filledTriangle pa, pb, pc, color
 
   # Inspired by Alois Zingl's "The Beauty of Bresenham's Algorithm"
   # -> http://members.chello.at/~easyfilter/bresenham.html
