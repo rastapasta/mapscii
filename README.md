@@ -1,6 +1,6 @@
 # MapSCII - The Whole World In Your Console.
 
-MapSCII is node.js based [Vector Tile](https://github.com/mapbox/vector-tile-spec) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
+MapSCII is a node.js based [Vector Tile](https://github.com/mapbox/vector-tile-spec) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
 <img src="http://i.imgur.com/yYVt7No.png" width="100%" />
 

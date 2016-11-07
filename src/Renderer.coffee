@@ -4,9 +4,9 @@
 
   The Console Vector Tile renderer - bäm!
 ###
-x256 = require 'x256'
 tilebelt = require 'tilebelt'
 Promise = require 'bluebird'
+x256 = require 'x256'
 
 Canvas = require './Canvas'
 LabelBuffer = require './LabelBuffer'
@@ -17,12 +17,11 @@ utils = require './utils'
 module.exports = class Renderer
   cache: {}
   config:
-    fillPolygons: true
     language: 'de'
 
     labelMargin: 5
 
-    tileSize: 512
+    tileSize: 4096
     projectSize: 256
     maxZoom: 14
 
@@ -63,7 +62,7 @@ module.exports = class Renderer
 
     layers:
       housenum_label:
-        margin: 3
+        margin: 4
       poi_label:
         margin: 5
         cluster: true
@@ -212,29 +211,21 @@ module.exports = class Renderer
       return false
 
     points = @_scaleAndReduce tile, feature
+
     unless points.length
       return false
 
-    color =
-      feature.style.paint['line-color'] or
-      feature.style.paint['fill-color'] or
-      feature.style.paint['text-color']
-
-    # TODO: zoom calculation todo for perfect styling
-    if color instanceof Object
-      color = color.stops[0][1]
-
-    colorCode = x256 utils.hex2rgb color
-
     switch feature.style.type
       when "line"
-        width = feature.style.paint['line-width']?.base*1.4 or 1
-        @canvas.polyline points, colorCode, width
+        width = feature.style.paint['line-width']
+        width = width.stops[0][1] if width instanceof Object
+
+        @canvas.polyline points, feature.color, width
 
       when "fill"
-        @canvas.polygon points, colorCode
+        @canvas.polygon points, feature.color
 
-      when "symbola"
+      when "symbol"
         text = feature.properties["name_"+@config.language] or
           feature.properties["name_en"] or
           feature.properties["name"] or
@@ -247,9 +238,9 @@ module.exports = class Renderer
           margin = @config.layers[feature.layer]?.margin or @config.labelMargin
 
           if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
-            @canvas.text text, x, point[1], colorCode
+            @canvas.text text, x, point[1], feature.color
           else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
-            @canvas.text "◉", point[0], point[1], colorCode
+            @canvas.text "◉", point[0], point[1], feature.color
 
   _seen: {}
   _scaleAndReduce: (tile, feature) ->
@@ -259,25 +250,27 @@ module.exports = class Renderer
     scaled = []
 
     for point in feature.points
-      x = Math.floor tile.position.x+point.x/tile.scale
-      y = Math.floor tile.position.y+point.y/tile.scale
+      x = Math.floor tile.position.x+(point.x/tile.scale)
+      y = Math.floor tile.position.y+(point.y/tile.scale)
 
       if lastX is x and lastY is y
         continue
 
       lastY = y
       lastX = x
-      #
-      # if x < -@tilePadding or
-      # y < -@tilePadding or
-      # x > @width+@tilePadding or
-      # y > @height+@tilePadding
-      #   continue if outside
-      #   outside = true
-      # else
-      #   if outside
-      #     outside = null
-      #     scaled.push [lastX, lastY]
+
+      if tile.xyz.z > 1 and (
+        x < -@tilePadding or
+        y < -@tilePadding or
+        x > @width+@tilePadding or
+        y > @height+@tilePadding
+      )
+        continue if outside
+        outside = true
+      else
+        if outside
+          outside = null
+          scaled.push [lastX, lastY]
 
       scaled.push [x, y]
 
@@ -288,7 +281,7 @@ module.exports = class Renderer
 
       @_seen[ka] = @_seen[kb] = true
 
-    unless scaled.length > 1 or feature.type is "symbol"
+    if scaled.length < 2 and feature.style.type isnt "symbol"
       return []
 
     scaled

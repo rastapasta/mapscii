@@ -5,6 +5,7 @@
     "@water": "#5f87ff",
 
     "@building": "#99b",
+    "@housenum_label": "#88a",
 
     "@country_label_1": "#ff0",
     "@country_label_2": "#ff0",
@@ -1677,7 +1678,7 @@
       "type": "symbol",
       "id": "housenum_label",
       "paint": {
-        "text-color": "#444"
+        "text-color": "@housenum_label"
       },
       "minzoom": 16.5,
       "source-layer": "housenum_label"

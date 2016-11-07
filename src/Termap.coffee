@@ -23,8 +23,8 @@ module.exports = class Termap
     styleFile: __dirname+"/../styles/bright.json"
 
     initialZoom: null
-    maxZoom: 18
-    zoomStep: 0.25
+    maxZoom: 17
+    zoomStep: 0.2
     headless: false
 
     # size:
@@ -48,8 +48,7 @@ module.exports = class Termap
     # sf lat: 37.787946, lon: -122.407522
     # iceland lat: 64.124229, lon: -21.811552
     # rgbg
-    lat: 49.0189
-    lon: 12.0990
+    lat: 49.019493, lon: 12.098341
 
   minZoom: null
 

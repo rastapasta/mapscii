@@ -10,6 +10,9 @@ Protobuf = require 'pbf'
 Promise = require 'bluebird'
 zlib = require 'zlib'
 rbush = require 'rbush'
+x256 = require 'x256'
+
+utils = require "./utils"
 
 class Tile
   layers: {}
@@ -39,6 +42,8 @@ class Tile
 
   _loadLayers: (tile) ->
     layers = {}
+    colorCache = {}
+
     for name, layer of tile.layers
       tree = rbush()
       for i in [0...layer.length]
@@ -52,10 +57,22 @@ class Tile
            style = @styler.getStyleFor name, feature
            continue unless style
 
+        color =
+          style.paint['line-color'] or
+          style.paint['fill-color'] or
+          style.paint['text-color']
+
+        # TODO: zoom calculation todo for perfect styling
+        if color instanceof Object
+          color = color.stops[0][1]
+
+        colorCode = colorCache[color] or colorCache[color] = x256 utils.hex2rgb color
+
         # TODO: monkey patching test case for tiles with a reduced extent 4096 / 8 -> 512
         # use feature.loadGeometry() again as soon as we got a 512 extent tileset
-        geometries = @_reduceGeometry feature, 8
+        geometries = feature.loadGeometry() #@_reduceGeometry feature, 8
 
+        # TODO: handling polygon holes, only handling outer area for now
         if style.type is "fill"
           @_addToTree tree,
             id: feature.id
@@ -63,6 +80,7 @@ class Tile
             style: style
             properties: feature.properties
             points: geometries[0]
+            color: colorCode
 
         else
           for points in geometries
@@ -72,6 +90,7 @@ class Tile
               style: style
               properties: feature.properties
               points: points
+              color: colorCode
 
       layers[name] = tree
 
