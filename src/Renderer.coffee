@@ -14,6 +14,8 @@ Styler = require './Styler'
 Tile = require './Tile'
 utils = require './utils'
 
+simplify = require 'simplify-js'
+
 module.exports = class Renderer
   cache: {}
   config:
@@ -210,16 +212,17 @@ module.exports = class Renderer
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
       return false
 
-    points = @_scaleAndReduce tile, feature, feature.points
 
     switch feature.style.type
       when "line"
         width = feature.style.paint['line-width']
         width = width.stops[0][1] if width instanceof Object
 
+        points = @_scaleAndReduce tile, feature, feature.points
         @canvas.polyline points, feature.color, width if points.length
 
       when "fill"
+        points = (@_scaleAndReduce tile, feature, p, false for p in feature.points)
         @canvas.polygon points, feature.color
         # if points.length is 3
         #   @canvas._filledTriangle points[0], points[1], points[2], feature.color
@@ -281,7 +284,13 @@ module.exports = class Renderer
             outside = null
             scaled.push [lastX, lastY]
 
-      scaled.push [x, y]
+      scaled.push [x, y] #x: x, y: y
+
+    if scaled.length < 2
+      if feature.style.type isnt "symbol"
+        return []
+    # else
+    #   scaled = ([point.x, point.y] for point in simplify scaled, 2, false)
 
     if filter
       if scaled.length is 2
@@ -290,8 +299,5 @@ module.exports = class Renderer
           return []
 
         @_seen[ka] = @_seen[kb] = true
-
-      if scaled.length < 2 and feature.style.type isnt "symbol"
-        return []
 
     scaled

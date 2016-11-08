@@ -74,14 +74,24 @@ class Tile
         # use feature.loadGeometry() again as soon as we got a 512 extent tileset
         geometries = feature.loadGeometry() #@_reduceGeometry feature, 8
 
-        for points in (if style.type is "fill" then [geometries[0]] else geometries)
-          nodes.push @_addBoundaries
+        if style.type is "fill"
+          nodes.push @_addBoundaries true,
             id: feature.id
             layer: name
             style: style
             properties: feature.properties
-            points: points
+            points: geometries
             color: colorCode
+
+        else
+          for points in geometries
+            nodes.push @_addBoundaries false,
+              id: feature.id
+              layer: name
+              style: style
+              properties: feature.properties
+              points: points
+              color: colorCode
 
 
       tree = rbush 18
@@ -91,13 +101,13 @@ class Tile
 
     @layers = layers
 
-  _addBoundaries: (data) ->
+  _addBoundaries: (deep, data) ->
     minX = Infinity
     maxX = -Infinity
     minY = Infinity
     maxY = -Infinity
 
-    for p in data.points
+    for p in (if deep then data.points[0] else data.points)
       minX = p.x if p.x < minX
       maxX = p.x if p.x > maxX
       minY = p.y if p.y < minY

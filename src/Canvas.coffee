@@ -44,20 +44,15 @@ module.exports = class Canvas
   background: (x, y, color) ->
     @buffer.setBackground x, y, color
 
-  polygon: (polylines, color) ->
+  polygon: (rings, color) ->
     vertices = []
     holes = []
 
-    xs = {}
-    ys = {}
-    #
-    # for points in polylines
-    #   if vertices.length
-    #     continue
-    #     holes.push vertices.length/2
-    polylines.push polylines[0]
-    for point in polylines
-      vertices = vertices.concat point
+    for ring in rings
+      if vertices.length
+        holes.push vertices.length/2
+      for point in ring
+        vertices = vertices.concat point
 
     try
       triangles = earcut vertices, holes
