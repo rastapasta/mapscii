@@ -210,18 +210,19 @@ module.exports = class Renderer
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
       return false
 
+    points = @_scaleAndReduce tile, feature, feature.points
+
     switch feature.style.type
       when "line"
-        points = @_scaleAndReduce tile, feature, feature.points
-
         width = feature.style.paint['line-width']
         width = width.stops[0][1] if width instanceof Object
 
         @canvas.polyline points, feature.color, width if points.length
 
       when "fill"
-        vertices = (@_scaleAndReduce tile, feature, points, false for points in feature.points)
-        @canvas.polygon vertices[0], feature.color
+        @canvas.polygon points, feature.color
+        # if points.length is 3
+        #   @canvas._filledTriangle points[0], points[1], points[2], feature.color
         true
 
       when "symbol"
@@ -242,12 +243,15 @@ module.exports = class Renderer
           else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
             @canvas.text "◉", point[0], point[1], feature.color
 
+    true
+
   _seen: {}
   _scaleAndReduce: (tile, feature, points, filter = true) ->
     lastX = null
     lastY = null
     outside = false
     scaled = []
+    #seen = {}
 
     for point in points
       x = Math.floor tile.position.x+(point.x/tile.scale)
@@ -259,8 +263,12 @@ module.exports = class Renderer
       lastY = y
       lastX = x
 
+      # TODO: benchmark
+      # continue if seen[idx = (y<<8)+x]
+      # seen[idx] = true
+
       if filter
-        if tile.xyz.z > 1 and (
+        if (
           x < -@tilePadding or
           y < -@tilePadding or
           x > @width+@tilePadding or
@@ -277,8 +285,8 @@ module.exports = class Renderer
 
     if filter
       if scaled.length is 2
-        if @_seen[ka = scaled[0].concat(scaled[1]).join '-'] or
-        @_seen[kb = scaled[1].concat(scaled[0]).join '-']
+        if @_seen[ka = (scaled[0]<<8)+scaled[1]] or
+        @_seen[kb = (scaled[1]<<8)+scaled[0]]
           return []
 
         @_seen[ka] = @_seen[kb] = true

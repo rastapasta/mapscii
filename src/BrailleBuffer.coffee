@@ -27,14 +27,17 @@ module.exports = class BrailleBuffer
   termReset: "\x1B[39;49m"
 
   constructor: (@width, @height) ->
-    @pixelBuffer = new Buffer @width*@height/8
+    size = @width*@height/8
+    @pixelBuffer = new Buffer size
+    @foregroundBuffer = new Buffer size
+    @backgroundBuffer = new Buffer size
     @clear()
 
   clear: ->
     @pixelBuffer.fill 0
     @charBuffer = []
-    @foregroundBuffer = []
-    @backgroundBuffer = []
+    @foregroundBuffer.fill 0
+    @backgroundBuffer.fill 0
 
   setGlobalBackground: (@globalBackground) ->
 

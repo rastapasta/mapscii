@@ -13,7 +13,6 @@
 
 bresenham = require 'bresenham'
 earcut = require 'earcut'
-
 BrailleBuffer = require './BrailleBuffer'
 utils = require './utils'
 
@@ -56,14 +55,9 @@ module.exports = class Canvas
     #   if vertices.length
     #     continue
     #     holes.push vertices.length/2
-
+    polylines.push polylines[0]
     for point in polylines
       vertices = vertices.concat point
-      xs[point[0]] = ys[point[1]] = true
-
-    # Check if we actually got a valid polygon after projection and clamping
-    if Object.keys(xs).length is 1 or Object.keys(ys).length is 1
-      return false
 
     try
       triangles = earcut vertices, holes
@@ -78,10 +72,7 @@ module.exports = class Canvas
       pb = extract(triangles[i+1])
       pc = extract(triangles[i+2])
 
-      if (0 <= pa[0] < @width and 0 <= pa[1] < @height) or
-      (0 <= pb[0] < @width and 0 <= pb[1] < @height) or
-      (0 <= pc[0] < @width and 0 <= pc[1] < @height)
-        @_filledTriangle pa, pb, pc, color
+      @_filledTriangle pa, pb, pc, color
 
   # Inspired by Alois Zingl's "The Beauty of Bresenham's Algorithm"
   # -> http://members.chello.at/~easyfilter/bresenham.html
@@ -159,13 +150,17 @@ module.exports = class Canvas
       [lastPoint, last] = [last, point]
       not lastPoint or lastPoint.x isnt point.x or lastPoint.y isnt point.y
 
-    for i, point of points
+    for i in [0...points.length]
+      point = points[i]
       next = points[i*1+1]
 
       if point.y is next?.y
         left = Math.max 0, point.x
-        right = Math.min @width, next?.x
-        @buffer.setPixel x, point.y, color for x in [left..right]
+        right = Math.min @width, next.x
+        if left and right
+          @buffer.setPixel x, point.y, color for x in [left..right]
 
       else
         @buffer.setPixel point.x, point.y, color
+
+      break unless next

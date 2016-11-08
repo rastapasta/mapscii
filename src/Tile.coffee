@@ -11,6 +11,7 @@ Promise = require 'bluebird'
 zlib = require 'zlib'
 rbush = require 'rbush'
 x256 = require 'x256'
+earcut = require 'earcut'
 
 utils = require "./utils"
 
@@ -46,6 +47,7 @@ class Tile
 
     for name, layer of tile.layers
       nodes = []
+      #continue if name is "water"
       for i in [0...layer.length]
         # TODO: caching of similar attributes to avoid looking up the style each time
         #continue if @styler and not @styler.getStyleFor layer, feature
@@ -62,7 +64,7 @@ class Tile
           style.paint['fill-color'] or
           style.paint['text-color']
 
-        # TODO: zoom calculation todo for perfect styling
+        # TODO: style zoom stops handling
         if color instanceof Object
           color = color.stops[0][1]
 
@@ -72,45 +74,34 @@ class Tile
         # use feature.loadGeometry() again as soon as we got a 512 extent tileset
         geometries = feature.loadGeometry() #@_reduceGeometry feature, 8
 
-        # TODO: handling polygon holes, only handling outer area for now
-        if style.type is "fill"
+        for points in (if style.type is "fill" then [geometries[0]] else geometries)
           nodes.push @_addBoundaries
             id: feature.id
             layer: name
             style: style
             properties: feature.properties
-            points: geometries
+            points: points
             color: colorCode
 
-        else
-          for points in geometries
-            nodes.push @_addBoundaries
-              id: feature.id
-              layer: name
-              style: style
-              properties: feature.properties
-              points: points
-              color: colorCode
 
-      tree = rbush()
+      tree = rbush 18
       tree.load nodes
+
       layers[name] = tree
 
     @layers = layers
 
   _addBoundaries: (data) ->
-    [minX, maxX, minY, maxY] = [Infinity, -Infinity, Infinity, -Infinity]
-    minMax = (points) ->
-      for p in points
-        minX = p.x if p.x < minX
-        maxX = p.x if p.x > maxX
-        minY = p.y if p.y < minY
-        maxY = p.y if p.y > maxY
+    minX = Infinity
+    maxX = -Infinity
+    minY = Infinity
+    maxY = -Infinity
 
-    if data.points[0] instanceof Array
-      minMax points for points in data.points
-    else
-      minMax data.points
+    for p in data.points
+      minX = p.x if p.x < minX
+      maxX = p.x if p.x > maxX
+      minY = p.y if p.y < minY
+      maxY = p.y if p.y > maxY
 
     data.minX = minX
     data.maxX = maxX

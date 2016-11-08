@@ -23,8 +23,8 @@ module.exports = class Termap
     styleFile: __dirname+"/../styles/bright.json"
 
     initialZoom: null
-    maxZoom: 17
-    zoomStep: 0.1
+    maxZoom: 18
+    zoomStep: 0.2
     headless: false
 
     # size:
@@ -154,7 +154,9 @@ module.exports = class Termap
       when "q"
         process.exit 0
 
-      when "w" then @zoomy = true
+      when "w" then @zoomy = 1
+      when "s" then @zoomy = -1
+
       when "a" then @zoomBy @config.zoomStep
       when "z" then @zoomBy -@config.zoomStep
 
@@ -181,11 +183,12 @@ module.exports = class Termap
     .catch =>
       @notify "renderer is busy"
     .then =>
-      if @zoomy and @zoom < @config.maxZoom
-        @zoom += @config.zoomStep
+      if @zoomy
+        if (@zoomy > 0 and @zoom < @config.maxZoom) or (@zoomy < 0 and @zoom > @minZoom)
+          @zoom += @zoomy * @config.zoomStep
+        else
+          @zoomy *= -1
         @_draw()
-      else
-        @zoomy = false
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
@@ -195,16 +198,11 @@ module.exports = class Termap
     #     type: f.feature.properties.type
     #     rank: f.feature.properties.scalerank
     # ).join(", ")+"] "+
-    "#{@mousePosition.x} #{@mousePosition.y} " +
-    #"center: [#{utils.digits @center.lat, 2}, #{utils.digits @center.lng, 2}]}"
+    #{}"#{@mousePosition.x} #{@mousePosition.y} " +
     # bbox = @_getBBox()
     # tiles = @_tilesInBBox(bbox)
+    "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
     "zoom: #{utils.digits @zoom, 2} "
-    #{}"bbox: [#{bbox.map((z) -> utils.digits(z, 2)).join(', ')}]"+
-    # "tiles: "+("#{k}: #{v}" for k,v of @_tilesInBBox(bbox) when typeof v is "number").join(",")
-
-
-    #features.map((f) -> JSON.stringify f.feature.properties).join(" - ")
 
   notify: (text) ->
     @_write "\r\x1B[K"+text unless @config.headless
