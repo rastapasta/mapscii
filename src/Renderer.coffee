@@ -292,12 +292,12 @@ module.exports = class Renderer
     # else
     #   scaled = ([point.x, point.y] for point in simplify scaled, 2, false)
 
-    if filter
-      if scaled.length is 2
-        if @_seen[ka = (scaled[0]<<8)+scaled[1]] or
-        @_seen[kb = (scaled[1]<<8)+scaled[0]]
-          return []
-
-        @_seen[ka] = @_seen[kb] = true
+    # if filter
+    #   if scaled.length is 2
+    #     if @_seen[ka = (scaled[0]<<8)+scaled[1]] or
+    #     @_seen[kb = (scaled[1]<<8)+scaled[0]]
+    #       return []
+    #
+    #     @_seen[ka] = @_seen[kb] = true
 
     scaled

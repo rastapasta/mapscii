@@ -188,7 +188,7 @@ module.exports = class Termap
           @zoom += @zoomy * @config.zoomStep
         else
           @zoomy *= -1
-        @_draw()
+        setImmediate => @_draw()
 
   _getFooter: ->
     # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)

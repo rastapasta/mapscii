@@ -50,7 +50,11 @@ module.exports = class Canvas
 
     for ring in rings
       if vertices.length
+        continue if ring.length < 3
         holes.push vertices.length/2
+      else
+        return if ring.length < 3
+
       for point in ring
         vertices = vertices.concat point
 

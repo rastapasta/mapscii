@@ -72,7 +72,7 @@ class Tile
 
         # TODO: monkey patching test case for tiles with a reduced extent 4096 / 8 -> 512
         # use feature.loadGeometry() again as soon as we got a 512 extent tileset
-        geometries = feature.loadGeometry() #@_reduceGeometry feature, 8
+        geometries = feature.@_reduceGeometry feature, 8
 
         if style.type is "fill"
           nodes.push @_addBoundaries true,
