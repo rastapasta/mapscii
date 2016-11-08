@@ -1,15 +1,19 @@
 # MapSCII - The Whole World In Your Console.
 
-MapSCII is a node.js based [Vector Tile](https://github.com/mapbox/vector-tile-spec) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
+A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) and [ASCII](https://de.wikipedia.org/wiki/American_Standard_Code_for_Information_Interchange) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
 <img src="http://i.imgur.com/yYVt7No.png" width="100%" />
 
-* Discover the globe or zoom in to explore your neighbourhood
-* See Point-of-Interest around any given location
-* Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/)
-* Compatible with Linux and OSX terminals, Windows support via [PuTTY](http://www.putty.org/)
-* Connect to any vector tile server - or just use my custom [OpenStreetMap](https://en.wikipedia.org/wiki/OpenStreetMap) based one
-* Work offline and discover local VectorTile/MBTiles
+## Features
+
+* Use your mouse to drag and zoom in and out
+* Discover Point-of-Interests around any given location
+* Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/) support
+* Connect to any public or private vector tile server
+* Or just use the supplied and optimized [OpenStreetMap](https://en.wikipedia.org/wiki/OpenStreetMap) based one
+* Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
+* Compatible with most Linux and OSX terminals
+* Highly optimizied algorithms for a smooth experience
 * 100% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to install
@@ -67,73 +71,33 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 ### TODOs
 * MapSCII
   * [ ] CLI support
-    * [X] global linking for npm install -g
     * [ ] startup parameters
-      * TileSource
-        * [ ] VectorTile
-        * [ ] MBTile
-        * [ ] Tileserver
+      * [ ] TileSource
       * [ ] Style
       * [ ] center position
-      * [ ] POI filter?
-  * [ ] Viewport
-    * [x] start with zoom level which shows full
-      * [X] world
-      * [ ] vector tile
-    * [X] boundary based on current zoom & size
-    * [X] determain tiles to show
-    * [X] zoom while keeping center
-    * [ ] calculate tile areas
-    * [X] center based on mercator
-    * [x] handle console resize
-  * [ ] mapscii-server
-    * [ ] telnet
-    * [ ] ssh
-  * [x] handle console resize
+      * [ ] zoom
+      * [ ] demo mode?
+
   * [ ] mouse control
-    * [x] accurate mouse drag&drop with instant update
-    * [x] hover POIs/labels
+    * [ ] accurate mouse drag&drop with instant update
+    * [ ] hover POIs/labels
     * [ ] hover maybe even polygons/-lines?
     * [ ] get hover lat/lng
     * [ ] zoom into mouse pos
-  * [ ] API
-    * [ ] setCenter
-    * [ ] setZoom
 
 * Styler
-  * [x] compile filters to function chains
-  * [x] support constants
-  * [x] respect minzoom
+  * [ ] respect zoom based style stops
 
 * Renderer
-  * [x] position tiles accordingly
-  * [ ] line drawing
-    * [x] support for stroke width
-    * [ ] support for dashed/dotted lines?
-  * [ ] feature selection for priority rerendering (roads -> warter -> roads:bridges)
+  * [ ] polygons
+    * [ ] holes
+    * [ ] use rbush?
 
   * [ ] label drawing
-    * [x] support for point labels
-    * [x] dynamic decluttering of labels
-    * [x] centering text labels
-    * [x] clipping fix when x<0 after repositioning
-    * [ ] multi line label
-    * [x] label margin to avoid POI overlap?
-    * [ ] translatable raster fonts
+    * [ ] multi line label?
 
-  * [x] filled polygons
-    * [x] convert polygons to triangles
-    * [x] use triangulation for filling
-    * [x] respect fill/line style file based setting
-
-* Tile
-  * [x] directly throw away features that aren't covered by any style
-  * [x] TileSource class (abstracting URL, mbtiles, single vector tile source)
-  * [x] tile request system
-    * [ ] from single vector-tile
-    * [x] from local mbtiles
-    * [x] from remote url
-      * [x] permanent caching of received files
+* TileSource
+  * [ ] implement single vector-tile handling
 
 ## License
 #### The MIT License (MIT)
