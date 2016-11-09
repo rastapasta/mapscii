@@ -14,7 +14,7 @@ Styler = require './Styler'
 Tile = require './Tile'
 utils = require './utils'
 
-simplify = require 'simplify-js'
+#simplify = require 'simplify-js'
 
 module.exports = class Renderer
   cache: {}
@@ -29,17 +29,20 @@ module.exports = class Renderer
 
     #"poi_label", "water",
     drawOrder: [
-      "admin"
+      "landuse"
       "water"
       "marine_label"
       "building"
       "road"
+      "admin"
+
       "country_label"
       "state_label"
       "water_label"
       "place_label"
       "rail_station_label"
       "poi_label"
+      "road_label"
       "housenum_label"
     ]
 
@@ -243,8 +246,12 @@ module.exports = class Renderer
 
           if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
             @canvas.text text, x, point[1], feature.color
-          else if @config.layers[feature.layer]?.cluster and @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
+            break
+
+          else if @config.layers[feature.layer]?.cluster and
+          @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
             @canvas.text "◉", point[0], point[1], feature.color
+            break
 
     true
 
@@ -254,7 +261,7 @@ module.exports = class Renderer
     lastY = null
     outside = false
     scaled = []
-    #seen = {}
+    # seen = {}
 
     for point in points
       x = Math.floor tile.position.x+(point.x/tile.scale)
@@ -291,7 +298,7 @@ module.exports = class Renderer
         return []
     # else
     #   scaled = ([point.x, point.y] for point in simplify scaled, 2, false)
-
+    #
     # if filter
     #   if scaled.length is 2
     #     if @_seen[ka = (scaled[0]<<8)+scaled[1]] or

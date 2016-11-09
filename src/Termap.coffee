@@ -20,7 +20,7 @@ module.exports = class Termap
 
     source: "http://nachbar.io/data/osm2vectortiles/"
     #source: __dirname+"/../mbtiles/regensburg.mbtiles"
-    styleFile: __dirname+"/../styles/bright.json"
+    styleFile: __dirname+"/../styles/dark.json"
 
     initialZoom: null
     maxZoom: 18
