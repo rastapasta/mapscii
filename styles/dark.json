@@ -1,11 +1,11 @@
 {
-  "name": "Bright",
+  "name": "dark",
   "constants": {
     "@admin_level_2": "#fff",
     "@admin_level_2_disputed": "#fff",
-    "@admin_level_2_maritime": "#a0c8f0",
+    "@admin_level_2_maritime": "#9bf",
     "@admin_level_3": "#aac",
-    "@admin_level_3_maritime": "#a0c8f0",
+    "@admin_level_3_maritime": "#8af",
     "@admin_level_4": "#777",
 
     "@aeroway_fill": "#f0ede9",

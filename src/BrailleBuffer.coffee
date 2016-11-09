@@ -88,8 +88,6 @@ module.exports = class BrailleBuffer
 
       output.push if @charBuffer[idx]
         @charBuffer[idx]
-      else if @pixelBuffer[idx] is 0
-        ' '
       else
         String.fromCharCode 0x2800+@pixelBuffer[idx]
 

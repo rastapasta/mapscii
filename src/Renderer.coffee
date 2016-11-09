@@ -17,53 +17,14 @@ utils = require './utils'
 #simplify = require 'simplify-js'
 
 module.exports = class Renderer
-  cache: {}
   config:
-    language: 'de'
+    language: 'en'
 
     labelMargin: 5
 
     tileSize: 4096
     projectSize: 256
     maxZoom: 14
-
-    #"poi_label", "water",
-    drawOrder: [
-      "landuse"
-      "water"
-      "marine_label"
-      "building"
-      "road"
-      "admin"
-
-      "country_label"
-      "state_label"
-      "water_label"
-      "place_label"
-      "rail_station_label"
-      "poi_label"
-      "road_label"
-      "housenum_label"
-    ]
-
-    icons:
-      car: "🚗"
-      school: "S" #{}"🏫"
-      marker: "⭐"
-      'art-gallery': "A" #"🎨"
-      attraction: "❕"
-      stadium: "🏈"
-      toilet: "🚽"
-      cafe: "☕"
-      laundry: "👚"
-      bus: "🚌"
-      restaurant: "R" #🍛"
-      lodging: "B" #🛏"
-      'fire-station': "🚒"
-      shop: "🛍"
-      pharmacy: "💊"
-      beer: "H" #"🍺"
-      cinema: "C" #"🎦"
 
     layers:
       housenum_label:
@@ -178,7 +139,7 @@ module.exports = class Renderer
 
     features = {}
 
-    for layer in @config.drawOrder
+    for layer in @_generateDrawOrder zoom
       continue unless tile.data.layers?[layer]
       features[layer] = tile.data.layers[layer].search box
 
@@ -188,7 +149,7 @@ module.exports = class Renderer
   _renderTiles: (tiles) ->
     drawn = {}
 
-    for layer in @config.drawOrder
+    for layer in @_generateDrawOrder tiles[0].xyz.z
       for tile in tiles
         continue unless tile.features[layer]?.length
         for feature in tile.features[layer]
@@ -236,7 +197,6 @@ module.exports = class Renderer
           feature.properties["name_en"] or
           feature.properties["name"] or
           feature.properties.house_num or
-          #@config.icons[feature.properties.maki] or
           "◉"
 
         points = @_scaleAndReduce tile, feature, feature.points
@@ -308,3 +268,30 @@ module.exports = class Renderer
     #     @_seen[ka] = @_seen[kb] = true
 
     scaled
+
+  _generateDrawOrder: (zoom) ->
+    if zoom < 2
+      [
+        "admin"
+        "water"
+        "country_label"
+        "marine_label"
+      ]
+    else
+      [
+        "landuse"
+        "water"
+        "marine_label"
+        "building"
+        "road"
+        "admin"
+
+        "country_label"
+        "state_label"
+        "water_label"
+        "place_label"
+        "rail_station_label"
+        "poi_label"
+        "road_label"
+        "housenum_label"
+      ]
