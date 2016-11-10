@@ -35,9 +35,8 @@
     "rbush": "^2.0.1",
     "request": "^2.76.0",
     "request-promise": "^4.1.1",
-    "sphericalmercator": "^1.0.5",
+    "simplify-js": "^1.2.1",
     "term-mouse": "^0.1.1",
-    "tilebelt": "^1.0.1",
     "userhome": "^1.0.0",
     "vector-tile": "^1.3.0",
     "x256": "0.0.2"

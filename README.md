@@ -58,10 +58,9 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 #### Juggling the vectors and numbers
 * [`earcut`](https://github.com/mapbox/earcut) for polygon triangulation
-* [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing based label and mouse collision detection
-* [`breseham`](https://github.com/madbence/node-bresenham) for line calculations
-* [`sphericalmercator`](https://github.com/mapbox/node-sphericalmercator) for [EPSG:3857](http://spatialreference.org/ref/sr-org/6864/) <> [WGS84](http://spatialreference.org/ref/epsg/wgs-84/) conversions
-* [`tilebelt`](https://github.com/mapbox/tilebelt) for some [slippy map tilename](https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames) calculations
+* [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing of geo and label data
+* [`breseham`](https://github.com/madbence/node-bresenham) for line point calculations
+* [`simplify-js`](https://github.com/mourner/simplify-js) for polyline simplifications
 
 #### Handling the flow
 * [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic

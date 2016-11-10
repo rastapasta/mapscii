@@ -12,6 +12,8 @@
 ###
 
 bresenham = require 'bresenham'
+simplify = require 'simplify-js'
+
 earcut = require 'earcut'
 BrailleBuffer = require './BrailleBuffer'
 utils = require './utils'
@@ -32,11 +34,11 @@ module.exports = class Canvas
     @buffer.writeText text, x, y, color, center
 
   line: (from, to, color, width = 1) ->
-    @_line from, to, color, width
+    @_line from.x, from.y, to.x, to.y, color, width
 
   polyline: (points, color, width = 1) ->
     for i in [1...points.length]
-      @_line points[i-1], points[i], width, color
+      @_line points[i-1].x, points[i-1].y, points[i].x, points[i].y, width, color
 
   setBackground: (color) ->
     @buffer.setGlobalBackground color
@@ -53,37 +55,38 @@ module.exports = class Canvas
         continue if ring.length < 3
         holes.push vertices.length/2
       else
-        return if ring.length < 3
+        return false if ring.length < 3
 
       for point in ring
-        vertices = vertices.concat point
+        vertices.push point.x
+        vertices.push point.y
 
     try
       triangles = earcut vertices, holes
     catch e
       return false
 
-    extract = (pointId) ->
-      [vertices[pointId*2], vertices[pointId*2+1]]
-
     for i in [0...triangles.length] by 3
-      pa = extract(triangles[i])
-      pb = extract(triangles[i+1])
-      pc = extract(triangles[i+2])
+      pa = @_polygonExtract vertices, triangles[i]
+      pb = @_polygonExtract vertices, triangles[i+1]
+      pc = @_polygonExtract vertices, triangles[i+2]
 
       @_filledTriangle pa, pb, pc, color
 
+    true
+
+  _polygonExtract: (vertices, pointId) ->
+    [vertices[pointId*2], vertices[pointId*2+1]]
+
   # Inspired by Alois Zingl's "The Beauty of Bresenham's Algorithm"
   # -> http://members.chello.at/~easyfilter/bresenham.html
-  _line: (pointA, pointB, width, color) ->
+  _line: (x0, y0, x1, y1, width, color) ->
 
     # Fall back to width-less bresenham algorithm if we dont have a width
     unless width = Math.max 0, width-1
-      return bresenham pointA[0], pointA[1], pointB[0], pointB[1],
+      return bresenham x0, y0, x1, y1,
         (x, y) => @buffer.setPixel x, y, color
 
-    [x0, y0] = pointA
-    [x1, y1] = pointB
     dx = Math.abs x1-x0
     sx = if x0 < x1 then 1 else -1
     dy = Math.abs y1-y0
@@ -138,16 +141,9 @@ module.exports = class Canvas
     b = @_bresenham pointA, pointC
     c = @_bresenham pointA, pointB
 
-    # Filter out any points outside of the visible area
-    # TODO: benchmark - is it more effective to filter double points, or does
-    # it req more computing time than actually setting points multiple times?
-    last = null
     points = a.concat(b).concat(c)
     .filter (point) => 0 <= point.y < @height
     .sort (a, b) -> if a.y is b.y then a.x - b.x else a.y-b.y
-    .filter (point) ->
-      [lastPoint, last] = [last, point]
-      not lastPoint or lastPoint.x isnt point.x or lastPoint.y isnt point.y
 
     for i in [0...points.length]
       point = points[i]
@@ -155,8 +151,8 @@ module.exports = class Canvas
 
       if point.y is next?.y
         left = Math.max 0, point.x
-        right = Math.min @width, next.x
-        if left and right
+        right = Math.min @width-1, next.x
+        if left >= 0 and right <= @width
           @buffer.setPixel x, point.y, color for x in [left..right]
 
       else
