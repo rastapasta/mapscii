@@ -15,7 +15,6 @@ utils = require './utils'
 config = require './config'
 
 module.exports = class Termap
-
   width: null
   height: null
   canvas: null
@@ -113,8 +112,9 @@ module.exports = class Termap
     @_draw()
 
   _onMouseMove: (event) ->
-    # only continue if x/y are valid
-    return unless event.x <= config.output.columns and event.y <= config.output.rows
+    projected =
+      x: event.x * 2
+      y: event.y * 4
 
     # start dragging
     if event.button is "left"
@@ -130,7 +130,7 @@ module.exports = class Termap
         @mouseDragging = x: event.x, y: event.y
 
     # update internal mouse tracker
-    @mousePosition = x: event.x, y: event.y
+    @mousePosition = projected
     @notify @_getFooter()
 
   _onKey: (key) ->
@@ -181,7 +181,7 @@ module.exports = class Termap
 
     "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
     "zoom: #{utils.digits @zoom, 2}   "+
-    "mouse: #{@mousePosition.x*2-@width/2} #{@mousePosition.y}   "
+    "mouse: #{@mousePosition.x-@width/2} #{@mousePosition.y-@height/2}   "
 
   notify: (text) ->
     @_write "\r\x1B[K"+text unless config.headless
