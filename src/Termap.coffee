@@ -12,24 +12,9 @@ Promise = require 'bluebird'
 Renderer = require './Renderer'
 TileSource = require './TileSource'
 utils = require './utils'
+config = require './config'
 
 module.exports = class Termap
-  config:
-    input: process.stdin
-    output: process.stdout
-
-    source: "http://nachbar.io/data/osm2vectortiles/"
-    #source: __dirname+"/../mbtiles/regensburg.mbtiles"
-    styleFile: __dirname+"/../styles/dark.json"
-
-    initialZoom: null
-    maxZoom: 18
-    zoomStep: 0.2
-    headless: false
-
-    # size:
-    #   width: 40*2
-    #   height: 10*4
 
   width: null
   height: null
@@ -53,13 +38,13 @@ module.exports = class Termap
   minZoom: null
 
   constructor: (options) ->
-    @config[key] = val for key, val of options
+    config[key] = val for key, val of options
 
   init: ->
     Promise
     .resolve()
     .then =>
-      unless @config.headless
+      unless config.headless
         @_initKeyboard()
         @_initMouse()
 
@@ -73,17 +58,17 @@ module.exports = class Termap
 
   _initTileSource: ->
     @tileSource = new TileSource()
-    @tileSource.init @config.source
+    @tileSource.init config.source
 
   _initKeyboard: ->
-    keypress @config.input
-    @config.input.setRawMode true
-    @config.input.resume()
+    keypress config.input
+    config.input.setRawMode true
+    config.input.resume()
 
-    @config.input.on 'keypress', (ch, key) => @_onKey key
+    config.input.on 'keypress', (ch, key) => @_onKey key
 
   _initMouse: ->
-    @mouse = TermMouse input: @config.input, output: @config.output
+    @mouse = TermMouse input: config.input, output: config.output
     @mouse.start()
 
     @mouse.on 'click', (event) => @_onClick event
@@ -91,23 +76,23 @@ module.exports = class Termap
     @mouse.on 'move', (event) => @_onMouseMove event
 
   _initRenderer: ->
-    @renderer = new Renderer @config.output, @tileSource
-    @renderer.loadStyleFile @config.styleFile
+    @renderer = new Renderer config.output, @tileSource
+    @renderer.loadStyleFile config.styleFile
 
-    @config.output.on 'resize', =>
+    config.output.on 'resize', =>
       @_resizeRenderer()
       @_draw()
 
     @_resizeRenderer()
-    @zoom = if @config.initialZoom isnt null then @config.initialZoom else @minZoom
+    @zoom = if config.initialZoom isnt null then config.initialZoom else @minZoom
 
   _resizeRenderer: (cb) ->
-    if @config.size
-      @width = @config.size.width
-      @height = @config.size.height
+    if config.size
+      @width = config.size.width
+      @height = config.size.height
     else
-      @width = @config.output.columns >> 1 << 2
-      @height = @config.output.rows * 4 - 4
+      @width = config.output.columns >> 1 << 2
+      @height = config.output.rows * 4 - 4
 
     @minZoom = 4-Math.log(4096/@width)/Math.LN2
 
@@ -124,12 +109,12 @@ module.exports = class Termap
 
   _onMouseScroll: (event) ->
     # TODO: handle .x/y for directed zoom
-    @zoomBy @config.zoomStep * if event.button is "up" then -1 else 1
+    @zoomBy config.zoomStep * if event.button is "up" then -1 else 1
     @_draw()
 
   _onMouseMove: (event) ->
     # only continue if x/y are valid
-    return unless event.x <= @config.output.columns and event.y <= @config.output.rows
+    return unless event.x <= config.output.columns and event.y <= config.output.rows
 
     # start dragging
     if event.button is "left"
@@ -157,8 +142,8 @@ module.exports = class Termap
       when "w" then @zoomy = 1
       when "s" then @zoomy = -1
 
-      when "a" then @zoomBy @config.zoomStep
-      when "z" then @zoomBy -@config.zoomStep
+      when "a" then @zoomBy config.zoomStep
+      when "z" then @zoomBy -config.zoomStep
 
       when "left" then @moveBy 0, -8/Math.pow(2, @zoom)
       when "right" then @moveBy 0, 8/Math.pow(2, @zoom)
@@ -184,8 +169,8 @@ module.exports = class Termap
       @notify "renderer is busy"
     .then =>
       if @zoomy
-        if (@zoomy > 0 and @zoom < @config.maxZoom) or (@zoomy < 0 and @zoom > @minZoom)
-          @zoom += @zoomy * @config.zoomStep
+        if (@zoomy > 0 and @zoom < config.maxZoom) or (@zoomy < 0 and @zoom > @minZoom)
+          @zoom += @zoomy * config.zoomStep
         else
           @zoomy *= -1
         setImmediate => @_draw()
@@ -196,17 +181,17 @@ module.exports = class Termap
 
     "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
     "zoom: #{utils.digits @zoom, 2}   "+
-    "mouse: #{@mousePosition.x} #{@mousePosition.y}   "+
+    "mouse: #{@mousePosition.x*2-@width/2} #{@mousePosition.y}   "
 
   notify: (text) ->
-    @_write "\r\x1B[K"+text unless @config.headless
+    @_write "\r\x1B[K"+text unless config.headless
 
   _write: (output) ->
-    @config.output.write output
+    config.output.write output
 
   zoomBy: (step) ->
     return @zoom = @minZoom if @zoom+step < @minZoom
-    return @zoom = @config.maxZoom if @zoom+step > @config.maxZoom
+    return @zoom = config.maxZoom if @zoom+step > config.maxZoom
 
     @zoom += step
 

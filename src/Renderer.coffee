@@ -13,27 +13,9 @@ LabelBuffer = require './LabelBuffer'
 Styler = require './Styler'
 Tile = require './Tile'
 utils = require './utils'
+config = require './config'
 
 module.exports = class Renderer
-  config:
-    language: 'en'
-
-    labelMargin: 5
-
-    tileSize: 4096
-    projectSize: 256
-    maxZoom: 14
-
-    layers:
-      housenum_label:
-        margin: 4
-      poi_label:
-        margin: 5
-        cluster: true
-
-      place_label: cluster: true
-      state_label: cluster: true
-
   terminal:
     CLEAR: "\x1B[2J"
     MOVE: "\x1B[?6h"
@@ -84,12 +66,12 @@ module.exports = class Renderer
       frame
 
   _visibleTiles: (center, zoom) ->
-    z = Math.min @config.maxZoom, Math.max 0, Math.floor zoom
+    z = Math.min config.tileRange, Math.max 0, Math.floor zoom
     center = utils.ll2tile center.lon, center.lat, z
 
     tiles = []
     scale = @_scaleAtZoom zoom
-    tileSize = @config.tileSize / scale
+    tileSize = config.tileSize / scale
 
     for y in [Math.floor(center.y)-1..Math.floor(center.y)+1]
       for x in [Math.floor(center.x)-1..Math.floor(center.x)+1]
@@ -167,8 +149,8 @@ module.exports = class Renderer
     @labelBuffer.featuresAt x, y
 
   _scaleAtZoom: (zoom) ->
-    baseZoom = Math.min @config.maxZoom, Math.floor Math.max 0, zoom
-    @config.tileSize / @config.projectSize / Math.pow(2, zoom-baseZoom)
+    baseZoom = Math.min config.tileRange, Math.floor Math.max 0, zoom
+    config.tileSize / config.projectSize / Math.pow(2, zoom-baseZoom)
 
   _drawFeature: (tile, feature) ->
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
@@ -192,7 +174,7 @@ module.exports = class Renderer
         true
 
       when "symbol"
-        text = feature.properties["name_"+@config.language] or
+        text = feature.properties["name_"+config.language] or
           feature.properties["name_en"] or
           feature.properties["name"] or
           feature.properties.house_num or
@@ -203,14 +185,14 @@ module.exports = class Renderer
         placed = false
         for point in @_scaleAndReduce tile, feature, feature.points
           x = point.x - text.length
-          margin = @config.layers[feature.layer]?.margin or @config.labelMargin
+          margin = config.layers[feature.layer]?.margin or config.labelMargin
 
           if @labelBuffer.writeIfPossible text, x, point.y, feature, margin
             @canvas.text text, x, point.y, feature.color
             placed = true
             break
 
-          else if @config.layers[feature.layer]?.cluster and
+          else if config.layers[feature.layer]?.cluster and
           @labelBuffer.writeIfPossible "◉", point.x, point.y, feature, 3
             @canvas.text "◉", point.x, point.y, feature.color
             placed = true
@@ -244,7 +226,7 @@ module.exports = class Renderer
         else
           if outside
             outside = null
-            scaled.push [lastX, lastY]
+            scaled.push x: lastX, y: lastY
 
       scaled.push x: x, y: y
 
