@@ -22,13 +22,15 @@ module.exports = class Styler
     @_replaceConstants json.constants, json.layers if json.constants
 
     for style in json.layers
-      continue if style.ref
+      if style.ref and @styleById[style.ref]
+        for ref in ['type', 'source-layer', 'minzoom', 'maxzoom', 'filter']
+          if @styleById[style.ref][ref] and not style[ref]
+            style[ref] = @styleById[style.ref][ref]
 
       style.appliesTo = @_compileFilter style.filter
 
       @styleByLayer[style['source-layer']] ?= []
       @styleByLayer[style['source-layer']].push style
-
       @styleById[style.id] = style
 
   getStyleFor: (layer, feature, zoom) ->
