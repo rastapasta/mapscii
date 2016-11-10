@@ -191,18 +191,12 @@ module.exports = class Termap
         setImmediate => @_draw()
 
   _getFooter: ->
-    # features = @renderer.featuresAt @mousePosition.x-1-(@view[0]>>1), @mousePosition.y-1-(@view[1]>>2)
-    # "features: ["+features.map((f) ->
-    #   JSON.stringify
-    #     name: f.feature.properties.name
-    #     type: f.feature.properties.type
-    #     rank: f.feature.properties.scalerank
-    # ).join(", ")+"] "+
-    #{}"#{@mousePosition.x} #{@mousePosition.y} " +
-    # bbox = @_getBBox()
-    # tiles = @_tilesInBBox(bbox)
+    # tile = utils.ll2tile @center.lon, @center.lat, @zoom
+    # "tile: #{utils.digits tile.x, 3}, #{utils.digits tile.x, 3}   "+
+
     "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
-    "zoom: #{utils.digits @zoom, 2} "
+    "zoom: #{utils.digits @zoom, 2}   "+
+    "mouse: #{@mousePosition.x} #{@mousePosition.y}   "+
 
   notify: (text) ->
     @_write "\r\x1B[K"+text unless @config.headless
@@ -217,9 +211,14 @@ module.exports = class Termap
     @zoom += step
 
   moveBy: (lat, lon) ->
-    @center.lat += lat
-    @center.lon += lon
+    @setCenter @center.lat+lat, @center.lon+lon
 
-    @center.lon = (@center.lon+180)%360-180
-    @center.lat = 85.0511 if @center.lat > 85.0511
-    @center.lat = -85.0511 if @center.lat < -85.0511
+  setCenter: (lat, lon) ->
+    lon += 360 if lon < -180
+    lon -= 360 if lon > 180
+
+    lat = 85.0511 if lat > 85.0511
+    lat = -85.0511 if lat < -85.0511
+
+    @center.lat = lat
+    @center.lon = lon

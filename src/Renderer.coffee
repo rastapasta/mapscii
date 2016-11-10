@@ -4,17 +4,15 @@
 
   The Console Vector Tile renderer - bäm!
 ###
-tilebelt = require 'tilebelt'
 Promise = require 'bluebird'
 x256 = require 'x256'
+simplify = require 'simplify-js'
 
 Canvas = require './Canvas'
 LabelBuffer = require './LabelBuffer'
 Styler = require './Styler'
 Tile = require './Tile'
 utils = require './utils'
-
-#simplify = require 'simplify-js'
 
 module.exports = class Renderer
   config:
@@ -87,19 +85,19 @@ module.exports = class Renderer
 
   _visibleTiles: (center, zoom) ->
     z = Math.min @config.maxZoom, Math.max 0, Math.floor zoom
-    xyz = tilebelt.pointToTileFraction center.lon, center.lat, z
+    center = utils.ll2tile center.lon, center.lat, z
 
     tiles = []
     scale = @_scaleAtZoom zoom
     tileSize = @config.tileSize / scale
 
-    for y in [Math.floor(xyz[1])-1..Math.floor(xyz[1])+1]
-      for x in [Math.floor(xyz[0])-1..Math.floor(xyz[0])+1]
+    for y in [Math.floor(center.y)-1..Math.floor(center.y)+1]
+      for x in [Math.floor(center.x)-1..Math.floor(center.x)+1]
         tile = x: x, y: y, z: z
 
         position =
-          x: @width/2-(xyz[0]-tile.x)*tileSize
-          y: @height/2-(xyz[1]-tile.y)*tileSize
+          x: @width/2-(center.x-tile.x)*tileSize
+          y: @height/2-(center.y-tile.y)*tileSize
 
         gridSize = Math.pow 2, z
 
@@ -175,7 +173,8 @@ module.exports = class Renderer
   _drawFeature: (tile, feature) ->
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
       return false
-
+    else if feature.style.maxzoom and tile.zoom > feature.style.maxzoom
+      return false
 
     switch feature.style.type
       when "line"
@@ -197,53 +196,49 @@ module.exports = class Renderer
           feature.properties["name_en"] or
           feature.properties["name"] or
           feature.properties.house_num or
-          "◉"
+          genericSymbol = "◉"
 
-        points = @_scaleAndReduce tile, feature, feature.points
-        for point in points
-          x = point[0] - text.length
+        return false if @_seen[text] and not genericSymbol
+
+        placed = false
+        for point in @_scaleAndReduce tile, feature, feature.points
+          x = point.x - text.length
           margin = @config.layers[feature.layer]?.margin or @config.labelMargin
 
-          if @labelBuffer.writeIfPossible text, x, point[1], feature, margin
-            @canvas.text text, x, point[1], feature.color
+          if @labelBuffer.writeIfPossible text, x, point.y, feature, margin
+            @canvas.text text, x, point.y, feature.color
+            placed = true
             break
 
           else if @config.layers[feature.layer]?.cluster and
-          @labelBuffer.writeIfPossible "X", point[0], point[1], feature, 3
-            @canvas.text "◉", point[0], point[1], feature.color
+          @labelBuffer.writeIfPossible "◉", point.x, point.y, feature, 3
+            @canvas.text "◉", point.x, point.y, feature.color
+            placed = true
             break
+
+        @_seen[text] = true if placed
 
     true
 
-  _seen: {}
   _scaleAndReduce: (tile, feature, points, filter = true) ->
-    lastX = null
-    lastY = null
-    outside = false
+    lastX = lastY = outside = null
     scaled = []
-    # seen = {}
+
+    minX = minY = -@tilePadding
+    maxX = @width+@tilePadding
+    maxY = @height+@tilePadding
 
     for point in points
       x = Math.floor tile.position.x+(point.x/tile.scale)
       y = Math.floor tile.position.y+(point.y/tile.scale)
 
-      if lastX is x and lastY is y
-        continue
+      continue if lastX is x and lastY is y
 
       lastY = y
       lastX = x
 
-      # TODO: benchmark
-      # continue if seen[idx = (y<<8)+x]
-      # seen[idx] = true
-
       if filter
-        if (
-          x < -@tilePadding or
-          y < -@tilePadding or
-          x > @width+@tilePadding or
-          y > @height+@tilePadding
-        )
+        if x < minX or x > maxX or y < minY or y > maxY
           continue if outside
           outside = true
         else
@@ -251,23 +246,15 @@ module.exports = class Renderer
             outside = null
             scaled.push [lastX, lastY]
 
-      scaled.push [x, y] #x: x, y: y
+      scaled.push x: x, y: y
 
-    if scaled.length < 2
-      if feature.style.type isnt "symbol"
+    if feature.style.type isnt "symbol"
+      if scaled.length < 2
         return []
-    # else
-    #   scaled = ([point.x, point.y] for point in simplify scaled, 2, false)
-    #
-    # if filter
-    #   if scaled.length is 2
-    #     if @_seen[ka = (scaled[0]<<8)+scaled[1]] or
-    #     @_seen[kb = (scaled[1]<<8)+scaled[0]]
-    #       return []
-    #
-    #     @_seen[ka] = @_seen[kb] = true
 
-    scaled
+      simplify scaled, .5
+    else
+      scaled
 
   _generateDrawOrder: (zoom) ->
     if zoom < 2
