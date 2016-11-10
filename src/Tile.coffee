@@ -23,7 +23,7 @@ class Tile
   load: (buffer) ->
     @_unzipIfNeeded buffer
     .then (buffer) => @_loadTile buffer
-    .then (tile) => @_loadLayers tile
+    .then => @_loadLayers()
     .then => this
 
   _loadTile: (buffer) ->
@@ -41,11 +41,11 @@ class Tile
   _isGzipped: (buffer) ->
     buffer.slice(0,2).indexOf(Buffer.from([0x1f, 0x8b])) is 0
 
-  _loadLayers: (tile) ->
+  _loadLayers: () ->
     layers = {}
     colorCache = {}
 
-    for name, layer of tile.layers
+    for name, layer of @tile.layers
       nodes = []
       #continue if name is "water"
       for i in [0...layer.length]
@@ -97,7 +97,9 @@ class Tile
       tree = rbush 18
       tree.load nodes
 
-      layers[name] = tree
+      layers[name] =
+        extent: layer.extent
+        tree: tree
 
     @layers = layers
 

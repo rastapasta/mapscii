@@ -4,12 +4,18 @@
 
   methods used all around
 ###
+config = require './config'
+
 constants =
   RADIUS: 6378137
 
 utils =
   clamp: (num, min, max) ->
     if num <= min then min else if num >= max then max else num
+
+  tilesizeAtZoom: (zoom) ->
+    baseZoom = Math.min config.tileRange, Math.floor Math.max 0, zoom
+    config.projectSize * Math.pow(2, zoom-baseZoom)
 
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI

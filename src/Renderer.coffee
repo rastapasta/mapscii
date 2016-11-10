@@ -52,7 +52,7 @@ module.exports = class Renderer
     Promise
     .resolve @_visibleTiles center, zoom
     .map (tile) => @_getTile tile
-    .map (tile) => @_getTileFeatures tile
+    .map (tile) => @_getTileFeatures tile, zoom
     .then (tiles) => @_renderTiles tiles
     .then => @_getFrame()
 
@@ -70,8 +70,7 @@ module.exports = class Renderer
     center = utils.ll2tile center.lon, center.lat, z
 
     tiles = []
-    scale = @_scaleAtZoom zoom
-    tileSize = config.tileSize / scale
+    tileSize = utils.tilesizeAtZoom zoom
 
     for y in [Math.floor(center.y)-1..Math.floor(center.y)+1]
       for x in [Math.floor(center.x)-1..Math.floor(center.x)+1]
@@ -95,7 +94,7 @@ module.exports = class Renderer
         position.y>@height
           continue
 
-        tiles.push xyz: tile, zoom: zoom, position: position, scale: scale
+        tiles.push xyz: tile, zoom: zoom, position: position, size: tileSize
 
     tiles
 
@@ -106,37 +105,36 @@ module.exports = class Renderer
       tile.data = data
       tile
 
-  _getTileFeatures: (tile) ->
-    zoom = tile.xyz.z
+  _getTileFeatures: (tile, zoom) ->
     position = tile.position
-    scale = tile.scale
+    layers = {}
 
-    box =
-      minX: -position.x*scale
-      minY: -position.y*scale
-      maxX: (@width-position.x)*scale
-      maxY: (@height-position.y)*scale
+    for layerId in @_generateDrawOrder zoom
+      continue unless layer = tile.data.layers?[layerId]
 
-    features = {}
+      scale = layer.extent / utils.tilesizeAtZoom zoom
+      layers[layerId] =
+        scale: scale
+        features: layer.tree.search
+          minX: -position.x*scale
+          minY: -position.y*scale
+          maxX: (@width-position.x)*scale
+          maxY: (@height-position.y)*scale
 
-    for layer in @_generateDrawOrder zoom
-      continue unless tile.data.layers?[layer]
-      features[layer] = tile.data.layers[layer].search box
-
-    tile.features = features
+    tile.layers = layers
     tile
 
   _renderTiles: (tiles) ->
     drawn = {}
 
-    for layer in @_generateDrawOrder tiles[0].xyz.z
+    for layerId in @_generateDrawOrder tiles[0].xyz.z
       for tile in tiles
-        continue unless tile.features[layer]?.length
-        for feature in tile.features[layer]
+        continue unless layer = tile.layers[layerId]
+        for feature in layer.features
           # continue if feature.id and drawn[feature.id]
           # drawn[feature.id] = true
 
-          @_drawFeature tile, feature
+          @_drawFeature tile, feature, layer.scale
 
   _getFrame: ->
     frame = ""
@@ -148,11 +146,7 @@ module.exports = class Renderer
   featuresAt: (x, y) ->
     @labelBuffer.featuresAt x, y
 
-  _scaleAtZoom: (zoom) ->
-    baseZoom = Math.min config.tileRange, Math.floor Math.max 0, zoom
-    config.tileSize / config.projectSize / Math.pow(2, zoom-baseZoom)
-
-  _drawFeature: (tile, feature) ->
+  _drawFeature: (tile, feature, scale) ->
     if feature.style.minzoom and tile.zoom < feature.style.minzoom
       return false
     else if feature.style.maxzoom and tile.zoom > feature.style.maxzoom
@@ -163,11 +157,11 @@ module.exports = class Renderer
         width = feature.style.paint['line-width']
         width = width.stops[0][1] if width instanceof Object
 
-        points = @_scaleAndReduce tile, feature, feature.points
+        points = @_scaleAndReduce tile, feature, feature.points, scale
         @canvas.polyline points, feature.color, width if points.length
 
       when "fill"
-        points = (@_scaleAndReduce tile, feature, p, false for p in feature.points)
+        points = (@_scaleAndReduce tile, feature, p, scale, false for p in feature.points)
         @canvas.polygon points, feature.color
         # if points.length is 3
         #   @canvas._filledTriangle points[0], points[1], points[2], feature.color
@@ -183,7 +177,7 @@ module.exports = class Renderer
         return false if @_seen[text] and not genericSymbol
 
         placed = false
-        for point in @_scaleAndReduce tile, feature, feature.points
+        for point in @_scaleAndReduce tile, feature, feature.points, scale
           x = point.x - text.length
           margin = config.layers[feature.layer]?.margin or config.labelMargin
 
@@ -202,7 +196,7 @@ module.exports = class Renderer
 
     true
 
-  _scaleAndReduce: (tile, feature, points, filter = true) ->
+  _scaleAndReduce: (tile, feature, points, scale, filter = true) ->
     lastX = lastY = outside = null
     scaled = []
 
@@ -211,8 +205,8 @@ module.exports = class Renderer
     maxY = @height+@tilePadding
 
     for point in points
-      x = Math.floor tile.position.x+(point.x/tile.scale)
-      y = Math.floor tile.position.y+(point.y/tile.scale)
+      x = Math.floor tile.position.x+(point.x/scale)
+      y = Math.floor tile.position.y+(point.y/scale)
 
       continue if lastX is x and lastY is y
 
