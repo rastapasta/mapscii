@@ -14,6 +14,7 @@ rp = require 'request-promise'
 fs = require 'fs'
 
 Tile = require './Tile'
+config = require './config'
 
 # https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 # To maximize mapscii's compatibility, MBTiles support must be manually added via
@@ -24,9 +25,6 @@ catch
   null
 
 module.exports = class TileSource
-  config:
-    persistDownloadedTiles: true
-
   cache: {}
   modes:
     MBTiles: 1
@@ -39,7 +37,7 @@ module.exports = class TileSource
 
   init: (@source) ->
     if @source.startsWith "http"
-      @_initPersistence() if @config.persistDownloadedTiles
+      @_initPersistence() if config.persistDownloadedTiles
 
       @mode = @modes.HTTP
 
@@ -76,14 +74,14 @@ module.exports = class TileSource
 
   _getHTTP: (z, x, y) ->
     promise =
-      if @config.persistDownloadedTiles and tile = @_getPersited z, x, y
+      if config.persistDownloadedTiles and tile = @_getPersited z, x, y
         Promise.resolve tile
       else
         rp
           uri: @source+[z,x,y].join("/")+".pbf"
           encoding: null
         .then (buffer) =>
-          @_persistTile z, x, y, buffer if @config.persistDownloadedTiles
+          @_persistTile z, x, y, buffer if config.persistDownloadedTiles
           buffer
 
     promise
@@ -105,7 +103,7 @@ module.exports = class TileSource
       @_createFolder userhome ".mapscii"
       @_createFolder userhome ".mapscii", "cache"
     catch error
-      @config.persistDownloadedTiles = false
+      config.persistDownloadedTiles = false
       return
 
   _persistTile: (z, x, y, buffer) ->
