@@ -126,6 +126,7 @@ module.exports = class Renderer
 
   _renderTiles: (tiles) ->
     drawn = {}
+    labels = []
 
     for layerId in @_generateDrawOrder tiles[0].xyz.z
       for tile in tiles
@@ -133,8 +134,19 @@ module.exports = class Renderer
         for feature in layer.features
           # continue if feature.id and drawn[feature.id]
           # drawn[feature.id] = true
+          if layerId.match /label/
+            labels.push tile: tile, feature: feature, scale: layer.scale
+          else
+            @_drawFeature tile, feature, layer.scale
 
-          @_drawFeature tile, feature, layer.scale
+    labels.sort (a, b) ->
+      if a.feature.properties.localrank
+        a.feature.properties.localrank-b.feature.properties.localrank
+      else
+        a.feature.properties.scalerank-b.feature.properties.scalerank
+
+    for label in labels
+      @_drawFeature label.tile, label.feature, label.scale
 
   _getFrame: ->
     frame = ""
@@ -155,6 +167,7 @@ module.exports = class Renderer
     switch feature.style.type
       when "line"
         width = feature.style.paint['line-width']
+        # TODO: apply the correct zoom based value
         width = width.stops[0][1] if width instanceof Object
 
         points = @_scaleAndReduce tile, feature, feature.points, scale
@@ -163,9 +176,6 @@ module.exports = class Renderer
       when "fill"
         points = (@_scaleAndReduce tile, feature, p, scale, false for p in feature.points)
         @canvas.polygon points, feature.color
-        # if points.length is 3
-        #   @canvas._filledTriangle points[0], points[1], points[2], feature.color
-        true
 
       when "symbol"
         text = feature.properties["name_"+config.language] or
@@ -228,7 +238,8 @@ module.exports = class Renderer
       if scaled.length < 2
         return []
 
-      simplify scaled, .5
+      #simplify scaled, .5, true
+      scaled
     else
       scaled
 
