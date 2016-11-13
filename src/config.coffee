@@ -9,6 +9,11 @@ module.exports =
   maxZoom: 18
   zoomStep: 0.2
 
+  simplifyPolylines: false
+
+  # Downloaded files get persisted in ~/.mapscii
+  persistDownloadedTiles: true
+
   tileRange: 14
   projectSize: 256
 

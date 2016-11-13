@@ -238,8 +238,10 @@ module.exports = class Renderer
       if scaled.length < 2
         return []
 
-      #simplify scaled, .5, true
-      scaled
+      if config.simplifyPolylines
+        simplify scaled, .5, true
+      else
+        scaled
     else
       scaled
 
