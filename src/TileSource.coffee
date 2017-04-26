@@ -109,7 +109,7 @@ module.exports = class TileSource
   _persistTile: (z, x, y, buffer) ->
     zoom = z.toString()
     @_createFolder userhome ".mapscii", "cache", zoom
-    fs.writeFile userhome(".mapscii", "cache", zoom, "#{x}-#{y}.pbf"), buffer
+    fs.writeFile userhome(".mapscii", "cache", zoom, "#{x}-#{y}.pbf"), buffer, -> null
 
   _getPersited: (z, x, y) ->
     try
