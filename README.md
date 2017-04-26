@@ -86,13 +86,9 @@ If your terminal supports mouse events you can drag the map and use your scroll 
     * [ ] zoom into mouse pos
 
 * Styler
-  * [ ] respect zoom based style stops
+  * [ ] respect zoom based style ranges
 
 * Renderer
-  * [ ] polygons
-    * [ ] holes
-    * [ ] use rbush?
-
   * [ ] label drawing
     * [ ] multi line label?
 
@@ -101,7 +97,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 ## License
 #### The MIT License (MIT)
-Copyright (c) 2016 Michael Straßburger
+Copyright (c) 2017 Michael Straßburger
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
