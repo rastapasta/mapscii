@@ -4,3 +4,4 @@ bundle*
 tmp
 mbtiles
 tiles
+.DS_Store

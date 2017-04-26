@@ -2,7 +2,7 @@
 
 A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) and [ASCII](https://de.wikipedia.org/wiki/American_Standard_Code_for_Information_Interchange) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
-<img src="http://i.imgur.com/yYVt7No.png" width="100%" />
+<img src="docs/berlin_cbase.gif" width="100%" />
 
 ## Features
 
@@ -69,6 +69,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 ### TODOs
 * MapSCII
+  * [ ] GeoJSON support via [geojson-vt](https://github.com/mapbox/geojson-vt)
   * [ ] CLI support
     * [ ] startup parameters
       * [ ] TileSource
