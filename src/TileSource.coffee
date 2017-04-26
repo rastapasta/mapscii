@@ -9,8 +9,7 @@
 
 Promise = require 'bluebird'
 userhome = require 'userhome'
-request = require 'request'
-rp = require 'request-promise'
+fetch = require 'node-fetch'
 fs = require 'fs'
 
 Tile = require './Tile'
@@ -77,9 +76,8 @@ module.exports = class TileSource
       if config.persistDownloadedTiles and tile = @_getPersited z, x, y
         Promise.resolve tile
       else
-        rp
-          uri: @source+[z,x,y].join("/")+".pbf"
-          encoding: null
+        fetch @source+[z,x,y].join("/")+".pbf"
+        .then (res) => res.buffer()
         .then (buffer) =>
           @_persistTile z, x, y, buffer if config.persistDownloadedTiles
           buffer

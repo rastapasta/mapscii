@@ -64,7 +64,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 #### Handling the flow
 * [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic
-* [`request-promise`](https://github.com/request/request-promise) for promisified HTTP request handling
+* [`node-fetch`](https://github.com/bitinn/node-fetch) for HTTP requests
 * [`userhome`](https://github.com/shama/userhome) to determine where to persist downloaded tiles
 
 ### TODOs
