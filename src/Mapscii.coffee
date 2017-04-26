@@ -1,5 +1,5 @@
 ###
-  termap - Terminal Map Viewer
+  mapscii - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
   UI and central command center
@@ -14,7 +14,7 @@ TileSource = require './TileSource'
 utils = require './utils'
 config = require './config'
 
-module.exports = class Termap
+module.exports = class Mapscii
   width: null
   height: null
   canvas: null

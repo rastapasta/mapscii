@@ -1,5 +1,5 @@
 /*#
-  termap - Terminal Map Viewer
+  mapscii - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
   Discover the planet in your console!
 
@@ -9,7 +9,7 @@
 #*/
 require('coffee-script/register');
 
-const Termap = require('./src/Termap');
+const Mapscii = require('./src/Mapscii');
 
-termap = new Termap();
-termap.init();
+mapscii = new Mapscii();
+mapscii.init();
