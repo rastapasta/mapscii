@@ -18,7 +18,7 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 
 ## How to install
 
-If you haven't already got Node.js >= version 4, then [go get it](http://nodejs.org/).
+If you haven't already got Node.js >= version 4.5, then [go get it](http://nodejs.org/).
 
 ```
 npm install -g mapscii

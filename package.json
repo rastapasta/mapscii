@@ -1,6 +1,6 @@
 {
   "name": "mapscii",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Terminal Map Viewer",
   "main": "main.js",
   "scripts": {
@@ -13,6 +13,9 @@
   },
   "bin": {
     "mapscii": "./bin/mapscii.sh"
+  },
+  "engines" : {
+    "node" : ">=4.5.0"
   },
   "keywords": [
     "map",
