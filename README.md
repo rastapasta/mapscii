@@ -2,11 +2,10 @@
 
 A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) and [ASCII](https://de.wikipedia.org/wiki/American_Standard_Code_for_Information_Interchange) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
-<img src="docs/berlin_cbase.gif" width="100%" />
+[![asciicast](https://cloud.githubusercontent.com/assets/1259904/25480718/497a64e2-2b4a-11e7-9cf0-ed52ee0b89c0.png)](https://asciinema.org/a/117813?autoplay=1)
 
 ## Features
 
-* Use your mouse to drag and zoom in and out
 * Discover Point-of-Interests around any given location
 * Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/) support
 * Connect to any public or private vector tile server
@@ -14,6 +13,7 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
 * Compatible with most Linux and OSX terminals
 * Highly optimizied algorithms for a smooth experience
+* Use your mouse to drag and zoom in and out (WIP)
 * 100% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to install
@@ -79,16 +79,18 @@ If your terminal supports mouse events you can drag the map and use your scroll 
       * [ ] demo mode?
 
   * [ ] mouse control
+    * [ ] get hover lat/lng
     * [ ] accurate mouse drag&drop with instant update
     * [ ] hover POIs/labels
     * [ ] hover maybe even polygons/-lines?
-    * [ ] get hover lat/lng
     * [ ] zoom into mouse pos
 
 * Styler
   * [ ] respect zoom based style ranges
 
 * Renderer
+  * [ ] download and process tiles in a different thread ([#3](https://github.com/rastapasta/mapscii/issues/3))
+  * [ ] optimize renderer for large areas ([#6](https://github.com/rastapasta/mapscii/issues/6))
   * [ ] label drawing
     * [ ] multi line label?
 
