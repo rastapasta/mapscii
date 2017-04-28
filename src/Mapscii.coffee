@@ -98,40 +98,58 @@ module.exports = class Mapscii
 
     @renderer.setSize @width, @height
 
-  _onClick: (event) ->
-    if @mouseDragging and event.button is "left"
-      # TODO lat/lng based drag&drop
-      # @view[0] -= (@mouseDragging.x-@mousePosition.x)<<1
-      # @view[1] -= (@mouseDragging.y-@mousePosition.y)<<2
-      @_draw()
+  _updateMousePosition: (event) ->
+    projected =
+      x: (event.x-.5)*2
+      y: (event.y-.5)*4
 
+    size = utils.tilesizeAtZoom @zoom
+    [dx, dy] = [projected.x-@width/2, projected.y-@height/2]
+
+    z = utils.baseZoom @zoom
+    center = utils.ll2tile @center.lon, @center.lat, z
+    @mousePosition = utils.tile2ll center.x+(dx/size), center.y+(dy/size), z
+
+  _onClick: (event) ->
+    @_updateMousePosition event
+
+    if @mouseDragging and event.button is "left"
       @mouseDragging = false
+    else
+      @setCenter @mousePosition.lat, @mousePosition.lon
+
+    @_draw()
 
   _onMouseScroll: (event) ->
+    @_updateMousePosition event
     # TODO: handle .x/y for directed zoom
-    @zoomBy config.zoomStep * if event.button is "up" then -1 else 1
+    @zoomBy config.zoomStep * if event.button is "up" then 1 else -1
     @_draw()
 
   _onMouseMove: (event) ->
-    projected =
-      x: event.x * 2
-      y: event.y * 4
-
     # start dragging
     if event.button is "left"
       if @mouseDragging
-        # TODO lat/lng based drag&drop
-        # @view[0] -= (@mouseDragging.x-event.x)<<1
-        # @view[1] -= (@mouseDragging.y-event.y)<<2
+        dx = (@mouseDragging.x-event.x)*2
+        dy = (@mouseDragging.y-event.y)*4
 
-        if not @renderer.isDrawing and @renderer.lastDrawAt < Date.now()-100
-          @_draw()
-          @mouseDragging = x: event.x, y: event.y
+        size = utils.tilesizeAtZoom @zoom
+
+        newCenter = utils.tile2ll @mouseDragging.center.x+(dx/size),
+          @mouseDragging.center.y+(dy/size),
+          utils.baseZoom(@zoom)
+
+        @setCenter newCenter.lat, newCenter.lon
+
+        @_draw()
+
       else
-        @mouseDragging = x: event.x, y: event.y
+        @mouseDragging =
+          x: event.x,
+          y: event.y,
+          center: utils.ll2tile @center.lon, @center.lat, utils.baseZoom(@zoom)
 
-    # update internal mouse tracker
-    @mousePosition = projected
+    @_updateMousePosition event
     @notify @_getFooter()
 
   _onKey: (key) ->
@@ -182,7 +200,7 @@ module.exports = class Mapscii
 
     "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
     "zoom: #{utils.digits @zoom, 2}   "+
-    "mouse: #{@mousePosition.x-@width/2} #{@mousePosition.y-@height/2}   "
+    "mouse: #{utils.digits @mousePosition.lat, 3}, #{utils.digits @mousePosition.lon, 3} "
 
   notify: (text) ->
     @_write "\r\x1B[K"+text unless config.headless
