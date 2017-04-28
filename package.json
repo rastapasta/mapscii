@@ -14,8 +14,8 @@
   "bin": {
     "mapscii": "./bin/mapscii.sh"
   },
-  "engines" : {
-    "node" : ">=4.5.0"
+  "engines": {
+    "node": ">=4.5.0"
   },
   "keywords": [
     "map",
