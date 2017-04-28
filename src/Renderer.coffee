@@ -66,7 +66,7 @@ module.exports = class Renderer
       frame
 
   _visibleTiles: (center, zoom) ->
-    z = Math.min config.tileRange, Math.max 0, Math.floor zoom
+    z = utils.baseZoom zoom
     center = utils.ll2tile center.lon, center.lat, z
 
     tiles = []

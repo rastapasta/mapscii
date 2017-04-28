@@ -6,6 +6,7 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 
 ## Features
 
+* Use your mouse to drag and zoom in and out!
 * Discover Point-of-Interests around any given location
 * Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/) support
 * Connect to any public or private vector tile server
@@ -13,7 +14,6 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
 * Compatible with most Linux and OSX terminals
 * Highly optimizied algorithms for a smooth experience
-* Use your mouse to drag and zoom in and out (WIP)
 * 100% pure Coffee-/JavaScript! :sunglasses:
 
 ## How to install

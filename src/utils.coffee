@@ -13,9 +13,11 @@ utils =
   clamp: (num, min, max) ->
     if num <= min then min else if num >= max then max else num
 
+  baseZoom: (zoom) ->
+    Math.min config.tileRange, Math.max 0, Math.floor zoom
+
   tilesizeAtZoom: (zoom) ->
-    baseZoom = Math.min config.tileRange, Math.floor Math.max 0, zoom
-    config.projectSize * Math.pow(2, zoom-baseZoom)
+    config.projectSize * Math.pow(2, zoom-utils.baseZoom(zoom))
 
   deg2rad: (angle) ->
     # (angle / 180) * Math.PI
