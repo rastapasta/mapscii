@@ -1,9 +1,10 @@
 module.exports =
   language: "en"
 
-  # TODO: adapt to osm2vectortiles successor openmaptiles (v3)
-  #source: "http://demo.tileserver.org/data/v3/",
-  source: "http://map.hallonachbarn.com/data/osm2vectortiles/"
+  # TODO: adapt to osm2vectortiles successor openmaptiles v3)
+  # mapscii.me hosts the last available version, 2016-06-20
+  source: "http://mapscii.me/"
+
   #source: __dirname+"/../mbtiles/regensburg.mbtiles"
 
   styleFile: __dirname+"/../styles/dark.json"
