@@ -4,6 +4,12 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 
 <a href="https://asciinema.org/a/117813?autoplay=1" target="_blank">![asciicast](https://cloud.githubusercontent.com/assets/1259904/25480718/497a64e2-2b4a-11e7-9cf0-ed52ee0b89c0.png)</a>
 
+## Try it out!
+
+```sh
+$ telnet mapscii.me
+```
+
 ## Features
 
 * Use your mouse to drag and zoom in and out!
@@ -16,7 +22,7 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 * Highly optimizied algorithms for a smooth experience
 * 100% pure Coffee-/JavaScript! :sunglasses:
 
-## How to install
+## How to install it locally
 
 If you haven't already got Node.js >= version 4.5, then [go get it](http://nodejs.org/).
 
