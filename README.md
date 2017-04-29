@@ -97,7 +97,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 ## Special thanks
 
-* [lukasmartinelli](https://github.com/lukasmartinelli) for all his work around [OSM2VectorTiles](https://github.com/osm2vectortiles) (free Vector Tiles from OpenStreetMap)
+* [lukasmartinelli](https://github.com/lukasmartinelli) & [manuelroth](https://github.com/manuelroth) for all their work on [OSM2VectorTiles](https://github.com/osm2vectortiles) (global vector tiles from [OSM Planet](https://wiki.openstreetmap.org/wiki/Planet.osm))
 * [mourner](https://github.com/mourner) for all his work on mindblowing GIS algorithms (like the used [earcut](https://github.com/mapbox/earcut), [rbush](https://github.com/mourner/rbush), [simplify-js](https://github.com/mourner/simplify-js), ..)
 
 ## License
