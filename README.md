@@ -10,7 +10,7 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 * Discover Point-of-Interests around any given location
 * Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/) support
 * Connect to any public or private vector tile server
-* Or just use the supplied and optimized [OpenStreetMap](https://en.wikipedia.org/wiki/OpenStreetMap) based one
+* Or just use the supplied and optimized [OSM2VectorTiles](https://github.com/osm2vectortiles) based one
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
 * Compatible with most Linux and OSX terminals
 * Highly optimizied algorithms for a smooth experience
@@ -79,8 +79,6 @@ If your terminal supports mouse events you can drag the map and use your scroll 
       * [ ] demo mode?
 
   * [ ] mouse control
-    * [ ] get hover lat/lng
-    * [ ] accurate mouse drag&drop with instant update
     * [ ] hover POIs/labels
     * [ ] hover maybe even polygons/-lines?
     * [ ] zoom into mouse pos
@@ -96,6 +94,11 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 * TileSource
   * [ ] implement single vector-tile handling
+
+## Special thanks
+
+* [lukasmartinelli](https://github.com/lukasmartinelli) for all his work around [OSM2VectorTiles](https://github.com/osm2vectortiles) (free Vector Tiles from OpenStreetMap)
+
 
 ## License
 #### The MIT License (MIT)
