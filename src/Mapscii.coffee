@@ -184,7 +184,6 @@ module.exports = class Mapscii
       #@notify JSON.stringify key
 
   _draw: ->
-    config.onDraw() if config.onDraw
     @renderer
     .draw @center, @zoom
     .then (frame) =>
@@ -209,6 +208,7 @@ module.exports = class Mapscii
     "mouse: #{utils.digits @mousePosition.lat, 3}, #{utils.digits @mousePosition.lon, 3} "
 
   notify: (text) ->
+    config.onUpdate() if config.onUpdate
     @_write "\r\x1B[K"+text unless config.headless
 
   _write: (output) ->
