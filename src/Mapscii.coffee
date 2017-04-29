@@ -62,7 +62,7 @@ module.exports = class Mapscii
 
   _initKeyboard: ->
     keypress config.input
-    config.input.setRawMode true
+    config.input.setRawMode true if config.input.setRawMode
     config.input.resume()
 
     config.input.on 'keypress', (ch, key) => @_onKey key
@@ -108,7 +108,8 @@ module.exports = class Mapscii
 
     z = utils.baseZoom @zoom
     center = utils.ll2tile @center.lon, @center.lat, z
-    @mousePosition = utils.tile2ll center.x+(dx/size), center.y+(dy/size), z
+
+    @mousePosition = utils.normalize utils.tile2ll center.x+(dx/size), center.y+(dy/size), z
 
   _onClick: (event) ->
     @_updateMousePosition event
@@ -153,13 +154,17 @@ module.exports = class Mapscii
     @notify @_getFooter()
 
   _onKey: (key) ->
+    if config.keyCallback and not config.keyCallback key
+      return
+
     # check if the pressed key is configured
     draw = switch key?.name
-      when "q"
-        process.exit 0
-
-      when "w" then @zoomy = 1
-      when "s" then @zoomy = -1
+      when "q", "esc", "c"
+        if config.endCallback
+          config.endCallback()
+          null
+        else
+          process.exit 0
 
       when "a" then @zoomBy config.zoomStep
       when "z" then @zoomBy -config.zoomStep
@@ -174,9 +179,9 @@ module.exports = class Mapscii
 
     if draw isnt null
       @_draw()
-    else
+    #else
       # display debug info for unhandled keys
-      @notify JSON.stringify key
+      #@notify JSON.stringify key
 
   _draw: ->
     @renderer
@@ -218,11 +223,4 @@ module.exports = class Mapscii
     @setCenter @center.lat+lat, @center.lon+lon
 
   setCenter: (lat, lon) ->
-    lon += 360 if lon < -180
-    lon -= 360 if lon > 180
-
-    lat = 85.0511 if lat > 85.0511
-    lat = -85.0511 if lat < -85.0511
-
-    @center.lat = lat
-    @center.lon = lon
+    @center = utils.normalize lon: lon, lat: lat

@@ -78,7 +78,7 @@ module.exports = class BrailleBuffer
   frame: ->
     output = []
     currentColor = null
-    delimeter = "\n"
+    delimeter = "\r\n"
 
     for idx in [0...@pixelBuffer.length]
       output.push delimeter if idx and (idx % (@width/2)) is 0
