@@ -184,6 +184,7 @@ module.exports = class Mapscii
       #@notify JSON.stringify key
 
   _draw: ->
+    config.onDraw() if config.onDraw
     @renderer
     .draw @center, @zoom
     .then (frame) =>
