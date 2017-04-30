@@ -25,6 +25,7 @@ catch
 
 module.exports = class TileSource
   cache: {}
+  cached: []
   modes:
     MBTiles: 1
     VectorTile: 2
@@ -67,6 +68,10 @@ module.exports = class TileSource
     if cached = @cache[[z,x,y].join("-")]
       return Promise.resolve cached
 
+    if @cached.length > 4
+      for tile in @cached.splice 0, Math.abs(4-@cached.length)
+        delete @cache[tile]
+
     switch @mode
       when @modes.MBTiles then @_getMBTile z, x, y
       when @modes.HTTP then @_getHTTP z, x, y
@@ -93,7 +98,10 @@ module.exports = class TileSource
         resolve @_createTile z, x, y, buffer
 
   _createTile: (z, x, y, buffer) ->
-    tile = @cache[[z,x,y].join("-")] = new Tile @styler
+    name = [z,x,y].join("-")
+    @cached.push name
+
+    tile = @cache[name] = new Tile @styler
     tile.load buffer
 
   _initPersistence: ->

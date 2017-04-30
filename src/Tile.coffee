@@ -13,6 +13,7 @@ rbush = require 'rbush'
 x256 = require 'x256'
 earcut = require 'earcut'
 
+config = require "./config"
 utils = require "./utils"
 
 class Tile
@@ -74,22 +75,34 @@ class Tile
         # use feature.loadGeometry() again as soon as we got a 512 extent tileset
         geometries = feature.loadGeometry() #@_reduceGeometry feature, 8
 
+        sort = feature.properties.localrank or feature.properties.scalerank
+        label = if feature.properties.$type is "Point"
+          feature.properties["name_"+config.language] or
+          feature.properties.name_en or
+          feature.properties.name or
+          feature.properties.house_num
+        else
+          undefined
+
         if style.type is "fill"
           nodes.push @_addBoundaries true,
-            id: feature.id
+#            id: feature.id
             layer: name
             style: style
-            properties: feature.properties
+            label: label
+            sort: sort
             points: geometries
             color: colorCode
 
         else
+
           for points in geometries
             nodes.push @_addBoundaries false,
-              id: feature.id
+#             id: feature.id
               layer: name
               style: style
-              properties: feature.properties
+              label: label
+              sort: sort
               points: points
               color: colorCode
 

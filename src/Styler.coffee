@@ -42,12 +42,12 @@ module.exports = class Styler
 
     return false
 
-  _replaceConstants: (constants, tree) ->
+  _replaceConstants: (constants, tree, level=0) ->
     for id, node of tree
       switch typeof node
         when 'object'
-          continue if node.constructor.name.match /Stream/
-          @_replaceConstants constants, node
+          continue if level>1
+          @_replaceConstants constants, node, level+1
 
         when 'string'
           if node.charAt(0) is '@'

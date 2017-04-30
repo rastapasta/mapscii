@@ -3,7 +3,7 @@ module.exports =
 
   # TODO: adapt to osm2vectortiles successor openmaptiles v3)
   # mapscii.me hosts the last available version, 2016-06-20
-  source: "http://mapscii.me/"
+  source: "http://mapscii.me:1337/"
 
   #source: __dirname+"/../mbtiles/regensburg.mbtiles"
 
@@ -16,7 +16,7 @@ module.exports =
   simplifyPolylines: false
 
   # Downloaded files get persisted in ~/.mapscii
-  persistDownloadedTiles: true
+  persistDownloadedTiles: false
 
   tileRange: 14
   projectSize: 256
