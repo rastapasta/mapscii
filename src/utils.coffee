@@ -55,5 +55,13 @@ utils =
   digits: (number, digits) ->
     Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)
 
+  normalize: (ll) ->
+    ll.lon += 360 if ll.lon < -180
+    ll.lon -= 360 if ll.lon > 180
+
+    ll.lat = 85.0511 if ll.lat > 85.0511
+    ll.lat = -85.0511 if ll.lat < -85.0511
+
+    ll
 
 module.exports = utils

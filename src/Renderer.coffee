@@ -140,10 +140,7 @@ module.exports = class Renderer
             @_drawFeature tile, feature, layer.scale
 
     labels.sort (a, b) ->
-      if a.feature.properties.localrank
-        a.feature.properties.localrank-b.feature.properties.localrank
-      else
-        a.feature.properties.scalerank-b.feature.properties.scalerank
+      a.feature.sorty-b.feature.sort
 
     for label in labels
       @_drawFeature label.tile, label.feature, label.scale
@@ -178,10 +175,8 @@ module.exports = class Renderer
         @canvas.polygon points, feature.color
 
       when "symbol"
-        text = feature.properties["name_"+config.language] or
-          feature.properties["name_en"] or
-          feature.properties["name"] or
-          feature.properties.house_num or
+        genericSymbol = null
+        text = feature.label or
           genericSymbol = "◉"
 
         return false if @_seen[text] and not genericSymbol
