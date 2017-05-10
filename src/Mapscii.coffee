@@ -55,6 +55,7 @@ module.exports = class Mapscii
 
     .then =>
       @_draw()
+      .then => @notify("Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.")
 
   _initTileSource: ->
     @tileSource = new TileSource()
@@ -62,7 +63,7 @@ module.exports = class Mapscii
 
   _initKeyboard: ->
     keypress config.input
-    config.input.setRawMode true
+    config.input.setRawMode true if config.input.setRawMode
     config.input.resume()
 
     config.input.on 'keypress', (ch, key) => @_onKey key
@@ -108,9 +109,11 @@ module.exports = class Mapscii
 
     z = utils.baseZoom @zoom
     center = utils.ll2tile @center.lon, @center.lat, z
-    @mousePosition = utils.tile2ll center.x+(dx/size), center.y+(dy/size), z
+
+    @mousePosition = utils.normalize utils.tile2ll center.x+(dx/size), center.y+(dy/size), z
 
   _onClick: (event) ->
+    return if event.x < 0 or event.x > @width/2 or event.y < 0 or event.y > @height/4
     @_updateMousePosition event
 
     if @mouseDragging and event.button is "left"
@@ -127,6 +130,9 @@ module.exports = class Mapscii
     @_draw()
 
   _onMouseMove: (event) ->
+    return if event.x < 0 or event.x > @width/2 or event.y < 0 or event.y > @height/4
+    return if config.mouseCallback and not config.mouseCallback event
+
     # start dragging
     if event.button is "left"
       if @mouseDragging
@@ -153,16 +159,20 @@ module.exports = class Mapscii
     @notify @_getFooter()
 
   _onKey: (key) ->
+    if config.keyCallback and not config.keyCallback key
+      return
+
     # check if the pressed key is configured
     draw = switch key?.name
       when "q"
-        process.exit 0
-
-      when "w" then @zoomy = 1
-      when "s" then @zoomy = -1
+        if config.quitCallback
+          config.quitCallback()
+        else
+          process.exit 0
 
       when "a" then @zoomBy config.zoomStep
-      when "z" then @zoomBy -config.zoomStep
+      when "z", "y"
+        @zoomBy -config.zoomStep
 
       when "left" then @moveBy 0, -8/Math.pow(2, @zoom)
       when "right" then @moveBy 0, 8/Math.pow(2, @zoom)
@@ -174,9 +184,6 @@ module.exports = class Mapscii
 
     if draw isnt null
       @_draw()
-    else
-      # display debug info for unhandled keys
-      @notify JSON.stringify key
 
   _draw: ->
     @renderer
@@ -186,13 +193,6 @@ module.exports = class Mapscii
       @notify @_getFooter()
     .catch =>
       @notify "renderer is busy"
-    .then =>
-      if @zoomy
-        if (@zoomy > 0 and @zoom < config.maxZoom) or (@zoomy < 0 and @zoom > @minZoom)
-          @zoom += @zoomy * config.zoomStep
-        else
-          @zoomy *= -1
-        setImmediate => @_draw()
 
   _getFooter: ->
     # tile = utils.ll2tile @center.lon, @center.lat, @zoom
@@ -203,6 +203,7 @@ module.exports = class Mapscii
     "mouse: #{utils.digits @mousePosition.lat, 3}, #{utils.digits @mousePosition.lon, 3} "
 
   notify: (text) ->
+    config.onUpdate() if config.onUpdate
     @_write "\r\x1B[K"+text unless config.headless
 
   _write: (output) ->
@@ -218,11 +219,4 @@ module.exports = class Mapscii
     @setCenter @center.lat+lat, @center.lon+lon
 
   setCenter: (lat, lon) ->
-    lon += 360 if lon < -180
-    lon -= 360 if lon > 180
-
-    lat = 85.0511 if lat > 85.0511
-    lat = -85.0511 if lat < -85.0511
-
-    @center.lat = lat
-    @center.lon = lon
+    @center = utils.normalize lon: lon, lat: lat
