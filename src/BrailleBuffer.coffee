@@ -13,6 +13,8 @@
 
   Will either be merged into node-drawille or become an own module at some point
 ###
+stringWidth = require 'string-width'
+config = require './config'
 
 module.exports = class BrailleBuffer
   characterMap: [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]]
@@ -78,20 +80,34 @@ module.exports = class BrailleBuffer
   frame: ->
     output = []
     currentColor = null
-    delimeter = "\n"
+    skip = 0
 
-    for idx in [0...@pixelBuffer.length]
-      output.push delimeter if idx and (idx % (@width/2)) is 0
+    for y in [0...@height/4]
+      skip = 0
 
-      if currentColor isnt colorCode = @_termColor @foregroundBuffer[idx], @backgroundBuffer[idx]
-        output.push currentColor = colorCode
+      for x in [0...@width/2]
+        idx = y*@width/2 + x
 
-      output.push if @charBuffer[idx]
-        @charBuffer[idx]
-      else
-        String.fromCharCode 0x2800+@pixelBuffer[idx]
+        if idx and not x
+          output.push config.delimeter
 
-    output.push @termReset+delimeter
+        if currentColor isnt colorCode = @_termColor @foregroundBuffer[idx], @backgroundBuffer[idx]
+          output.push currentColor = colorCode
+
+        output.push if char = @charBuffer[idx]
+          skip += stringWidth(char)-1
+          if skip+x >= @width/2
+            ''
+          else
+            char
+        else
+          if not skip
+            String.fromCharCode 0x2800+@pixelBuffer[idx]
+          else
+            skip--
+            ''
+
+    output.push @termReset+config.delimeter
     output.join ''
 
   setChar: (char, x, y, color) ->

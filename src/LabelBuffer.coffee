@@ -5,8 +5,8 @@
   Using 2D spatial indexing to avoid overlapping labels and markers
   and to find labels underneath a mouse cursor's position
 ###
-
 rbush = require 'rbush'
+stringWidth = require 'string-width'
 
 module.exports = class LabelBuffer
   tree: null
@@ -41,5 +41,5 @@ module.exports = class LabelBuffer
   _calculateArea: (text, x, y, margin = 0) ->
     minX: x-margin
     minY: y-margin/2
-    maxX: x+margin+text.length
+    maxX: x+margin+stringWidth(text)
     maxY: y+margin/2
