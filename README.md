@@ -10,6 +10,8 @@ A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) t
 $ telnet mapscii.me
 ```
 
+If you're on Windows, use the open source telnet client [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) to connect.
+
 ## Features
 
 * Use your mouse to drag and zoom in and out!
