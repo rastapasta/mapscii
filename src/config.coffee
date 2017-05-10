@@ -33,3 +33,5 @@ module.exports =
   output: process.stdout
 
   headless: false
+
+  delimeter: "\n\r"
