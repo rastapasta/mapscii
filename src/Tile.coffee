@@ -57,8 +57,8 @@ class Tile
         feature.properties.$type = type = [undefined, "Point", "LineString", "Polygon"][feature.type]
 
         if @styler
-           style = @styler.getStyleFor name, feature
-           continue unless style
+          style = @styler.getStyleFor name, feature
+          continue unless style
 
         color =
           style.paint['line-color'] or

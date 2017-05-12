@@ -179,6 +179,10 @@ module.exports = class Mapscii
       when "up" then @moveBy 6/Math.pow(2, @zoom), 0
       when "down" then @moveBy -6/Math.pow(2, @zoom), 0
 
+      when "c"
+        config.useBraille = !config.useBraille
+        true
+
       else
         null
 

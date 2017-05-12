@@ -15,6 +15,8 @@ module.exports =
 
   simplifyPolylines: false
 
+  useBraille: true
+
   # Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true
 
@@ -35,3 +37,5 @@ module.exports =
   headless: false
 
   delimeter: "\n\r"
+
+  poiMarker: "◉"

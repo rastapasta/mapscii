@@ -64,4 +64,11 @@ utils =
 
     ll
 
+  population: (val) ->
+    bits = 0
+    while val>0
+      bits += val & 1
+      val >>= 1
+    bits
+
 module.exports = utils
