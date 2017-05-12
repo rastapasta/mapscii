@@ -37,3 +37,5 @@ module.exports =
   headless: false
 
   delimeter: "\n\r"
+
+  poiMarker: "◉"

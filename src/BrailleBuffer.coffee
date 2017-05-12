@@ -18,14 +18,15 @@ utils = require './utils'
 module.exports = class BrailleBuffer
   brailleMap: [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]]
   asciiMap:
-    #"▬": [2+32, 4+64]
+    # "▬": [2+32, 4+64]
     # "▌": [1+2+4+8]
     # "▐": [16+32+64+128]
+    #"¯": [1+16]
     "▀": [1+2+16+32]
     "▄": [4+8+64+128]
     "■": [2+4+32+64]
-    #"▓": [1+4+32+128, 2+8+16+64]
     "█": [255]
+    #"▓": [1+4+32+128, 2+8+16+64]
 
   pixelBuffer: null
   charBuffer: null
@@ -86,15 +87,14 @@ module.exports = class BrailleBuffer
       continue unless bits instanceof Array
       masks.push mask: mask, char: char for mask in bits
 
-    reducer = (best, mask) ->
-      covered = utils.population(mask.mask&i)
-      return if not best or best.covered < covered
-        char: mask.char, covered: covered
-      else
-        best
-
     for i in [1..255]
-      @asciiToBraille[i] = masks.reduce(reducer, undefined).char
+      @asciiToBraille[i] = masks.reduce(((best, mask) ->
+        covered = utils.population mask.mask&i
+        if not best or best.covered < covered
+          char: mask.char, covered: covered
+        else
+          best
+      ), undefined).char
 
   _termColor: (foreground, background) ->
     background = background or @globalBackground

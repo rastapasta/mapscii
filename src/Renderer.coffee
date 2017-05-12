@@ -175,9 +175,8 @@ module.exports = class Renderer
         @canvas.polygon points, feature.color
 
       when "symbol"
-        genericSymbol = null
         text = feature.label or
-          genericSymbol = "◉"
+          genericSymbol = config.poiMarker
 
         return false if @_seen[text] and not genericSymbol
 
@@ -192,8 +191,8 @@ module.exports = class Renderer
             break
 
           else if config.layers[feature.layer]?.cluster and
-          @labelBuffer.writeIfPossible "◉", point.x, point.y, feature, 3
-            @canvas.text "◉", point.x, point.y, feature.color
+          @labelBuffer.writeIfPossible config.poiMarker, point.x, point.y, feature, 3
+            @canvas.text config.poiMarker, point.x, point.y, feature.color
             placed = true
             break
 
