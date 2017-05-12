@@ -15,6 +15,8 @@ module.exports =
 
   simplifyPolylines: false
 
+  useBraille: true
+
   # Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true
 

@@ -6,23 +6,33 @@
 
   Implementation inspired by node-drawille (https://github.com/madbence/node-drawille)
   * added color support
-  * added support for filled polygons
   * added text label support
   * general optimizations
-    -> more bit shifting/operations, less Math.floors
 
   Will either be merged into node-drawille or become an own module at some point
 ###
 stringWidth = require 'string-width'
 config = require './config'
+utils = require './utils'
 
 module.exports = class BrailleBuffer
-  characterMap: [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]]
+  brailleMap: [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]]
+  asciiMap:
+    #"▬": [2+32, 4+64]
+    # "▌": [1+2+4+8]
+    # "▐": [16+32+64+128]
+    "▀": [1+2+16+32]
+    "▄": [4+8+64+128]
+    "■": [2+4+32+64]
+    #"▓": [1+4+32+128, 2+8+16+64]
+    "█": [255]
 
   pixelBuffer: null
   charBuffer: null
   foregroundBuffer: null
   backgroundBuffer: null
+
+  asciiToBraille: []
 
   globalBackground: null
 
@@ -33,6 +43,8 @@ module.exports = class BrailleBuffer
     @pixelBuffer = new Buffer size
     @foregroundBuffer = new Buffer size
     @backgroundBuffer = new Buffer size
+
+    @_mapBraille()
     @clear()
 
   clear: ->
@@ -63,8 +75,26 @@ module.exports = class BrailleBuffer
   _locate: (x, y, cb) ->
     return unless 0 <= x < @width and 0 <= y < @height
     idx = @_project x, y
-    mask = @characterMap[y&3][x&1]
+    mask = @brailleMap[y&3][x&1]
     cb idx, mask
+
+  _mapBraille: ->
+    @asciiToBraille = [" "]
+
+    masks = []
+    for char, bits of @asciiMap
+      continue unless bits instanceof Array
+      masks.push mask: mask, char: char for mask in bits
+
+    reducer = (best, mask) ->
+      covered = utils.population(mask.mask&i)
+      return if not best or best.covered < covered
+        char: mask.char, covered: covered
+      else
+        best
+
+    for i in [1..255]
+      @asciiToBraille[i] = masks.reduce(reducer, undefined).char
 
   _termColor: (foreground, background) ->
     background = background or @globalBackground
@@ -102,7 +132,10 @@ module.exports = class BrailleBuffer
             char
         else
           if not skip
-            String.fromCharCode 0x2800+@pixelBuffer[idx]
+            if config.useBraille
+              String.fromCharCode 0x2800+@pixelBuffer[idx]
+            else
+              @asciiToBraille[@pixelBuffer[idx]]
           else
             skip--
             ''
