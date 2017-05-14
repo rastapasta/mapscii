@@ -58,6 +58,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
   * [`x256`](https://github.com/substack/node-x256) for converting RGB values to closest xterm-256 [color code](https://en.wikipedia.org/wiki/File:Xterm_256color_chart.svg)
   * [`term-mouse`](https://github.com/CoderPuppy/term-mouse) for mouse handling
   * [`keypress`](https://github.com/TooTallNate/keypress) for input handling
+  * [`string-width`](https://github.com/sindresorhus/string-width) to determine visual string lengths
 
 #### Discovering the map data
 * [`vector-tile`](https://github.com/mapbox/vector-tile-js) for [VectorTile](https://github.com/mapbox/vector-tile-spec/tree/master/2.1) parsing
