@@ -5,7 +5,7 @@
   Handling of and access to single VectorTiles
 ###
 
-VectorTile = require('vector-tile').VectorTile
+VectorTile = require('@mapbox/vector-tile').VectorTile
 Protobuf = require 'pbf'
 Promise = require 'bluebird'
 zlib = require 'zlib'
