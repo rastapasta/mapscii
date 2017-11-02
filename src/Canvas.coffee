@@ -12,11 +12,9 @@
 ###
 
 bresenham = require 'bresenham'
-simplify = require 'simplify-js'
 
 earcut = require 'earcut'
 BrailleBuffer = require './BrailleBuffer'
-utils = require './utils'
 
 module.exports = class Canvas
   stack: []
