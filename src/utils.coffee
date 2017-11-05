@@ -38,9 +38,9 @@ utils =
     (Math.cos(lat * Math.PI/180) * 2 * Math.PI * constants.RADIUS) / (256 * Math.pow(2, zoom))
 
   hex2rgb: (color) ->
-    return [255, 0, 0] unless color?.match
+    return [255, 0, 0] unless typeof color is 'string'
 
-    unless color.match /^#[a-fA-F0-9]{3,6}$/
+    unless /^#[a-f0-9]{3,6}$/i.test(color)
       throw new Error "#{color} isn\'t a supported hex color"
 
     color = color.substr 1
