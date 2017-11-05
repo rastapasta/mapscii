@@ -202,9 +202,12 @@ module.exports = class Mapscii
     # tile = utils.ll2tile @center.lon, @center.lat, @zoom
     # "tile: #{utils.digits tile.x, 3}, #{utils.digits tile.x, 3}   "+
 
-    "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3}   "+
-    "zoom: #{utils.digits @zoom, 2}   "+
-    "mouse: #{utils.digits @mousePosition.lat, 3}, #{utils.digits @mousePosition.lon, 3} "
+    footer = "center: #{utils.digits @center.lat, 3}, #{utils.digits @center.lon, 3} "
+    footer += "  zoom: #{utils.digits @zoom, 2} "
+    if @mousePosition.lat != undefined
+      footer += "  mouse: #{utils.digits @mousePosition.lat, 3}, #{utils.digits @mousePosition.lon, 3} "
+
+    footer
 
   notify: (text) ->
     config.onUpdate() if config.onUpdate
