@@ -77,73 +77,44 @@ module.exports = class Styler {
 
   //TODO Better translation of the long cases.
   _compileFilter(filter) {
-    var filters;
+    let filters;
     switch (filter != null ? filter[0] : void 0) {
       case 'all':
         filter = filter.slice(1);
         filters = (() => {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
-        //TODO Use Array.prototype.find
-        return (feature) => {
-          for (const appliesTo of filters) {
-            if (!appliesTo(feature)) {
-              return false;
-            }
-          }
-          return true;
-        };
+        return (feature) => !!filters.find((appliesTo) => {
+          return !appliesTo(feature);
+        });
       case 'any':
         filter = filter.slice(1);
         filters = (() => {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
-        //TODO Use Array.prototype.find
-        return (feature) => {
-          for (const appliesTo of filters) {
-            if (appliesTo(feature)) {
-              return true;
-            }
-          }
-          return false;
-        };
+        return (feature) => !!filters.find((appliesTo) => {
+          return appliesTo(feature);
+        });
       case 'none':
         filter = filter.slice(1);
         filters = (() => {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
-        return (feature) => {
-          for (const appliesTo of filters) {
-            if (appliesTo(feature)) {
-              return false;
-            }
-          }
-          return true;
-        };
+        return (feature) => !filters.find((appliesTo) => {
+          return !appliesTo(feature);
+        });
       case '==':
         return (feature) => feature.properties[filter[1]] === filter[2];
       case "!=":
         return (feature) => feature.properties[filter[1]] !== filter[2];
       case "in":
-        return (feature) => {
-          filter = filter.slice(2);
-          for (const value of filter) {
-            if (feature.properties[filter[1]] === value) {
-              return true;
-            }
-          }
-          return false;
-        };
+        return (feature) => !!filter.slice(2).find((value) => {
+          return feature.properties[filter[1]] === value;
+        });
       case '!in':
-        return (feature) => {
-          filter = filter.slice(2);
-          for (const value of filter) {
-            if (feature.properties[filter[1]] === value) {
-              return false;
-            }
-          }
-          return true;
-        };
+        return (feature) => !filter.slice(2).find((value) => {
+          return feature.properties[filter[1]] === value;
+        });
       case "has":
         return (feature) => !!feature.properties[filter[1]];
       case "!has":
