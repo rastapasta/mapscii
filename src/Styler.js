@@ -8,11 +8,11 @@
   Compiles layer filter instructions into a chain of true/false returning
   anonymous functions to improve rendering speed compared to realtime parsing.
 */
-var Styler;
+'use strict';
 
 const fs = require('fs');
 
-module.exports = class Styler {
+class Styler {
   constructor(file) {
     this.styleById = {};
     this.styleByLayer = {};
@@ -132,3 +132,5 @@ module.exports = class Styler {
     }
   }
 }
+
+module.exports = Styler;
