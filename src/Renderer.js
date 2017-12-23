@@ -202,53 +202,53 @@ class Renderer {
     }
     
     switch (feature.style.type) {
-    case 'line': {
-      let width = feature.style.paint['line-width'];
-      if (width instanceof Object) {
-        // TODO: apply the correct zoom based value
-        width = width.stops[0][1];
-      }
-      points = this._scaleAndReduce(tile, feature, feature.points, scale);
-      if (points.length) {
-        this.canvas.polyline(points, feature.color, width);
-      }
-      break;
-    }
-    case 'fill': {
-      points = feature.points.map((p) => {
-        return this._scaleAndReduce(tile, feature, p, scale, false);
-      });
-      this.canvas.polygon(points, feature.color);
-      break;
-    }
-    case 'symbol': {
-      const text = feature.label || (genericSymbol = config.poiMarker);
-      
-      if (this._seen[text] && !genericSymbol) {
-        return false;
-      }
-      
-      placed = false;
-      const points2 = this._scaleAndReduce(tile, feature, feature.points, scale);
-      for (const point of points2) {
-        let ref1, ref2;
-        const x = point.x - text.length;
-        const margin = ((ref1 = config.layers[feature.layer]) != null ? ref1.margin : void 0) || config.labelMargin;
-        if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
-          this.canvas.text(text, x, point.y, feature.color);
-          placed = true;
-          break;
-        } else if (((ref2 = config.layers[feature.layer]) != null ? ref2.cluster : void 0) && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
-          this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
-          placed = true;
-          break;
+      case 'line': {
+        let width = feature.style.paint['line-width'];
+        if (width instanceof Object) {
+          // TODO: apply the correct zoom based value
+          width = width.stops[0][1];
         }
+        points = this._scaleAndReduce(tile, feature, feature.points, scale);
+        if (points.length) {
+          this.canvas.polyline(points, feature.color, width);
+        }
+        break;
       }
-      if (placed) {
-        this._seen[text] = true;
+      case 'fill': {
+        points = feature.points.map((p) => {
+          return this._scaleAndReduce(tile, feature, p, scale, false);
+        });
+        this.canvas.polygon(points, feature.color);
+        break;
       }
-      break;
-    }
+      case 'symbol': {
+        const text = feature.label || (genericSymbol = config.poiMarker);
+        
+        if (this._seen[text] && !genericSymbol) {
+          return false;
+        }
+        
+        placed = false;
+        const points2 = this._scaleAndReduce(tile, feature, feature.points, scale);
+        for (const point of points2) {
+          let ref1, ref2;
+          const x = point.x - text.length;
+          const margin = ((ref1 = config.layers[feature.layer]) != null ? ref1.margin : void 0) || config.labelMargin;
+          if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
+            this.canvas.text(text, x, point.y, feature.color);
+            placed = true;
+            break;
+          } else if (((ref2 = config.layers[feature.layer]) != null ? ref2.cluster : void 0) && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
+            this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
+            placed = true;
+            break;
+          }
+        }
+        if (placed) {
+          this._seen[text] = true;
+        }
+        break;
+      }
     }
     return true;
   }
