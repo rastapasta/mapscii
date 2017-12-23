@@ -12,7 +12,6 @@ const simplify = require('simplify-js');
 const Canvas = require('./Canvas');
 const LabelBuffer = require('./LabelBuffer');
 const Styler = require('./Styler');
-const Tile = require('./Tile');
 const utils = require('./utils');
 const config = require('./config');
 
@@ -44,7 +43,7 @@ class Renderer {
     let ref;
     const color = ((ref = this.styler.styleById['background']) !== null ?
       ref.paint['background-color']
-    :
+      :
       void 0
     );
     if (color) {
@@ -110,11 +109,11 @@ class Renderer {
 
   _getTile(tile) {
     return this.tileSource
-    .getTile(tile.xyz.z, tile.xyz.x, tile.xyz.y)
-    .then((data) => {
-      tile.data = data;
-      return tile;
-    });
+      .getTile(tile.xyz.z, tile.xyz.x, tile.xyz.y)
+      .then((data) => {
+        tile.data = data;
+        return tile;
+      });
   }
 
   _getTileFeatures(tile, zoom) {
@@ -143,8 +142,7 @@ class Renderer {
   }
 
   _renderTiles(tiles) {
-    var drawn, feature, i, j, k, l, label, labels, layer, layerId, len, len1, len2, len3, ref, ref1, tile;
-    drawn = {};
+    var feature, i, j, k, labels, layer, layerId, len, len1, len2, ref, ref1, tile;
     labels = [];
     ref = this._generateDrawOrder(tiles[0].xyz.z);
     for (i = 0, len = ref.length; i < len; i++) {
@@ -204,49 +202,53 @@ class Renderer {
     }
     
     switch (feature.style.type) {
-      case 'line':
-        let width = feature.style.paint['line-width'];
-        if (width instanceof Object) {
-          // TODO: apply the correct zoom based value
-          width = width.stops[0][1];
+    case 'line': {
+      let width = feature.style.paint['line-width'];
+      if (width instanceof Object) {
+        // TODO: apply the correct zoom based value
+        width = width.stops[0][1];
+      }
+      points = this._scaleAndReduce(tile, feature, feature.points, scale);
+      if (points.length) {
+        this.canvas.polyline(points, feature.color, width);
+      }
+      break;
+    }
+    case 'fill': {
+      points = feature.points.map((p) => {
+        return this._scaleAndReduce(tile, feature, p, scale, false);
+      });
+      this.canvas.polygon(points, feature.color);
+      break;
+    }
+    case 'symbol': {
+      const text = feature.label || (genericSymbol = config.poiMarker);
+      
+      if (this._seen[text] && !genericSymbol) {
+        return false;
+      }
+      
+      placed = false;
+      const points2 = this._scaleAndReduce(tile, feature, feature.points, scale);
+      for (const point of points2) {
+        let ref1, ref2;
+        const x = point.x - text.length;
+        const margin = ((ref1 = config.layers[feature.layer]) != null ? ref1.margin : void 0) || config.labelMargin;
+        if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
+          this.canvas.text(text, x, point.y, feature.color);
+          placed = true;
+          break;
+        } else if (((ref2 = config.layers[feature.layer]) != null ? ref2.cluster : void 0) && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
+          this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
+          placed = true;
+          break;
         }
-        points = this._scaleAndReduce(tile, feature, feature.points, scale);
-        if (points.length) {
-          this.canvas.polyline(points, feature.color, width);
-        }
-        break;
-      case 'fill':
-        points = feature.points.map((p) => {
-          return this._scaleAndReduce(tile, feature, p, scale, false);
-        });
-        this.canvas.polygon(points, feature.color);
-        break;
-      case 'symbol':
-        const text = feature.label || (genericSymbol = config.poiMarker);
-        
-        if (this._seen[text] && !genericSymbol) {
-          return false;
-        }
-        
-        placed = false;
-        const points2 = this._scaleAndReduce(tile, feature, feature.points, scale);
-        for (const point of points2) {
-          let ref1, ref2;
-          const x = point.x - text.length;
-          const margin = ((ref1 = config.layers[feature.layer]) != null ? ref1.margin : void 0) || config.labelMargin;
-          if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
-            this.canvas.text(text, x, point.y, feature.color);
-            placed = true;
-            break;
-          } else if (((ref2 = config.layers[feature.layer]) != null ? ref2.cluster : void 0) && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
-            this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
-            placed = true;
-            break;
-          }
-        }
-        if (placed) {
-          this._seen[text] = true;
-        }
+      }
+      if (placed) {
+        this._seen[text] = true;
+      }
+      break;
+    }
     }
     return true;
   }
@@ -324,7 +326,7 @@ class Renderer {
         'road_label',
         'housenum_label',
       ];
-   }
+    }
   }
 }
 
