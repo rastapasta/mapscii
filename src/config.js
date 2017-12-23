@@ -27,17 +27,17 @@ module.exports = {
 
   layers: {
     housenum_label: {
-        margin: 4
+      margin: 4
     },
     poi_label: {
       cluster: true,
       margin: 5,
     },
     place_label: {
-        cluster: true,
+      cluster: true,
     },
     state_label: {
-        cluster: true,
+      cluster: true,
     },
   },
 
