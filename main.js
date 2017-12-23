@@ -7,9 +7,10 @@
 
   TODO: params parsing and so on
 #*/
+'use strict';
 require('coffee-script/register');
 
 const Mapscii = require('./src/Mapscii');
 
-mapscii = new Mapscii();
+const mapscii = new Mapscii();
 mapscii.init();
