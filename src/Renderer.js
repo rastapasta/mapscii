@@ -145,8 +145,8 @@ class Renderer {
     const labels = [];
     
     const drawOrder = this._generateDrawOrder(tiles[0].xyz.z);
-    for (const layerId in drawOrder) {
-      for (const tile in tiles) {
+    for (const layerId of drawOrder) {
+      for (const tile of tiles) {
         const layer = tile.layers[layerId];
         if (!layer) continue;
         for (const feature of layer.features) {
