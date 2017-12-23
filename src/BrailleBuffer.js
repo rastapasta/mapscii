@@ -31,7 +31,7 @@ const termReset = '\x1B[39;49m';
 
 class BrailleBuffer {
   constructor(width, height) {
-    this.brailleMap = [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]]
+    this.brailleMap = [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]];
 
     this.pixelBuffer = null;
     this.charBuffer = null;
@@ -67,7 +67,7 @@ class BrailleBuffer {
 
   setBackground(x, y, color) {
     if (0 <= x && x < this.width && 0 <= y && y < this.height) {
-      idx = this._project(x, y);
+      const idx = this._project(x, y);
       this.backgroundBuffer[idx] = color;
     }
   }
