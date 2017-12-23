@@ -11,7 +11,6 @@ Promise = require 'bluebird'
 zlib = require 'zlib'
 rbush = require 'rbush'
 x256 = require 'x256'
-earcut = require 'earcut'
 
 config = require "./config"
 utils = require "./utils"
