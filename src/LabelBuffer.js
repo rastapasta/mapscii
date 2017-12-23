@@ -54,4 +54,4 @@ module.exports = class LabelBuffer {
       maxY: y+margin/2,
     };
   }
-}
+};
