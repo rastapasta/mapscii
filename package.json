@@ -43,5 +43,8 @@
     "term-mouse": "^0.2.0",
     "userhome": "^1.0.0",
     "x256": "0.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^4.13.1"
   }
 }
