@@ -52,7 +52,7 @@ class Mapscii {
       this._initTileSource();
       this._initRenderer();
       this._draw();
-      this.notify("Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.");
+      this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
       resolve();
     });
   }
@@ -94,11 +94,11 @@ class Mapscii {
       this._draw();
     });
 
-    this._resizeRenderer()
+    this._resizeRenderer();
     this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
   }
 
-  _resizeRenderer(cb) {
+  _resizeRenderer() {
     if (config.size) {
       this.width = config.size.width;
       this.height = config.size.height;
@@ -168,7 +168,7 @@ class Mapscii {
         const newCenter = utils.tile2ll(
           this.mouseDragging.center.x+(dx/size),
           this.mouseDragging.center.y+(dy/size),
-          utils.baseZoom(this.zoom),
+          utils.baseZoom(this.zoom)
         );
 
         this.setCenter(newCenter.lat, newCenter.lon);
@@ -180,7 +180,7 @@ class Mapscii {
           x: event.x,
           y: event.y,
           center: utils.ll2tile(this.center.lon, this.center.lat, utils.baseZoom(this.zoom)),
-        }
+        };
       }
     }
 
