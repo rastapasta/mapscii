@@ -205,7 +205,8 @@ class Mapscii {
       case 'a':
         this.zoomBy(config.zoomStep);
         break;
-      case 'z', 'y':
+      case 'y':
+      case 'z':
         this.zoomBy(-config.zoomStep);
         break;
       case 'left':
