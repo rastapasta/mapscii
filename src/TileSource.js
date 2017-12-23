@@ -20,11 +20,7 @@ const config = require('./config');
 let MBTiles = null;
 try {
   MBTiles = require('mbtiles');
-} catch (err) {}
-
-const cache = {};
-const cacheSize = 16;
-const cached = [];
+} catch (err) {void 0;}
 
 const modes = {
   MBTiles: 1,
@@ -53,13 +49,13 @@ class TileSource {
 
     } else if (this.source.endsWith('.mbtiles')) {
       if (!MBTiles) {
-        throw new Error("MBTiles support must be installed with following command: 'npm install -g mbtiles'");
+        throw new Error('MBTiles support must be installed with following command: \'npm install -g mbtiles\'');
       }
 
       this.mode = modes.MBTiles;
       this.loadMBtils(source);
     } else {
-      throw new Error("source type isn't supported yet");
+      throw new Error('source type isn\'t supported yet');
     }
   }
 
@@ -81,10 +77,10 @@ class TileSource {
 
   getTile(z, x, y) {
     if (!this.mode) {
-      throw new Error("no TileSource defined");
+      throw new Error('no TileSource defined');
     }
     
-    const cached = this.cache[[z, x, y].join("-")];
+    const cached = this.cache[[z, x, y].join('-')];
     if (cached) {
       return Promise.resolve(cached);
     }
@@ -111,13 +107,13 @@ class TileSource {
       promise = Promise.resolve(persistedTile);
     } else {
       promise = fetch(this.source + [z,x,y].join('/') + '.pbf')
-      .then((res) => res.buffer())
-      .then((buffer) => {
-        if (config.persistDownloadedTiles) {
-          this._persistTile(z, x, y, buffer);
-          return buffer;
-        }
-      });
+        .then((res) => res.buffer())
+        .then((buffer) => {
+          if (config.persistDownloadedTiles) {
+            this._persistTile(z, x, y, buffer);
+            return buffer;
+          }
+        });
     }
     return promise.then((buffer) => {
       return this._createTile(z, x, y, buffer);
@@ -172,7 +168,7 @@ class TileSource {
       fs.mkdirSync(path);
       return true;
     } catch (error) {
-      return error.code === "EEXIST";
+      return error.code === 'EEXIST';
     }
   }
 }
