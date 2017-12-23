@@ -57,10 +57,10 @@ class Renderer {
     }).map((tile) => {
       return this._getTileFeatures(tile, zoom);
     }).then((tiles) => {
-      return this._renderTiles(tiles);
+      this._renderTiles(tiles);
     }).then(() => {
       return this._getFrame();
-    }).catch(function(e) {
+    }).catch((e) => {
       return console.log(e);
     }).finally((frame) => {
       this.isDrawing = false;
@@ -98,8 +98,8 @@ class Renderer {
         
         tiles.push({
           xyz: tile,
-          zoom: zoom,
-          position: position,
+          zoom,
+          position,
           size: tileSize,
         });
       }
@@ -159,7 +159,7 @@ class Renderer {
           // drawn[feature.id] = true
           if (layerId.match(/label/)) {
             labels.push({
-              tile: tile,
+              tile,
               feature: feature,
               scale: layer.scale
             });
@@ -169,14 +169,12 @@ class Renderer {
         }
       }
     }
-    labels.sort(function(a, b) {
+    labels.sort((a, b) => {
       return a.feature.sorty - b.feature.sort;
     });
-    const results = [];
     for (const label of labels) {
-      results.push(this._drawFeature(label.tile, label.feature, label.scale));
+      this._drawFeature(label.tile, label.feature, label.scale);
     }
-    return results;
   }
 
   _getFrame() {
@@ -194,7 +192,7 @@ class Renderer {
   }
 
   _drawFeature(tile, feature, scale) {
-    let points, placed, genericSymbol;
+    let points, placed;
     if (feature.style.minzoom && tile.zoom < feature.style.minzoom) {
       return false;
     } else if (feature.style.maxzoom && tile.zoom > feature.style.maxzoom) {
@@ -222,26 +220,30 @@ class Renderer {
         break;
       }
       case 'symbol': {
-        const text = feature.label || (genericSymbol = config.poiMarker);
+        const genericSymbol = config.poiMarker;
+        const text = feature.label || config.poiMarker;
         
         if (this._seen[text] && !genericSymbol) {
           return false;
         }
         
         placed = false;
-        const points2 = this._scaleAndReduce(tile, feature, feature.points, scale);
-        for (const point of points2) {
-          let ref1, ref2;
+        const pointsOfInterest = this._scaleAndReduce(tile, feature, feature.points, scale);
+        for (const point of pointsOfInterest) {
           const x = point.x - text.length;
-          const margin = ((ref1 = config.layers[feature.layer]) != null ? ref1.margin : void 0) || config.labelMargin;
+          const layerMargin = (config.layers[feature.layer] || {}).margin;
+          const margin = layerMargin || config.labelMargin;
           if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
             this.canvas.text(text, x, point.y, feature.color);
             placed = true;
             break;
-          } else if (((ref2 = config.layers[feature.layer]) != null ? ref2.cluster : void 0) && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
-            this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
-            placed = true;
-            break;
+          } else {
+            const cluster = (config.layers[feature.layer] || {}).cluster;
+            if (cluster && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
+              this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
+              placed = true;
+              break;
+            }
           }
         }
         if (placed) {
