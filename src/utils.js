@@ -14,7 +14,7 @@ const constants = {
 const utils = {
   clamp: (num, min, max) => {
     if (num <= min) {
-      return min
+      return min;
     } else if (num >= max) {
       return max;
     } else {
@@ -69,7 +69,7 @@ const utils = {
     if (color.length === 3) {
       const rgb = [decimal>>8, (decimal>>4)&15, decimal&15];
       return rgb.map((c) => {
-          return c + (c<<4);
+        return c + (c<<4);
       });
     } else {
       return [(decimal>>16)&255, (decimal>>8)&255, decimal&255];
@@ -91,7 +91,7 @@ const utils = {
   },
 
   population: (val) => {
-    let bits = 0
+    let bits = 0;
     while (val > 0) {
       bits += val & 1;
       val >>= 1;
