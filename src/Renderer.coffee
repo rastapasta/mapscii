@@ -11,7 +11,6 @@ simplify = require 'simplify-js'
 Canvas = require './Canvas'
 LabelBuffer = require './LabelBuffer'
 Styler = require './Styler'
-Tile = require './Tile'
 utils = require './utils'
 config = require './config'
 
