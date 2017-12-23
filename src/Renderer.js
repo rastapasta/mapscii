@@ -142,25 +142,20 @@ class Renderer {
   }
 
   _renderTiles(tiles) {
-    var feature, i, j, k, labels, layer, layerId, len, len1, len2, ref, ref1, tile;
-    labels = [];
-    ref = this._generateDrawOrder(tiles[0].xyz.z);
-    for (i = 0, len = ref.length; i < len; i++) {
-      layerId = ref[i];
-      for (j = 0, len1 = tiles.length; j < len1; j++) {
-        tile = tiles[j];
-        if (!(layer = tile.layers[layerId])) {
-          continue;
-        }
-        ref1 = layer.features;
-        for (k = 0, len2 = ref1.length; k < len2; k++) {
-          feature = ref1[k];
+    const labels = [];
+    
+    const drawOrder = this._generateDrawOrder(tiles[0].xyz.z);
+    for (const layerId in drawOrder) {
+      for (const tile in tiles) {
+        const layer = tile.layers[layerId];
+        if (!layer) continue;
+        for (const feature of layer.features) {
           // continue if feature.id and drawn[feature.id]
-          // drawn[feature.id] = true
+          // drawn[feature.id] = true;
           if (layerId.match(/label/)) {
             labels.push({
               tile,
-              feature: feature,
+              feature,
               scale: layer.scale
             });
           } else {
@@ -169,9 +164,11 @@ class Renderer {
         }
       }
     }
+
     labels.sort((a, b) => {
       return a.feature.sorty - b.feature.sort;
     });
+
     for (const label of labels) {
       this._drawFeature(label.tile, label.feature, label.scale);
     }
