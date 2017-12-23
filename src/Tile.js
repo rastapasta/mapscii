@@ -53,12 +53,11 @@ class Tile {
   }
 
   _loadLayers() {
-    var color, colorCache, colorCode, k, layers, len, nodes, points, style, tree;
-    layers = {};
-    colorCache = {};
+    const layers = {};
+    const colorCache = {};
     for (const name in this.tile.layers) {
       const layer = this.tile.layers[name];
-      nodes = [];
+      const nodes = [];
       //continue if name is 'water'
       for (let i = 0; i < layer.length; i++) {
         // TODO: caching of similar attributes to avoid looking up the style each time
@@ -66,13 +65,14 @@ class Tile {
         
         const feature = layer.feature(i);
         feature.properties.$type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        let style;
         if (this.styler) {
           style = this.styler.getStyleFor(name, feature);
           if (!style) {
             continue;
           }
         }
-        color = (
+        let color = (
           style.paint['line-color'] ||
           style.paint['fill-color'] ||
           style.paint['text-color']
@@ -81,7 +81,7 @@ class Tile {
         if (color instanceof Object) {
           color = color.stops[0][1];
         }
-        colorCode = colorCache[color] || (colorCache[color] = x256(utils.hex2rgb(color)));
+        const colorCode = colorCache[color] || (colorCache[color] = x256(utils.hex2rgb(color)));
         // TODO: monkey patching test case for tiles with a reduced extent 4096 / 8 -> 512
         // use feature.loadGeometry() again as soon as we got a 512 extent tileset
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
@@ -98,10 +98,9 @@ class Tile {
             color: colorCode,
           }));
         } else {
-          for (k = 0, len = geometries.length; k < len; k++) {
-            points = geometries[k];
+          for (const points of geometries) {
             nodes.push(this._addBoundaries(false, {
-              //             id: feature.id
+              //id: feature.id,
               layer: name,
               style,
               label,
@@ -112,11 +111,11 @@ class Tile {
           }
         }
       }
-      tree = rbush(18);
+      const tree = rbush(18);
       tree.load(nodes);
       layers[name] = {
         extent: layer.extent,
-        tree: tree,
+        tree,
       };
     }
     return this.layers = layers;
@@ -142,16 +141,13 @@ class Tile {
   }
 
   _reduceGeometry(feature, factor) {
-    var i, j, k, last, len, len1, p, point, points, reduced, ref, results;
-    ref = feature.loadGeometry();
-    results = [];
-    for (i = j = 0, len = ref.length; j < len; i = ++j) {
-      points = ref[i];
-      reduced = [];
-      last = null;
-      for (k = 0, len1 = points.length; k < len1; k++) {
-        point = points[k];
-        p = {
+    const results = [];
+    const geometries = feature.loadGeometry();
+    for (const points of geometries) {
+      const reduced = [];
+      let last;
+      for (const point of points) {
+        const p = {
           x: Math.floor(point.x / factor),
           y: Math.floor(point.y / factor)
         };
