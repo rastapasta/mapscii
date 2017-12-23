@@ -110,6 +110,7 @@ class Canvas {
 
     width = (width + 1) / 2;
 
+    /* eslint-disable no-constant-condition */
     while (true) {
       this.buffer.setPixel(x0, y0, color);
       let e2 = err;
@@ -141,6 +142,7 @@ class Canvas {
         y0 += sy;
       }
     }
+    /* eslint-enable */
   }
 
   _filledRectangle(x, y, width, height, color) {
