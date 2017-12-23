@@ -105,9 +105,9 @@ class Styler {
         });
       case '==':
         return (feature) => feature.properties[filter[1]] === filter[2];
-      case "!=":
+      case '!=':
         return (feature) => feature.properties[filter[1]] !== filter[2];
-      case "in":
+      case 'in':
         return (feature) => !!filter.slice(2).find((value) => {
           return feature.properties[filter[1]] === value;
         });
@@ -115,17 +115,17 @@ class Styler {
         return (feature) => !filter.slice(2).find((value) => {
           return feature.properties[filter[1]] === value;
         });
-      case "has":
+      case 'has':
         return (feature) => !!feature.properties[filter[1]];
-      case "!has":
+      case '!has':
         return (feature) => !feature.properties[filter[1]];
-      case ">":
+      case '>':
         return (feature) => feature.properties[filter[1]] > filter[2];
-      case ">=":
+      case '>=':
         return (feature) => feature.properties[filter[1]] >= filter[2];
-      case "<":
+      case '<':
         return (feature) => feature.properties[filter[1]] < filter[2];
-      case "<=":
+      case '<=':
         return (feature) => feature.properties[filter[1]] <= filter[2];
       default:
         return () => true;
