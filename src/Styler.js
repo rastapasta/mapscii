@@ -43,7 +43,7 @@ class Styler {
     }
   }
 
-  getStyleFor(layer, feature, zoom) {
+  getStyleFor(layer, feature) {
     if (!this.styleByLayer[layer]) {
       return false;
     }
