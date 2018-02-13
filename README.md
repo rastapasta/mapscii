@@ -26,6 +26,8 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 
 ## How to install it locally
 
+### With npm
+
 If you haven't already got Node.js >= version 4.5, then [go get it](http://nodejs.org/).
 
 ```
@@ -33,6 +35,14 @@ npm install -g mapscii
 ```
 
 If you're on OSX, or get an error about file permissions, you may need to do ```sudo npm install -g mapscii```
+
+### With snap
+
+In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+
+    sudo snap install mapscii
+    
+(This snap is maintained by [@nathanhaines](https://github.com/nathanhaines/))
 
 ## Running
 
