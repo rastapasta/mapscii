@@ -28,7 +28,7 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 
 ### With npm
 
-If you haven't already got Node.js >= version 4.5, then [go get it](http://nodejs.org/).
+If you haven't already got Node.js >= version 8.12, then [go get it](http://nodejs.org/).
 
 ```
 npm install -g mapscii
