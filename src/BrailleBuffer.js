@@ -2,7 +2,7 @@
   termap - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
-  Simple pixel to barille character mapper
+  Simple pixel to braille character mapper
 
   Implementation inspired by node-drawille (https://github.com/madbence/node-drawille)
   * added color support

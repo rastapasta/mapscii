@@ -1,0 +1,19 @@
+name: mapscii
+version: master
+summary: The Whole World In Your Console
+description: |
+  A node.js based Vector Tile to Braille and ASCII renderer for
+  xterm-compatible terminals.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+
+apps:
+  mapscii:
+    command: mapscii
+    plugs: [network]
+
+parts:
+  mapscii:
+    source: .
+    plugin: nodejs
