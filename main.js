@@ -7,9 +7,8 @@
 
   TODO: params parsing and so on
 #*/
-require('coffee-script/register');
-
+'use strict';
 const Mapscii = require('./src/Mapscii');
 
-mapscii = new Mapscii();
+const mapscii = new Mapscii();
 mapscii.init();

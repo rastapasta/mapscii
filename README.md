@@ -22,7 +22,7 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
 * Compatible with most Linux and OSX terminals
 * Highly optimizied algorithms for a smooth experience
-* 100% pure Coffee-/JavaScript! :sunglasses:
+* 100% pure JavaScript! :sunglasses:
 
 ## How to install it locally
 

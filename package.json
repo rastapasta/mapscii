@@ -32,7 +32,6 @@
     "@mapbox/vector-tile": "^1.3.0",
     "bluebird": "^3.5.1",
     "bresenham": "0.0.4",
-    "coffee-script": "^1.12.7",
     "earcut": "^2.1.2",
     "keypress": "^0.2.1",
     "node-fetch": "^1.7.3",
@@ -43,5 +42,8 @@
     "term-mouse": "^0.2.0",
     "userhome": "^1.0.0",
     "x256": "0.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^4.13.1"
   }
 }
