@@ -46,9 +46,9 @@ class BrailleBuffer {
     this.height = height;
 
     const size = width*height/8;
-    this.pixelBuffer = new Buffer(size);
-    this.foregroundBuffer = new Buffer(size);
-    this.backgroundBuffer = new Buffer(size);
+    this.pixelBuffer = Buffer.alloc(size);
+    this.foregroundBuffer = Buffer.alloc(size);
+    this.backgroundBuffer = Buffer.alloc(size);
 
     this._mapBraille();
     this.clear();
