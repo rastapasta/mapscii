@@ -2,7 +2,8 @@
 
 A node.js based [Vector Tile](http://wiki.openstreetmap.org/wiki/Vector_tiles) to [Braille](http://www.fileformat.info/info/unicode/block/braille_patterns/utf8test.htm) and [ASCII](https://de.wikipedia.org/wiki/American_Standard_Code_for_Information_Interchange) renderer for [xterm](https://en.wikipedia.org/wiki/Xterm)-compatible terminals.
 
-<a href="https://asciinema.org/a/117813?autoplay=1" target="_blank">![asciicast](https://cloud.githubusercontent.com/assets/1259904/25480718/497a64e2-2b4a-11e7-9cf0-ed52ee0b89c0.png)</a>
+<a href="https://asciinema.org/a/117813?autoplay=1" target="_blank">![asciicast](https://cloud.githubusercontent.com/assets/1259904/25480718/497a64e2-2b4a-11e7-9cf0-ed52ee0b89c0.png)[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Frastapasta%2Fmapscii.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Frastapasta%2Fmapscii?ref=badge_shield)
+</a>
 
 ## Try it out!
 
@@ -120,6 +121,9 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 * [mourner](https://github.com/mourner) for all his work on mindblowing GIS algorithms (like the used [earcut](https://github.com/mapbox/earcut), [rbush](https://github.com/mourner/rbush), [simplify-js](https://github.com/mourner/simplify-js), ..)
 
 ## Licenses
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Frastapasta%2Fmapscii.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Frastapasta%2Fmapscii?ref=badge_large)
 
 ### Map data
 
