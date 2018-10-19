@@ -59,8 +59,8 @@ const utils = {
   hex2rgb: (color) => {
     if (typeof color !== 'string') return [255, 0, 0];
 
-    if (/^#[a-fA-F0-9]{3,6}$/.test()) {
-      throw new Error('#{color} isn\'t a supported hex color');
+    if (!/^#[a-fA-F0-9]{3,6}$/.test(color)) {
+      throw new Error(`${color} isn't a supported hex color`);
     }
 
     color = color.substr(1);
