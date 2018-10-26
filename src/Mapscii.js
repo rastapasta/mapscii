@@ -246,9 +246,12 @@ class Mapscii {
     // tile = utils.ll2tile(this.center.lon, this.center.lat, this.zoom);
     // `tile: ${utils.digits(tile.x, 3)}, ${utils.digits(tile.x, 3)}   `+
 
-    return `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)}   `+
-      `zoom: ${utils.digits(this.zoom, 2)}   `+
-      `mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    let footer = `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)} `;
+    footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
+    if (this.mousePosition.lat !== undefined) {
+      footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+    return footer;
   }
 
   notify(text) {
