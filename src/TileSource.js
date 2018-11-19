@@ -16,10 +16,10 @@ const config = require('./config');
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 // To maximize MapSCII’s compatibility, MBTiles support must be manually added via
-// $> npm install -g mbtiles
+// $> npm install -g @mapbox/mbtiles
 let MBTiles = null;
 try {
-  MBTiles = require('mbtiles');
+  MBTiles = require('@mapbox/mbtiles');
 } catch (err) {void 0;}
 
 const modes = {
@@ -49,7 +49,7 @@ class TileSource {
 
     } else if (this.source.endsWith('.mbtiles')) {
       if (!MBTiles) {
-        throw new Error('MBTiles support must be installed with following command: \'npm install -g mbtiles\'');
+        throw new Error('MBTiles support must be installed with following command: \'npm install -g @mapbox/mbtiles\'');
       }
 
       this.mode = modes.MBTiles;
