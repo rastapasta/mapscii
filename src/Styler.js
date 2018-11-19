@@ -10,36 +10,33 @@
 */
 'use strict';
 
-const fs = require('fs');
-
 class Styler {
-  constructor(file) {
+  constructor(style) {
     this.styleById = {};
     this.styleByLayer = {};
     var base, name;
-    const json = JSON.parse(fs.readFileSync(file).toString());
-    this.styleName = json.name;
-    if (json.constants) {
-      this._replaceConstants(json.constants, json.layers);
+    this.styleName = style.name;
+    if (style.constants) {
+      this._replaceConstants(style.constants, style.layers);
     }
 
-    for (const style of json.layers) {
-      if (style.ref && this.styleById[style.ref]) {
+    for (const layer of style.layers) {
+      if (layer.ref && this.styleById[layer.ref]) {
         for (const ref of ['type', 'source-layer', 'minzoom', 'maxzoom', 'filter']) {
-          if (this.styleById[style.ref][ref] && !style[ref]) {
-            style[ref] = this.styleById[style.ref][ref];
+          if (this.styleById[layer.ref][ref] && !layer[ref]) {
+            layer[ref] = this.styleById[layer.ref][ref];
           }
         }
       }
 
-      style.appliesTo = this._compileFilter(style.filter);
+      layer.appliesTo = this._compileFilter(layer.filter);
 
       //TODO Better translation of: @styleByLayer[style['source-layer']] ?= []
-      if ((base = this.styleByLayer)[name = style['source-layer']] == null) {
+      if ((base = this.styleByLayer)[name = layer['source-layer']] == null) {
         base[name] = [];
       }
-      this.styleByLayer[style['source-layer']].push(style);
-      this.styleById[style.id] = style;
+      this.styleByLayer[layer['source-layer']].push(layer);
+      this.styleById[layer.id] = layer;
     }
   }
 
