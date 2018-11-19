@@ -169,6 +169,7 @@ class TileSource {
       return true;
     } catch (error) {
       return error.code === 'EEXIST';
+      throw error;
     }
   }
 }
