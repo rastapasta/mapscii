@@ -1,5 +1,5 @@
 /*
-  mapscii - Terminal Map Viewer
+  MapSCII - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
   UI and central command center

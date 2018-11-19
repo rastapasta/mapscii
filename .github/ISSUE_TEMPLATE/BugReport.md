@@ -8,7 +8,7 @@ about: Something isn’t working as expected
 <!--
 A step by step description of how to get to the error state.
 Are you using the the telnet or the local client?
-If you run Mapscii locally, what is your NodeJS version? (run `node -v`)
+If you run MapSCII locally, what is your NodeJS version? (run `node -v`)
 It might help to know which operating system and keyboard language your are using.
 -->
 
