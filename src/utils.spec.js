@@ -23,3 +23,25 @@ describe('utils', () => {
     });
   });
 });
+
+describe('normalize', () => {
+  describe.each([
+    [0, 0, 0, 0],
+    [61, 48, 61, 48],
+    [-61, -48, -61, -48],
+    [181, 85.06, -179, 85.0511],
+    [-181, -85.06, 179, -85.0511],
+  ])('when given lon=%f and lat=%f', (lon, lat, expected_lon, expected_lat) => {
+    const input = {
+      lon,
+      lat,
+    };
+    test(`returns lon=${expected_lon} and lat=${expected_lat}`, () => {
+      const expected = {
+        lon: expected_lon,
+        lat: expected_lat,
+      };
+      expect(utils.normalize(input)).toEqual(expected);
+    });
+  });
+});
