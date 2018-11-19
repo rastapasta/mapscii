@@ -43,18 +43,15 @@ class Mapscii {
     config = Object.assign(config, options);
   }
 
-  init() {
-    return new Promise((resolve) => {
-      if (!config.headless) {
-        this._initKeyboard();
-        this._initMouse();
-      }
-      this._initTileSource();
-      this._initRenderer();
-      this._draw();
-      this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
-      resolve();
-    });
+  async init() {
+    if (!config.headless) {
+      this._initKeyboard();
+      this._initMouse();
+    }
+    this._initTileSource();
+    this._initRenderer();
+    this._draw();
+    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
   }
 
 
