@@ -53,13 +53,13 @@ class TileSource {
       }
 
       this.mode = modes.MBTiles;
-      this.loadMBtils(source);
+      this.loadMBTiles(source);
     } else {
       throw new Error('source type isn\'t supported yet');
     }
   }
 
-  loadMBtils(source) {
+  loadMBTiles(source) {
     return new Promise((resolve, reject) => {
       new MBTiles(source, (err, mbtiles) => {
         if (err) {
