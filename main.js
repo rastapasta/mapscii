@@ -11,4 +11,7 @@
 const Mapscii = require('./src/Mapscii');
 
 const mapscii = new Mapscii();
-mapscii.init();
+mapscii.init().catch((err) => {
+  console.error('Failed to start MapSCII.');
+  console.error(err);
+});
