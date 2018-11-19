@@ -1,5 +1,5 @@
 /*#
-  mapscii - Terminal Map Viewer
+  MapSCII - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
   Discover the planet in your console!
 

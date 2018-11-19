@@ -15,7 +15,7 @@ const Tile = require('./Tile');
 const config = require('./config');
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
-// To maximize mapscii's compatibility, MBTiles support must be manually added via
+// To maximize MapSCII’s compatibility, MBTiles support must be manually added via
 // $> npm install -g mbtiles
 let MBTiles = null;
 try {
