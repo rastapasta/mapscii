@@ -7,6 +7,7 @@
 'use strict';
 const keypress = require('keypress');
 const TermMouse = require('term-mouse');
+const queryLocation = require('location');
 
 const Renderer = require('./Renderer');
 const TileSource = require('./TileSource');
@@ -52,6 +53,7 @@ class Mapscii {
     this._initRenderer();
     this._draw();
     this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    this.requestLocation(false);
   }
 
 
@@ -221,6 +223,9 @@ class Mapscii {
       case 'c':
         config.useBraille = !config.useBraille;
         break;
+      case 'l':
+        this.requestLocation(true);
+        break;
       default:
         draw = false;
     }
@@ -249,6 +254,19 @@ class Mapscii {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
     }
     return footer;
+  }
+
+  requestLocation(zoom = false) {
+    this.notify('Querying your location…');
+    return queryLocation()
+    .then((location) => {
+      this.setCenter(location.latitude, location.longitude);
+      // TODO: set zoom level according to precision
+      if (zoom) this.zoom = 16;
+      this._draw();
+    }, () => {
+      this.notify(`Couldn't query your location.`);
+    });
   }
 
   notify(text) {
