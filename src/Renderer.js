@@ -16,14 +16,11 @@ const utils = require('./utils');
 const config = require('./config');
 
 class Renderer {
-  constructor(output, tileSource) {
+  constructor(output, tileSource, style) {
     this.output = output;
     this.tileSource = tileSource;
     this.labelBuffer = new LabelBuffer();
-  }
-
-  loadStyleFile(file) {
-    this.styler = new Styler(file);
+    this.styler = new Styler(style);
     this.tileSource.useStyler(this.styler);
   }
 
