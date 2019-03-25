@@ -15,7 +15,7 @@
     "mapscii": "./bin/mapscii.sh"
   },
   "engines": {
-    "node": ">=6.14.0"
+    "node": ">=8"
   },
   "keywords": [
     "map",
