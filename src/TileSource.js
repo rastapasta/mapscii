@@ -168,7 +168,7 @@ class TileSource {
       fs.mkdirSync(path);
       return true;
     } catch (error) {
-      return error.code === 'EEXIST';
+      if (error.code === 'EEXIST') return true;
       throw error;
     }
   }
