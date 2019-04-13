@@ -226,7 +226,7 @@ class Mapscii {
         draw = false;
     }
 
-    if (draw !== null) {
+    if (draw) {
       this._draw();
     }
   }
