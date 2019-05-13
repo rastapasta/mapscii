@@ -78,7 +78,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 #### Juggling the vectors and numbers
 * [`earcut`](https://github.com/mapbox/earcut) for polygon triangulation
 * [`rbush`](https://github.com/mourner/rbush) for 2D spatial indexing of geo and label data
-* [`breseham`](https://github.com/madbence/node-bresenham) for line point calculations
+* [`bresenham`](https://github.com/madbence/node-bresenham) for line point calculations
 * [`simplify-js`](https://github.com/mourner/simplify-js) for polyline simplifications
 
 #### Handling the flow
