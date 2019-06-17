@@ -5,6 +5,7 @@
   UI and central command center
 */
 'use strict';
+const fs = require('fs');
 const keypress = require('keypress');
 const TermMouse = require('term-mouse');
 
@@ -83,8 +84,8 @@ class Mapscii {
   }
 
   _initRenderer() {
-    this.renderer = new Renderer(config.output, this.tileSource);
-    this.renderer.loadStyleFile(config.styleFile);
+    const style = JSON.parse(fs.readFileSync(config.styleFile, 'utf8'));
+    this.renderer = new Renderer(config.output, this.tileSource, style);
 
     config.output.on('resize', () => {
       this._resizeRenderer();
@@ -225,7 +226,7 @@ class Mapscii {
         draw = false;
     }
 
-    if (draw !== null) {
+    if (draw) {
       this._draw();
     }
   }
