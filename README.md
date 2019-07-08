@@ -21,7 +21,7 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 * Or just use the supplied and optimized [OSM2VectorTiles](https://github.com/osm2vectortiles) based one
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
 * Compatible with most Linux and OSX terminals
-* Highly optimizied algorithms for a smooth experience
+* Highly optimized algorithms for a smooth experience
 * 100% pure JavaScript! :sunglasses:
 
 ## How to install it locally
