@@ -6,13 +6,13 @@
   and to find labels underneath a mouse cursor's position
 */
 'use strict';
-const Rbush = require('rbush');
+const RBush = require('rbush');
 const stringWidth = require('string-width');
 
 module.exports = class LabelBuffer {
 
   constructor() {
-    this.tree = Rbush();
+    this.tree = new RBush();
     this.margin = 5;
   }
 
