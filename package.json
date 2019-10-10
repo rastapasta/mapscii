@@ -4,6 +4,7 @@
   "description": "Map+Ascii -> MapSCII! Console Map Viewer.",
   "main": "main.js",
   "scripts": {
+    "lint": "eslint src",
     "start": "node main",
     "test": "jest"
   },
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "eslint": "^6.5.1",
+    "eslint-plugin-jest": "^22.17.0",
     "jest": "^24.9.0"
   }
 }
