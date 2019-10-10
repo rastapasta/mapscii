@@ -1,6 +1,6 @@
 {
   "name": "mapscii",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Map+Ascii -> MapSCII! Console Map Viewer.",
   "main": "main.js",
   "scripts": {

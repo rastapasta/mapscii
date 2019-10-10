@@ -24,6 +24,14 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 * Highly optimized algorithms for a smooth experience
 * 100% pure JavaScript! :sunglasses:
 
+## How to run it locally
+
+With a modern node installation available, just start it with
+
+```
+npx mapscii
+```
+
 ## How to install it locally
 
 ### With npm
@@ -56,6 +64,7 @@ mapscii
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
 * Press **a** or **z** to zoom in and out
+* Press **c** to switch to block character mode
 * Press **q** to quit
 
 ## Mouse control
