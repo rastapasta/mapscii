@@ -19,7 +19,7 @@ describe('utils', () => {
       function wrapper() {
         utils.hex2rgb('33');
       }
-      expect(wrapper).toThrowError('isn\'t a supported hex color');
+      expect(wrapper).toThrow('isn\'t a supported hex color');
     });
   });
 });
