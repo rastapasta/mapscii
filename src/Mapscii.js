@@ -110,10 +110,10 @@ class Mapscii {
     this.renderer.setSize(this.width, this.height);
   }
 
-  _updateMousePosition(event) {
+  _colrow2ll(x, y) {
     const projected = {
-      x: (event.x-0.5)*2,
-      y: (event.y-0.5)*4,
+      x: (x-0.5)*2,
+      y: (y-0.5)*4,
     };
 
     const size = utils.tilesizeAtZoom(this.zoom);
@@ -122,7 +122,11 @@ class Mapscii {
     const z = utils.baseZoom(this.zoom);
     const center = utils.ll2tile(this.center.lon, this.center.lat, z);
 
-    this.mousePosition = utils.normalize(utils.tile2ll(center.x+(dx/size), center.y+(dy/size), z));
+    return utils.normalize(utils.tile2ll(center.x+(dx/size), center.y+(dy/size), z));
+  }
+
+  _updateMousePosition(event) {
+    this.mousePosition = this._colrow2ll(event.x, event.y);
   }
 
   _onClick(event) {
@@ -142,8 +146,33 @@ class Mapscii {
 
   _onMouseScroll(event) {
     this._updateMousePosition(event);
-    // TODO: handle .x/y for directed zoom
+
+    // the location of the pointer, where we want to zoom toward
+    const targetMouseLonLat = this._colrow2ll(event.x, event.y);
+
+    // zoom toward the center
     this.zoomBy(config.zoomStep * (event.button === 'up' ? 1 : -1));
+
+    // the location the pointer ended up after zooming
+    const offsetMouseLonLat = this._colrow2ll(event.x, event.y);
+
+    const z = utils.baseZoom(this.zoom);
+    // the projected locations
+    const targetMouseTile = utils.ll2tile(targetMouseLonLat.lon, targetMouseLonLat.lat, z);
+    const offsetMouseTile = utils.ll2tile(offsetMouseLonLat.lon, offsetMouseLonLat.lat, z);
+
+    // the projected center
+    const centerTile = utils.ll2tile(this.center.lon, this.center.lat, z);
+
+    // calculate a new center that puts the pointer back in the target location
+    const offsetCenterLonLat = utils.tile2ll(
+      centerTile.x - (offsetMouseTile.x - targetMouseTile.x),
+      centerTile.y - (offsetMouseTile.y - targetMouseTile.y),
+      z
+    );
+    // move to the new center
+    this.setCenter(offsetCenterLonLat.lat, offsetCenterLonLat.lon);
+
     this._draw();
   }
 
