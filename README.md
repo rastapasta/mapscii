@@ -109,7 +109,6 @@ If your terminal supports mouse events you can drag the map and use your scroll 
   * [ ] mouse control
     * [ ] hover POIs/labels
     * [ ] hover maybe even polygons/-lines?
-    * [ ] zoom into mouse pos
 
 * Styler
   * [ ] respect zoom based style ranges
