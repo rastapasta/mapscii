@@ -1,7 +1,7 @@
 {
   "name": "mapscii",
-  "version": "0.2.0",
-  "description": "Map+Ascii -> MapSCII! Console Map Viewer.",
+  "version": "0.3.0",
+  "description": "MapSCII is a Braille & ASCII world map renderer for your console, based on OpenStreetMap",
   "main": "main.js",
   "scripts": {
     "lint": "eslint src",
