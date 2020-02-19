@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "lint": "eslint src",
-    "start": "node main"
+    "start": "node main",
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -44,6 +45,8 @@
     "x256": "0.0.2"
   },
   "devDependencies": {
-    "eslint": "^6.8.0"
+    "eslint": "^6.8.0",
+    "eslint-plugin-jest": "^23.7.0",
+    "jest": "^25.1.0"
   }
 }
