@@ -36,7 +36,7 @@ npx mapscii
 
 ### With npm
 
-If you haven't already got Node.js >= version 6.14, then [go get it](http://nodejs.org/).
+If you haven't already got Node.js >= version 10, then [go get it](http://nodejs.org/).
 
 ```
 npm install -g mapscii
