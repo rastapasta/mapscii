@@ -97,8 +97,8 @@ class Mapscii {
       this.width = config.size.width;
       this.height = config.size.height;
     } else {
-      this.width = config.width ? config.width : config.output.columns >> 1 << 2;
-      this.height = config.height ? config.height : config.output.rows * 4 - 4;
+      this.width = config.output.columns >> 1 << 2;
+      this.height = config.output.rows * 4 - 4;
     }
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
