@@ -9,8 +9,9 @@
 #*/
 'use strict';
 const Mapscii = require('./src/Mapscii');
+const argv = require('yargs').argv;
 
-const mapscii = new Mapscii();
+const mapscii = new Mapscii(argv);
 mapscii.init().catch((err) => {
   console.error('Failed to start MapSCII.');
   console.error(err);

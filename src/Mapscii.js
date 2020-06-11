@@ -31,17 +31,13 @@ class Mapscii {
     this.renderer = null;
 
     this.zoom = 0;
-    // sf lat: 37.787946, lon: -122.407522
-    // iceland lat: 64.124229, lon: -21.811552
-    // rgbg
-    // lat: 49.019493, lon: 12.098341
-    this.center = {
-      lat: 52.51298,
-      lon: 13.42012,
-    };
-
     this.minZoom = null;
     config = Object.assign(config, options);
+
+    this.center = {
+      lat: config.initialLat,
+      lon: config.initialLon
+    };
   }
 
   async init() {
@@ -101,8 +97,8 @@ class Mapscii {
       this.width = config.size.width;
       this.height = config.size.height;
     } else {
-      this.width = config.output.columns >> 1 << 2;
-      this.height = config.output.rows * 4 - 4;
+      this.width = config.width ? config.width : config.output.columns >> 1 << 2;
+      this.height = config.height ? config.height : config.output.rows * 4 - 4;
     }
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
