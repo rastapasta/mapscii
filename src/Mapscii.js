@@ -93,13 +93,8 @@ class Mapscii {
   }
 
   _resizeRenderer() {
-    if (config.size) {
-      this.width = config.size.width;
-      this.height = config.size.height;
-    } else {
-      this.width = config.output.columns >> 1 << 2;
-      this.height = config.output.rows * 4 - 4;
-    }
+    this.width = config.size && config.size.width ? config.size.width : config.output.columns >> 1 << 2;
+    this.height = config.size && config.size.height ? config.size.height : config.output.rows * 4 - 4;
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
 
