@@ -31,12 +31,12 @@ const argv = require('yargs')
   })
   .option('width', {
     alias: 'w',
-    description: 'Fixed width of rendering in dot units',
+    description: 'Fixed width of rendering',
     type: 'number',
   })
   .option('height', {
     alias: 'h',
-    description: 'Fixed height of rendering in dot units',
+    description: 'Fixed height of rendering',
     type: 'number',
   })
   .option('braille', {
@@ -78,7 +78,7 @@ const options = {
   headless: argv.headless,
   source: argv.tile_source,
   styleFile: argv.style_file,
-}
+};
 
 const mapscii = new Mapscii(options);
 mapscii.init().catch((err) => {
