@@ -18,7 +18,7 @@ module.exports = {
   // rgbg
   // lat: 49.019493, lon: 12.098341
   initialLat: 52.51298,
-  initialLon: 14.42012,
+  initialLon: 13.42012,
 
   simplifyPolylines: false,
 
