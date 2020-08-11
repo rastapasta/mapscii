@@ -99,11 +99,11 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 * MapSCII
   * [ ] GeoJSON support via [geojson-vt](https://github.com/mapbox/geojson-vt)
   * [ ] CLI support
-    * [ ] startup parameters
-      * [ ] TileSource
-      * [ ] Style
-      * [ ] center position
-      * [ ] zoom
+    * [-] startup parameters
+      * [X] TileSource
+      * [X] Style
+      * [X] center position
+      * [X] zoom
       * [ ] demo mode?
 
   * [ ] mouse control

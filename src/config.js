@@ -13,6 +13,13 @@ module.exports = {
   maxZoom: 18,
   zoomStep: 0.2,
 
+  // sf lat: 37.787946, lon: -122.407522
+  // iceland lat: 64.124229, lon: -21.811552
+  // rgbg
+  // lat: 49.019493, lon: 12.098341
+  initialLat: 52.51298,
+  initialLon: 14.42012,
+
   simplifyPolylines: false,
 
   useBraille: true,
