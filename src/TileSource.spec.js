@@ -6,7 +6,7 @@ describe('TileSource', () => {
     test('sets the mode to 3', async () => {
       const tileSource = new TileSource();
       await tileSource.init('http://mapscii.me/');
-      tileSource.mode = 3;
+      expect(tileSource.mode).toBe(3);
     });
   });
 });
