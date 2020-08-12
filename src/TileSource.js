@@ -7,9 +7,11 @@
   * local MBTiles and VectorTiles
 */
 'use strict';
-const userhome = require('userhome');
-const fetch = require('node-fetch');
 const fs = require('fs');
+const path = require('path');
+const fetch = require('node-fetch');
+const envPaths = require('env-paths');
+const paths = envPaths('mapscii');
 
 const Tile = require('./Tile');
 const config = require('./config');
@@ -141,8 +143,7 @@ class TileSource {
 
   _initPersistence() {
     try {
-      this._createFolder(userhome('.mapscii'));
-      this._createFolder(userhome('.mapscii', 'cache'));
+      this._createFolder(paths.cache);
     } catch (error) {
       config.persistDownloadedTiles = false;
     }
@@ -150,14 +151,14 @@ class TileSource {
 
   _persistTile(z, x, y, buffer) {
     const zoom = z.toString();
-    this._createFolder(userhome('.mapscii', 'cache', zoom));
-    const filePath = userhome('.mapscii', 'cache', zoom, `${x}-${y}.pbf`);
+    this._createFolder(path.join(paths.cache, zoom));
+    const filePath = path.join(paths.cache, zoom, `${x}-${y}.pbf`);
     return fs.writeFile(filePath, buffer, () => null);
   }
 
   _getPersited(z, x, y) {
     try {
-      return fs.readFileSync(userhome('.mapscii', 'cache', z.toString(), `${x}-${y}.pbf`));
+      return fs.readFileSync(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
     } catch (error) {
       return false;
     }

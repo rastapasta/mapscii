@@ -36,12 +36,12 @@
     "earcut": "^2.2.2",
     "keypress": "^0.2.1",
     "node-fetch": "^2.6.0",
+    "path-env": "0.0.12",
     "pbf": "^3.2.1",
     "rbush": "^3.0.1",
     "simplify-js": "^1.2.4",
     "string-width": "^4.2.0",
     "term-mouse": "^0.2.2",
-    "userhome": "^1.0.0",
     "x256": "0.0.2",
     "yargs": "^15.4.1"
   },
