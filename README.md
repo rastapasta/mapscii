@@ -93,7 +93,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 #### Handling the flow
 * [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic
 * [`node-fetch`](https://github.com/bitinn/node-fetch) for HTTP requests
-* [`userhome`](https://github.com/shama/userhome) to determine where to persist downloaded tiles
+* [`env-paths`](https://github.com/sindresorhus/env-paths) to determine where to persist downloaded tiles
 
 ### TODOs
 * MapSCII
