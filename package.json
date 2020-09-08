@@ -35,7 +35,7 @@
     "earcut": "^2.2.2",
     "env-paths": "^2.2.0",
     "keypress": "^0.2.1",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "pbf": "^3.2.1",
     "rbush": "^3.0.1",
     "simplify-js": "^1.2.4",
@@ -45,8 +45,8 @@
     "yargs": "^15.4.1"
   },
   "devDependencies": {
-    "eslint": "^7.6.0",
-    "eslint-plugin-jest": "^23.20.0",
-    "jest": "^26.3.0"
+    "eslint": "^7.8.1",
+    "eslint-plugin-jest": "^24.0.0",
+    "jest": "^26.4.2"
   }
 }
