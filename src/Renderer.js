@@ -5,7 +5,6 @@
   The Console Vector Tile renderer - bäm!
 */
 'use strict';
-const Promise = require('bluebird');
 const x256 = require('x256');
 const simplify = require('simplify-js');
 
@@ -30,7 +29,7 @@ class Renderer {
     this.canvas = new Canvas(width, height);
   }
 
-  draw(center, zoom) {
+  async draw(center, zoom) {
     if (this.isDrawing) return Promise.reject();
     this.isDrawing = true;
 
@@ -49,21 +48,20 @@ class Renderer {
 
     this.canvas.clear();
 
-    return Promise.resolve(this._visibleTiles(center, zoom)).map((tile) => {
-      return this._getTile(tile);
-    }).map((tile) => {
-      return this._getTileFeatures(tile, zoom);
-    }).then((tiles) => {
-      this._renderTiles(tiles);
-    }).then(() => {
+    try {
+      let tiles = this._visibleTiles(center, zoom);
+      await Promise.all(tiles.map(async(tile) => {
+        await this._getTile(tile);
+        this._getTileFeatures(tile, zoom);
+      }));
+      await this._renderTiles(tiles);
       return this._getFrame();
-    }).catch((e) => {
-      return console.log(e);
-    }).finally((frame) => {
+    } catch(e) {
+      console.error(e);
+    } finally {
       this.isDrawing = false;
       this.lastDrawAt = Date.now();
-      return frame;
-    });
+    }
   }
 
   _visibleTiles(center, zoom) {
@@ -104,13 +102,9 @@ class Renderer {
     return tiles;
   }
 
-  _getTile(tile) {
-    return this.tileSource
-      .getTile(tile.xyz.z, tile.xyz.x, tile.xyz.y)
-      .then((data) => {
-        tile.data = data;
-        return tile;
-      });
+  async _getTile(tile) {
+    tile.data = await this.tileSource.getTile(tile.xyz.z, tile.xyz.x, tile.xyz.y);
+    return tile;
   }
 
   _getTileFeatures(tile, zoom) {
@@ -140,6 +134,7 @@ class Renderer {
 
   _renderTiles(tiles) {
     const labels = [];
+    if (tiles.length === 0) return;
     
     const drawOrder = this._generateDrawOrder(tiles[0].xyz.z);
     for (const layerId of drawOrder) {
