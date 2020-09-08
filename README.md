@@ -91,7 +91,6 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 * [`simplify-js`](https://github.com/mourner/simplify-js) for polyline simplifications
 
 #### Handling the flow
-* [`bluebird`](https://github.com/petkaantonov/bluebird) for all the asynchronous [Promise](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Promise) magic
 * [`node-fetch`](https://github.com/bitinn/node-fetch) for HTTP requests
 * [`env-paths`](https://github.com/sindresorhus/env-paths) to determine where to persist downloaded tiles
 
