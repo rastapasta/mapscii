@@ -26,10 +26,25 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 
 ## How to run it locally
 
-With a modern node installation available, just start it with
+### With a modern node installation available, just start it with
 
 ```
 npx mapscii
+```
+
+### With Docker
+
+Create a local Dockerfile containing
+```
+FROM node:16-alpine
+RUN npm install -g mapscii
+CMD mapscii
+```
+
+Build and run the docker image
+```
+docker build -t mapscii .
+docker run -it mapscii
 ```
 
 ## How to install it locally
