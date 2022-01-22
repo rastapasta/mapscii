@@ -35,7 +35,7 @@
     "earcut": "^2.2.2",
     "env-paths": "^2.2.0",
     "keypress": "^0.2.1",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.1.1",
     "pbf": "^3.2.1",
     "rbush": "^3.0.1",
     "simplify-js": "^1.2.4",
