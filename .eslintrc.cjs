@@ -1,22 +1,23 @@
 module.exports = {
     "env": {
-        "es6": true,
         "node": true,
+        "es2021": true,
         "jest": true
-    },
-    "parserOptions": {
-        "ecmaVersion": 2018
     },
     "extends": [
         "eslint:recommended",
         "plugin:jest/recommended"
     ],
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
     "rules": {
         "indent": [
             "error",
             2,
             {
-              "SwitchCase": 1
+                "SwitchCase": 1
             }
         ],
         "linebreak-style": [
@@ -33,4 +34,4 @@ module.exports = {
             "always"
         ]
     }
-};
+}

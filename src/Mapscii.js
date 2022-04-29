@@ -4,17 +4,16 @@
 
   UI and central command center
 */
-'use strict';
-const fs = require('fs');
-const keypress = require('keypress');
-const TermMouse = require('term-mouse');
+import fs from 'fs';
+import keypress from 'keypress';
+import TermMouse from 'term-mouse';
 
-const Renderer = require('./Renderer');
-const TileSource = require('./TileSource');
-const utils = require('./utils');
-let config = require('./config');
+import Renderer from './Renderer.js';
+import TileSource from './TileSource.js';
+import * as utils from './utils.js';
+import MapsciiConfig from './config.js';
 
-class Mapscii {
+export default class Mapscii {
   constructor(options) {
     this.width = null;
     this.height = null;
@@ -32,16 +31,19 @@ class Mapscii {
 
     this.zoom = 0;
     this.minZoom = null;
-    config = Object.assign(config, options);
+    this.config = {
+      ...MapsciiConfig,
+      ...options,
+    };
 
     this.center = {
-      lat: config.initialLat,
-      lon: config.initialLon
+      lat: this.config.initialLat,
+      lon: this.config.initialLon,
     };
   }
 
   async init() {
-    if (!config.headless) {
+    if (!this.config.headless) {
       this._initKeyboard();
       this._initMouse();
     }
@@ -54,23 +56,23 @@ class Mapscii {
 
   _initTileSource() {
     this.tileSource = new TileSource();
-    this.tileSource.init(config.source);
+    this.tileSource.init(this.config.source);
   }
 
   _initKeyboard() {
-    keypress(config.input);
-    if (config.input.setRawMode) {
-      config.input.setRawMode(true);
+    keypress(this.config.input);
+    if (this.config.input.setRawMode) {
+      this.config.input.setRawMode(true);
     }
-    config.input.resume();
+    this.config.input.resume();
 
-    config.input.on('keypress', (ch, key) => this._onKey(key));
+    this.config.input.on('keypress', (ch, key) => this._onKey(key));
   }
 
   _initMouse() {
     this.mouse = TermMouse({
-      input: config.input,
-      output: config.output,
+      input: this.config.input,
+      output: this.config.output,
     });
     this.mouse.start();
 
@@ -80,21 +82,21 @@ class Mapscii {
   }
 
   _initRenderer() {
-    const style = JSON.parse(fs.readFileSync(config.styleFile, 'utf8'));
-    this.renderer = new Renderer(config.output, this.tileSource, style);
+    const style = JSON.parse(fs.readFileSync(this.config.styleFile, 'utf8'));
+    this.renderer = new Renderer(this.config.output, this.tileSource, style);
 
-    config.output.on('resize', () => {
+    this.config.output.on('resize', () => {
       this._resizeRenderer();
       this._draw();
     });
 
     this._resizeRenderer();
-    this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
+    this.zoom = (this.config.initialZoom !== null) ? this.config.initialZoom : this.minZoom;
   }
 
   _resizeRenderer() {
-    this.width = config.size && config.size.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
-    this.height = config.size && config.size.height ? config.size.height * 4 : config.output.rows * 4 - 4;
+    this.width = this.config.size && this.config.size.width ? this.config.size.width * 2 : this.config.output.columns >> 1 << 2;
+    this.height = this.config.size && this.config.size.height ? this.config.size.height * 4 : this.config.output.rows * 4 - 4;
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
 
@@ -142,7 +144,7 @@ class Mapscii {
     const targetMouseLonLat = this._colrow2ll(event.x, event.y);
 
     // zoom toward the center
-    this.zoomBy(config.zoomStep * (event.button === 'up' ? 1 : -1));
+    this.zoomBy(this.config.zoomStep * (event.button === 'up' ? 1 : -1));
 
     // the location the pointer ended up after zooming
     const offsetMouseLonLat = this._colrow2ll(event.x, event.y);
@@ -171,7 +173,7 @@ class Mapscii {
     if (event.x < 0 || event.x > this.width/2 || event.y < 0 || event.y > this.height/4) {
       return;
     }
-    if (config.mouseCallback && !config.mouseCallback(event)) {
+    if (this.config.mouseCallback && !this.config.mouseCallback(event)) {
       return;
     }
 
@@ -207,25 +209,25 @@ class Mapscii {
   }
 
   _onKey(key) {
-    if (config.keyCallback && !config.keyCallback(key)) return;
+    if (this.config.keyCallback && !this.config.keyCallback(key)) return;
     if (!key || !key.name) return;
 
     // check if the pressed key is configured
     let draw = true;
     switch (key.name) {
       case 'q':
-        if (config.quitCallback) {
-          config.quitCallback();
+        if (this.config.quitCallback) {
+          this.config.quitCallback();
         } else {
           process.exit(0);
         }
         break;
       case 'a':
-        this.zoomBy(config.zoomStep);
+        this.zoomBy(this.config.zoomStep);
         break;
       case 'y':
       case 'z':
-        this.zoomBy(-config.zoomStep);
+        this.zoomBy(-this.config.zoomStep);
         break;
       case 'left':
       case 'h':
@@ -244,7 +246,7 @@ class Mapscii {
         this.moveBy(-6/Math.pow(2, this.zoom), 0);
         break;
       case 'c':
-        config.useBraille = !config.useBraille;
+        this.config.useBraille = !this.config.useBraille;
         break;
       default:
         draw = false;
@@ -277,22 +279,22 @@ class Mapscii {
   }
 
   notify(text) {
-    config.onUpdate && config.onUpdate();
-    if (!config.headless) {
+    this.config.onUpdate && this.config.onUpdate();
+    if (!this.config.headless) {
       this._write('\r\x1B[K' + text);
     }
   }
 
   _write(output) {
-    config.output.write(output);
+    this.config.output.write(output);
   }
 
   zoomBy(step) {
     if (this.zoom+step < this.minZoom) {
       return this.zoom = this.minZoom;
     }
-    if (this.zoom+step > config.maxZoom) {
-      return this.zoom = config.maxZoom;
+    if (this.zoom+step > this.config.maxZoom) {
+      return this.zoom = this.config.maxZoom;
     }
 
     this.zoom += step;
@@ -309,5 +311,3 @@ class Mapscii {
     });
   }
 }
-
-module.exports = Mapscii;

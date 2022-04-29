@@ -6,15 +6,14 @@
   * remote TileServer
   * local MBTiles and VectorTiles
 */
-'use strict';
-const fs = require('fs');
-const path = require('path');
-const fetch = require('node-fetch');
-const envPaths = require('env-paths');
+import fs from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
+import envPaths from 'env-paths';
 const paths = envPaths('mapscii');
 
-const Tile = require('./Tile');
-const config = require('./config');
+import Tile from './Tile.js';
+import config from './config.js';
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 // To maximize MapSCII’s compatibility, MBTiles support must be manually added via
@@ -30,7 +29,7 @@ const modes = {
   HTTP: 3,
 };
 
-class TileSource {
+export default class TileSource {
   init(source) {
     this.source = source;
     
@@ -109,8 +108,9 @@ class TileSource {
       promise = Promise.resolve(persistedTile);
     } else {
       promise = fetch(this.source + [z,x,y].join('/') + '.pbf')
-        .then((res) => res.buffer())
-        .then((buffer) => {
+        .then((res) => res.arrayBuffer())
+        .then((arrayBuffer) => {
+          const buffer = Buffer.from(arrayBuffer);
           if (config.persistDownloadedTiles) {
             this._persistTile(z, x, y, buffer);
             return buffer;
@@ -174,5 +174,3 @@ class TileSource {
     }
   }
 }
-
-module.exports = TileSource;

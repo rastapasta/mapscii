@@ -4,17 +4,16 @@
 
   Handling of and access to single VectorTiles
 */
-'use strict';
-const VectorTile = require('@mapbox/vector-tile').VectorTile;
-const Protobuf = require('pbf');
-const zlib = require('zlib');
-const RBush = require('rbush');
-const x256 = require('x256');
+import { VectorTile } from '@mapbox/vector-tile';
+import Protobuf from 'pbf';
+import zlib from 'zlib';
+import RBush from 'rbush';
+import x256 from 'x256';
 
-const config = require('./config');
-const utils = require('./utils');
+import config from './config.js';
+import * as utils from './utils.js';
 
-class Tile {
+export default class Tile {
   constructor(styler) {
     this.styler = styler;
   }
@@ -122,10 +121,10 @@ class Tile {
   }
 
   _addBoundaries(deep, data) {
-    let minX = 2e308;
-    let maxX = -2e308;
-    let minY = 2e308;
-    let maxY = -2e308;
+    let minX = 2e307;
+    let maxX = -2e307;
+    let minY = 2e307;
+    let maxY = -2e307;
     const points = (deep ? data.points[0] : data.points);
     for (const p of points) {
       if (p.x < minX) minX = p.x;
@@ -163,5 +162,3 @@ class Tile {
 }
 
 Tile.prototype.layers = {};
-
-module.exports = Tile;
