@@ -75,7 +75,7 @@ export const hex2rgb = (color) => {
 };
 
 export const digits = (number, digits) => {
-  return Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits);
+  return (Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits)).toFixed(digits);
 };
 
 export const normalize = (ll) => {
