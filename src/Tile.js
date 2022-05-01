@@ -18,14 +18,10 @@ export default class Tile {
     this.styler = styler;
   }
 
-  load(buffer) {
-    return this._unzipIfNeeded(buffer).then((buffer) => {
-      return this._loadTile(buffer);
-    }).then(() => {
-      return this._loadLayers();
-    }).then(() => {
-      return this;
-    });
+  async load(buffer) {
+    const unzippedBuffer = await this._unzipIfNeeded(buffer);
+    await this._loadTile(unzippedBuffer);
+    await this._loadLayers();
   }
 
   _loadTile(buffer) {

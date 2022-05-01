@@ -133,12 +133,13 @@ export default class TileSource {
     });
   }
 
-  _createTile(z, x, y, buffer) {
+  async _createTile(z, x, y, buffer) {
     const name = [z, x, y].join('-');
     this.cached.push(name);
     
     const tile = this.cache[name] = new Tile(this.styler);
-    return tile.load(buffer);
+    await tile.load(buffer);
+    return tile;
   }
 
   _initPersistence() {

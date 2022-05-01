@@ -13,7 +13,6 @@ export default class Styler {
   constructor(style) {
     this.styleById = {};
     this.styleByLayer = {};
-    var base, name;
     this.styleName = style.name;
     if (style.constants) {
       this._replaceConstants(style.constants, style.layers);
@@ -30,10 +29,7 @@ export default class Styler {
 
       layer.appliesTo = this._compileFilter(layer.filter);
 
-      //TODO Better translation of: @styleByLayer[style['source-layer']] ?= []
-      if ((base = this.styleByLayer)[name = layer['source-layer']] == null) {
-        base[name] = [];
-      }
+      this.styleByLayer[layer['source-layer']] ??= [];
       this.styleByLayer[layer['source-layer']].push(layer);
       this.styleById[layer.id] = layer;
     }

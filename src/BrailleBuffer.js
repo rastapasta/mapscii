@@ -113,9 +113,8 @@ export default class BrailleBuffer {
     }
 
     //TODO Optimize this part
-    var i, k;
     const results = [];
-    for (i = k = 1; k <= 255; i = ++k) {
+    for (let i = 1; i <= 255; i++) {
       const braille = (i & 7) + ((i & 56) << 1) + ((i & 64) >> 3) + (i & 128);
       results.push(this.asciiToBraille[i] = masks.reduce((function(best, mask) {
         const covered = utils.population(mask.mask & braille);

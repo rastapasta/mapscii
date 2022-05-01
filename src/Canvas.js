@@ -163,9 +163,8 @@ export default class Canvas {
     const b = this._bresenham(pointA, pointC);
     const c = this._bresenham(pointA, pointB);
     
-    const points = a.concat(b).concat(c).filter((point) => {
-      var ref;
-      return (0 <= (ref = point.y) && ref < this.height);
+    const points = a.concat(b).concat(c).filter(({y}) => {
+      return 0 <= y && y < this.height;
     }).sort(function(a, b) {
       if (a.y === b.y) {
         return a.x - b.x;
