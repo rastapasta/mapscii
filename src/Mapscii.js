@@ -83,7 +83,7 @@ export default class Mapscii {
 
   _initRenderer() {
     const style = JSON.parse(fs.readFileSync(this.config.styleFile, 'utf8'));
-    this.renderer = new Renderer(this.config.output, this.tileSource, style);
+    this.renderer = new Renderer(this.tileSource, style);
 
     this.config.output.on('resize', () => {
       this._resizeRenderer();

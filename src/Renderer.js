@@ -14,8 +14,7 @@ import * as utils from './utils.js';
 import config from './config.js';
 
 export default class Renderer {
-  constructor(output, tileSource, style) {
-    this.output = output;
+  constructor(tileSource, style) {
     this.tileSource = tileSource;
     this.labelBuffer = new LabelBuffer();
     this.styler = new Styler(style);
