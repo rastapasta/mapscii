@@ -6,7 +6,7 @@
   * remote TileServer
   * local MBTiles and VectorTiles
 */
-import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import fetch from 'node-fetch';
 import envPaths from 'env-paths';
@@ -30,7 +30,7 @@ const modes = {
 };
 
 export default class TileSource {
-  init(source) {
+  async init(source) {
     this.source = source;
     
     this.cache = {};
@@ -43,7 +43,7 @@ export default class TileSource {
     
     if (this.source.startsWith('http')) {
       if (config.persistDownloadedTiles) {
-        this._initPersistence();
+        await this._initPersistence();
       }
 
       this.mode = modes.HTTP;
@@ -101,9 +101,9 @@ export default class TileSource {
     }
   }
 
-  _getHTTP(z, x, y) {
+  async _getHTTP(z, x, y) {
     let promise;
-    const persistedTile = this._getPersited(z, x, y);
+    const persistedTile = await this._getPersited(z, x, y);
     if (config.persistDownloadedTiles && persistedTile) {
       promise = Promise.resolve(persistedTile);
     } else {
@@ -122,7 +122,7 @@ export default class TileSource {
     });
   }
 
-  _getMBTile(z, x, y) {
+  async _getMBTile(z, x, y) {
     return new Promise((resolve, reject) => {
       this.mbtiles.getTile(z, x, y, (err, buffer) => {
         if (err) {
@@ -142,32 +142,32 @@ export default class TileSource {
     return tile;
   }
 
-  _initPersistence() {
+  async _initPersistence() {
     try {
-      this._createFolder(paths.cache);
+      await this._createFolder(paths.cache);
     } catch (error) {
       config.persistDownloadedTiles = false;
     }
   }
 
-  _persistTile(z, x, y, buffer) {
+  async _persistTile(z, x, y, buffer) {
     const zoom = z.toString();
-    this._createFolder(path.join(paths.cache, zoom));
+    await this._createFolder(path.join(paths.cache, zoom));
     const filePath = path.join(paths.cache, zoom, `${x}-${y}.pbf`);
-    return fs.writeFile(filePath, buffer, () => null);
+    return fsPromises.writeFile(filePath, buffer);
   }
 
-  _getPersited(z, x, y) {
+  async _getPersited(z, x, y) {
     try {
-      return fs.readFileSync(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
+      return await fsPromises.readFile(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
     } catch (error) {
       return false;
     }
   }
 
-  _createFolder(path) {
+  async _createFolder(path) {
     try {
-      fs.mkdirSync(path);
+      await fsPromises.mkdir(path);
       return true;
     } catch (error) {
       if (error.code === 'EEXIST') return true;

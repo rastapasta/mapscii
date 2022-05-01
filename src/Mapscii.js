@@ -4,7 +4,7 @@
 
   UI and central command center
 */
-import fs from 'fs';
+import fsPromises from 'fs/promises';
 import keypress from 'keypress';
 import TermMouse from 'term-mouse';
 
@@ -47,16 +47,16 @@ export default class Mapscii {
       this._initKeyboard();
       this._initMouse();
     }
-    this._initTileSource();
-    this._initRenderer();
-    this._draw();
+    await this._initTileSource();
+    await this._initRenderer();
+    await this._draw();
     this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
   }
 
 
-  _initTileSource() {
+  async _initTileSource() {
     this.tileSource = new TileSource();
-    this.tileSource.init(this.config.source);
+    await this.tileSource.init(this.config.source);
   }
 
   _initKeyboard() {
@@ -81,8 +81,8 @@ export default class Mapscii {
     this.mouse.on('move', (event) => this._onMouseMove(event));
   }
 
-  _initRenderer() {
-    const style = JSON.parse(fs.readFileSync(this.config.styleFile, 'utf8'));
+  async _initRenderer() {
+    const style = JSON.parse(await fsPromises.readFile(this.config.styleFile, 'utf8'));
     this.renderer = new Renderer(this.tileSource, style);
 
     this.config.output.on('resize', () => {
@@ -257,13 +257,14 @@ export default class Mapscii {
     }
   }
 
-  _draw() {
-    this.renderer.draw(this.center, this.zoom).then((frame) => {
+  async _draw() {
+    try {
+      const frame = await this.renderer.draw(this.center, this.zoom);
       this._write(frame);
       this.notify(this._getFooter());
-    }).catch(() => {
+    } catch {
       this.notify('renderer is busy');
-    });
+    }
   }
 
   _getFooter() {
