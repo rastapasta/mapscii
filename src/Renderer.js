@@ -4,7 +4,6 @@
 
   The Console Vector Tile renderer - bäm!
 */
-'use strict';
 import x256 from 'x256';
 import simplify from 'simplify-js';
 

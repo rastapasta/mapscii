@@ -1,4 +1,3 @@
-'use strict';
 import TileSource from './TileSource.js';
 
 describe('TileSource', () => {

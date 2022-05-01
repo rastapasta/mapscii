@@ -10,7 +10,6 @@
 
   Will most likely be turned into a stand alone module at some point
  */
-'use strict';
 import bresenham from 'bresenham';
 import earcut from 'earcut';
 import BrailleBuffer from './BrailleBuffer.js';
