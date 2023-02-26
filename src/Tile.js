@@ -25,18 +25,7 @@ export default class Tile {
   }
 
   _loadTile(buffer) {
-    try {
-      this.tile = new VectorTile(new Protobuf(buffer));
-    } catch (error) {
-      // Ignoring upstream issue https://github.com/rastapasta/mapscii/issues/87
-      if (error.message === 'Unimplemented type: 4') {
-        this.tile = {
-          layers: [],
-        };
-        return;
-      }
-      throw error;
-    }
+    this.tile = new VectorTile(new Protobuf(buffer));
   }
 
   _unzipIfNeeded(buffer) {
