@@ -1,4 +1,10 @@
-module.exports = {
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default {
   language: 'en',
 
   // TODO: adapt to osm2vectortiles successor openmaptiles v3)
@@ -7,7 +13,7 @@ module.exports = {
 
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
 
-  styleFile: __dirname+'/../styles/dark.json',
+  styleFile: __dirname + '/../styles/dark.json',
 
   initialZoom: null,
   maxZoom: 18,

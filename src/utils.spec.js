@@ -1,7 +1,18 @@
-'use strict';
-const utils = require('./utils');
+import * as utils from './utils.js';
 
 describe('utils', () => {
+  describe('digits', () => {
+    describe.each([
+      [1, 0, '1'],
+      [1, 1, '1.0'],
+      [3.1415, 3, '3.141'],
+    ])('when given value=%f and digits=%f', (value, digits, expected_value) => {
+      test(`returns ${expected_value}`, () => {
+        expect(utils.digits(value, digits)).toEqual(expected_value);
+      });
+    });
+  });
+
   describe('hex2rgb', () => {
     describe.each([
       ['#ff0000', 255, 0, 0],
@@ -22,26 +33,26 @@ describe('utils', () => {
       expect(wrapper).toThrow('isn\'t a supported hex color');
     });
   });
-});
 
-describe('normalize', () => {
-  describe.each([
-    [0, 0, 0, 0],
-    [61, 48, 61, 48],
-    [-61, -48, -61, -48],
-    [181, 85.06, -179, 85.0511],
-    [-181, -85.06, 179, -85.0511],
-  ])('when given lon=%f and lat=%f', (lon, lat, expected_lon, expected_lat) => {
-    const input = {
-      lon,
-      lat,
-    };
-    test(`returns lon=${expected_lon} and lat=${expected_lat}`, () => {
-      const expected = {
-        lon: expected_lon,
-        lat: expected_lat,
+  describe('normalize', () => {
+    describe.each([
+      [0, 0, 0, 0],
+      [61, 48, 61, 48],
+      [-61, -48, -61, -48],
+      [181, 85.06, -179, 85.0511],
+      [-181, -85.06, 179, -85.0511],
+    ])('when given lon=%f and lat=%f', (lon, lat, expected_lon, expected_lat) => {
+      const input = {
+        lon,
+        lat,
       };
-      expect(utils.normalize(input)).toEqual(expected);
+      test(`returns lon=${expected_lon} and lat=${expected_lat}`, () => {
+        const expected = {
+          lon: expected_lon,
+          lat: expected_lat,
+        };
+        expect(utils.normalize(input)).toEqual(expected);
+      });
     });
   });
 });

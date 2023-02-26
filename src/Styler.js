@@ -8,13 +8,11 @@
   Compiles layer filter instructions into a chain of true/false returning
   anonymous functions to improve rendering speed compared to realtime parsing.
 */
-'use strict';
 
-class Styler {
+export default class Styler {
   constructor(style) {
     this.styleById = {};
     this.styleByLayer = {};
-    var base, name;
     this.styleName = style.name;
     if (style.constants) {
       this._replaceConstants(style.constants, style.layers);
@@ -31,10 +29,7 @@ class Styler {
 
       layer.appliesTo = this._compileFilter(layer.filter);
 
-      //TODO Better translation of: @styleByLayer[style['source-layer']] ?= []
-      if ((base = this.styleByLayer)[name = layer['source-layer']] == null) {
-        base[name] = [];
-      }
+      this.styleByLayer[layer['source-layer']] ??= [];
       this.styleByLayer[layer['source-layer']].push(layer);
       this.styleById[layer.id] = layer;
     }
@@ -129,5 +124,3 @@ class Styler {
     }
   }
 }
-
-module.exports = Styler;

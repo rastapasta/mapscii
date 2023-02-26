@@ -1,5 +1,4 @@
-'use strict';
-const TileSource = require('./TileSource');
+import TileSource from './TileSource.js';
 
 describe('TileSource', () => {
   describe('with a HTTP source', () => {

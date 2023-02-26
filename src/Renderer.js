@@ -4,19 +4,17 @@
 
   The Console Vector Tile renderer - bäm!
 */
-'use strict';
-const x256 = require('x256');
-const simplify = require('simplify-js');
+import x256 from 'x256';
+import simplify from 'simplify-js';
 
-const Canvas = require('./Canvas');
-const LabelBuffer = require('./LabelBuffer');
-const Styler = require('./Styler');
-const utils = require('./utils');
-const config = require('./config');
+import Canvas from './Canvas.js';
+import LabelBuffer from './LabelBuffer.js';
+import Styler from './Styler.js';
+import * as utils from './utils.js';
+import config from './config.js';
 
-class Renderer {
-  constructor(output, tileSource, style) {
-    this.output = output;
+export default class Renderer {
+  constructor(tileSource, style) {
     this.tileSource = tileSource;
     this.labelBuffer = new LabelBuffer();
     this.styler = new Styler(style);
@@ -331,5 +329,3 @@ Renderer.prototype.lastDrawAt = 0;
 Renderer.prototype.labelBuffer = null;
 Renderer.prototype.tileSource = null;
 Renderer.prototype.tilePadding = 64;
-
-module.exports = Renderer;

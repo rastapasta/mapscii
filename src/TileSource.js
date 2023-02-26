@@ -6,15 +6,14 @@
   * remote TileServer
   * local MBTiles and VectorTiles
 */
-'use strict';
-const fs = require('fs');
-const path = require('path');
-const fetch = require('node-fetch');
-const envPaths = require('env-paths');
+import fsPromises from 'fs/promises';
+import path from 'path';
+import fetch from 'node-fetch';
+import envPaths from 'env-paths';
 const paths = envPaths('mapscii');
 
-const Tile = require('./Tile');
-const config = require('./config');
+import Tile from './Tile.js';
+import config from './config.js';
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 // To maximize MapSCII’s compatibility, MBTiles support must be manually added via
@@ -30,8 +29,8 @@ const modes = {
   HTTP: 3,
 };
 
-class TileSource {
-  init(source) {
+export default class TileSource {
+  async init(source) {
     this.source = source;
     
     this.cache = {};
@@ -44,7 +43,7 @@ class TileSource {
     
     if (this.source.startsWith('http')) {
       if (config.persistDownloadedTiles) {
-        this._initPersistence();
+        await this._initPersistence();
       }
 
       this.mode = modes.HTTP;
@@ -102,15 +101,16 @@ class TileSource {
     }
   }
 
-  _getHTTP(z, x, y) {
+  async _getHTTP(z, x, y) {
     let promise;
-    const persistedTile = this._getPersited(z, x, y);
+    const persistedTile = await this._getPersited(z, x, y);
     if (config.persistDownloadedTiles && persistedTile) {
       promise = Promise.resolve(persistedTile);
     } else {
       promise = fetch(this.source + [z,x,y].join('/') + '.pbf')
-        .then((res) => res.buffer())
-        .then((buffer) => {
+        .then((res) => res.arrayBuffer())
+        .then((arrayBuffer) => {
+          const buffer = Buffer.from(arrayBuffer);
           if (config.persistDownloadedTiles) {
             this._persistTile(z, x, y, buffer);
             return buffer;
@@ -122,7 +122,7 @@ class TileSource {
     });
   }
 
-  _getMBTile(z, x, y) {
+  async _getMBTile(z, x, y) {
     return new Promise((resolve, reject) => {
       this.mbtiles.getTile(z, x, y, (err, buffer) => {
         if (err) {
@@ -133,40 +133,41 @@ class TileSource {
     });
   }
 
-  _createTile(z, x, y, buffer) {
+  async _createTile(z, x, y, buffer) {
     const name = [z, x, y].join('-');
     this.cached.push(name);
     
     const tile = this.cache[name] = new Tile(this.styler);
-    return tile.load(buffer);
+    await tile.load(buffer);
+    return tile;
   }
 
-  _initPersistence() {
+  async _initPersistence() {
     try {
-      this._createFolder(paths.cache);
+      await this._createFolder(paths.cache);
     } catch (error) {
       config.persistDownloadedTiles = false;
     }
   }
 
-  _persistTile(z, x, y, buffer) {
+  async _persistTile(z, x, y, buffer) {
     const zoom = z.toString();
-    this._createFolder(path.join(paths.cache, zoom));
+    await this._createFolder(path.join(paths.cache, zoom));
     const filePath = path.join(paths.cache, zoom, `${x}-${y}.pbf`);
-    return fs.writeFile(filePath, buffer, () => null);
+    return fsPromises.writeFile(filePath, buffer);
   }
 
-  _getPersited(z, x, y) {
+  async _getPersited(z, x, y) {
     try {
-      return fs.readFileSync(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
+      return await fsPromises.readFile(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
     } catch (error) {
       return false;
     }
   }
 
-  _createFolder(path) {
+  async _createFolder(path) {
     try {
-      fs.mkdirSync(path);
+      await fsPromises.mkdir(path);
       return true;
     } catch (error) {
       if (error.code === 'EEXIST') return true;
@@ -174,5 +175,3 @@ class TileSource {
     }
   }
 }
-
-module.exports = TileSource;

@@ -10,12 +10,11 @@
 
   Will most likely be turned into a stand alone module at some point
  */
-'use strict';
-const bresenham = require('bresenham');
-const earcut = require('earcut');
-const BrailleBuffer = require('./BrailleBuffer');
+import bresenham from 'bresenham';
+import earcut from 'earcut';
+import BrailleBuffer from './BrailleBuffer.js';
 
-class Canvas {
+export default class Canvas {
   constructor(width, height) {
     this.width = width;
     this.height = height;
@@ -164,9 +163,8 @@ class Canvas {
     const b = this._bresenham(pointA, pointC);
     const c = this._bresenham(pointA, pointB);
     
-    const points = a.concat(b).concat(c).filter((point) => {
-      var ref;
-      return (0 <= (ref = point.y) && ref < this.height);
+    const points = a.concat(b).concat(c).filter(({y}) => {
+      return 0 <= y && y < this.height;
     }).sort(function(a, b) {
       if (a.y === b.y) {
         return a.x - b.x;
@@ -198,5 +196,3 @@ class Canvas {
 }
 
 Canvas.prototype.stack = [];
-
-module.exports = Canvas;
