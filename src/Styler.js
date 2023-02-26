@@ -8,9 +8,8 @@
   Compiles layer filter instructions into a chain of true/false returning
   anonymous functions to improve rendering speed compared to realtime parsing.
 */
-'use strict';
 
-class Styler {
+export default class Styler {
   constructor(style) {
     this.styleById = {};
     this.styleByLayer = {};
@@ -129,5 +128,3 @@ class Styler {
     }
   }
 }
-
-module.exports = Styler;
