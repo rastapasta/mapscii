@@ -220,9 +220,11 @@ class Mapscii {
           process.exit(0);
         }
         break;
+      case '+':
       case 'a':
         this.zoomBy(config.zoomStep);
         break;
+      case '-':
       case 'y':
       case 'z':
         this.zoomBy(-config.zoomStep);
