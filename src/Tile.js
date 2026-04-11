@@ -126,7 +126,7 @@ class Tile {
     let maxX = -2e308;
     let minY = 2e308;
     let maxY = -2e308;
-    const points = (deep ? data.points[0] : data.points);
+    const points = (deep ? data.points.flat() : data.points);
     for (const p of points) {
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
