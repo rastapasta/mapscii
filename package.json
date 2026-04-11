@@ -13,7 +13,7 @@
     "url": "https://github.com/rastapasta/mapscii.git"
   },
   "bin": {
-    "mapscii": "./bin/mapscii.sh"
+    "mapscii": "./bin/mapscii.js"
   },
   "engines": {
     "node": ">=10"
