@@ -31,7 +31,7 @@ const modes = {
 };
 
 class TileSource {
-  init(source) {
+  async init(source) {
     this.source = source;
     
     this.cache = {};
@@ -41,6 +41,7 @@ class TileSource {
     this.mode = null;
     this.mbtiles = null;
     this.styler = null;
+    this.maxZoom = null;
     
     if (this.source.startsWith('http')) {
       if (config.persistDownloadedTiles) {
@@ -48,6 +49,7 @@ class TileSource {
       }
 
       this.mode = modes.HTTP;
+      this.maxZoom = config.maxZoom;
 
     } else if (this.source.endsWith('.mbtiles')) {
       if (!MBTiles) {
@@ -55,7 +57,7 @@ class TileSource {
       }
 
       this.mode = modes.MBTiles;
-      this.loadMBTiles(source);
+      await this.loadMBTiles(source);
     } else {
       throw new Error('source type isn\'t supported yet');
     }
@@ -68,13 +70,28 @@ class TileSource {
           reject(err);
         }
         this.mbtiles = mbtiles;
-        resolve();
+
+        this.mbtiles._db.all(
+          'SELECT MAX(zoom_level) as max_zoom FROM tiles',
+          (err, rows) => {
+            if (err || !rows || !rows[0]) {
+              this.maxZoom = config.maxZoom;
+            } else {
+              this.maxZoom = rows[0].max_zoom || config.maxZoom;
+            }
+            resolve();
+          }
+        );
       });
     });
   }
 
   useStyler(styler) {
     this.styler = styler;
+  }
+
+  getMaxZoom() {
+    return this.maxZoom;
   }
 
   getTile(z, x, y) {
@@ -113,8 +130,8 @@ class TileSource {
         .then((buffer) => {
           if (config.persistDownloadedTiles) {
             this._persistTile(z, x, y, buffer);
-            return buffer;
           }
+          return buffer;
         });
     }
     return promise.then((buffer) => {

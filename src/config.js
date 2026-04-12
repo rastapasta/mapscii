@@ -1,9 +1,7 @@
 module.exports = {
   language: 'en',
 
-  // TODO: adapt to osm2vectortiles successor openmaptiles v3)
-  // mapscii.me hosts the last available version, 2016-06-20
-  source: 'http://mapscii.me/',
+  source: 'https://tiles.openfreemap.org/planet/map/',
 
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
 
@@ -33,19 +31,16 @@ module.exports = {
   labelMargin: 5,
 
   layers: {
-    housenum_label: {
+    housenumber: {
       margin: 4
     },
-    poi_label: {
+    poi: {
       cluster: true,
       margin: 5,
     },
-    place_label: {
+    place: {
       cluster: true,
-    },
-    state_label: {
-      cluster: true,
-    },
+    }
   },
 
   input: process.stdin,

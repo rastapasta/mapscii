@@ -295,27 +295,28 @@ class Renderer {
   _generateDrawOrder(zoom) {
     if (zoom < 2) {
       return [
-        'admin',
+        'boundary',
         'water',
-        'country_label',
-        'marine_label',
+        'place',
+        'water_name',
       ];
-    } else {
+    }
+    else {
       return [
+        'landcover',
         'landuse',
         'water',
-        'marine_label',
+        'waterway',
+        'water_name',
+        'aeroway',
+        'park',
         'building',
-        'road',
-        'admin',
-        'country_label',
-        'state_label',
-        'water_label',
-        'place_label',
-        'rail_station_label',
-        'poi_label',
-        'road_label',
-        'housenum_label',
+        'transportation',
+        'boundary',
+        'place',
+        'poi',
+        'transportation_name',
+        'housenumber',
       ];
     }
   }

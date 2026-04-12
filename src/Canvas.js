@@ -55,34 +55,97 @@ class Canvas {
   }
 
   polygon(rings, color) {
-    const vertices = [];
-    const holes = [];
+    const outerRings = [];
+    const innerRings = [];
+    
     for (const ring of rings) {
-      if (vertices.length) {
-        if (ring.length < 3) continue;
-        holes.push(vertices.length / 2);
+      if (ring.length < 3) continue;
+      const area = this._calculateArea(ring);
+      
+      if (area < 0) {
+        outerRings.push(ring);
       } else {
-        if (ring.length < 3) return false;
+        innerRings.push(ring);
       }
-      for (const point of ring) {
+    }
+    
+    for (const outerRing of outerRings) {
+      const vertices = [];
+      const holes = [];
+      
+      for (const point of outerRing) {
         vertices.push(point.x);
         vertices.push(point.y);
       }
-    }
+      
+      const overlappingHoles = this._findOverlappingHoles(outerRing, innerRings);
+      for (const hole of overlappingHoles) {
+        if (hole.length >= 3) {
+          holes.push(vertices.length / 2);
+          for (const point of hole) {
+            vertices.push(point.x);
+            vertices.push(point.y);
+          }
+        }
+      }
 
-    let triangles;
-    try {
-      triangles = earcut(vertices, holes);
-    } catch (error) {
-      return false;
-    }
-    for (let i = 0; i < triangles.length; i += 3) {
-      const pa = this._polygonExtract(vertices, triangles[i]);
-      const pb = this._polygonExtract(vertices, triangles[i + 1]);
-      const pc = this._polygonExtract(vertices, triangles[i + 2]);
-      this._filledTriangle(pa, pb, pc, color);
+      let triangles;
+      try {
+        triangles = earcut(vertices, holes);
+      } catch (error) {
+        continue;
+      }
+      for (let i = 0; i < triangles.length; i += 3) {
+        const pa = this._polygonExtract(vertices, triangles[i]);
+        const pb = this._polygonExtract(vertices, triangles[i + 1]);
+        const pc = this._polygonExtract(vertices, triangles[i + 2]);
+        this._filledTriangle(pa, pb, pc, color);
+      }
     }
     return true;
+  }
+
+  _calculateArea(ring) {
+    let area = 0;
+    const n = ring.length;
+    
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      area += (ring[j].x - ring[i].x) * (ring[j].y + ring[i].y);
+    }
+    
+    return area / 2;
+  }
+
+  _findOverlappingHoles(outerRing, innerRings) {
+    const overlappingHoles = [];
+    
+    for (const hole of innerRings) {
+      if (this._isPointInPolygon(hole[0], outerRing)) {
+        overlappingHoles.push(hole);
+      }
+    }
+    
+    return overlappingHoles;
+  }
+
+  _isPointInPolygon(point, polygon) {
+    let inside = false;
+    const n = polygon.length;
+    
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const xi = polygon[i].x;
+      const yi = polygon[i].y;
+      const xj = polygon[j].x;
+      const yj = polygon[j].y;
+      
+      if (((yi > point.y) !== (yj > point.y)) &&
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
   }
 
   _polygonExtract(vertices, pointId) {
