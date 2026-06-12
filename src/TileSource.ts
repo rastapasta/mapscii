@@ -330,8 +330,8 @@ export default class TileSource {
   private async _parseTile(buffer: Buffer, z: number): Promise<Tile> {
     if (config.useTileWorker && this.styler) {
       try {
-        const layers = await TileWorkerPool.parse(buffer, z, this.styler, config.language);
-        return Tile.fromParsedLayers(this.styler, layers, z);
+        const payload = await TileWorkerPool.parse(buffer, z, this.styler, config.language);
+        return Tile.fromParsedLayers(this.styler, payload, z);
       } catch {
         // Fall back to main-thread parsing if worker startup/import/parse fails.
       }

@@ -55,17 +55,27 @@ export interface TileLayer {
   tree: RBush<TileFeature>;
 }
 
-export interface SerializedTileFeature extends Omit<TileFeature, 'color' | 'style'> {
+export interface SerializedTileFeature extends Omit<TileFeature, 'color' | 'style' | 'points'> {
   colorHex: string;
   // Style layers are referenced by id and rehydrated from the main-thread
   // styler - cloning style objects per feature through structured clone is
   // prohibitively slow.
   styleId: string;
+  // Geometry lives in the payload's shared coords buffer: transferring one
+  // ArrayBuffer is far cheaper than structured-cloning tens of thousands of
+  // point objects. Layout starting at coordsOffset:
+  // [ringCount, ringLength0, x, y, ..., ringLength1, x, y, ...]
+  coordsOffset: number;
 }
 
 export interface SerializedTileLayer {
   extent: number;
   features: SerializedTileFeature[];
+}
+
+export interface ParsedTilePayload {
+  layers: Record<string, SerializedTileLayer>;
+  coords: Int32Array;
 }
 
 export default class Tile {
@@ -80,23 +90,43 @@ export default class Tile {
 
   static fromParsedLayers(
     styler: Styler | null,
-    parsedLayers: Record<string, SerializedTileLayer>,
+    payload: ParsedTilePayload,
     zoom: number
   ): Tile {
     const tile = new Tile(styler);
     tile.zoom = zoom;
     tile.layers = {};
 
-    for (const name in parsedLayers) {
-      const layer = parsedLayers[name];
+    const coords = payload.coords;
+
+    for (const name in payload.layers) {
+      const layer = payload.layers[name];
       const features: TileFeature[] = [];
       for (const feature of layer.features) {
-        const { colorHex, styleId, ...rest } = feature;
+        const { colorHex, styleId, coordsOffset, ...rest } = feature;
         const style = styler?.styleById[styleId];
         if (!style) continue;
+
+        // Decode the rings from the shared coords buffer
+        // Layout: [ringCount, ringLength0, x, y, ..., ringLength1, x, y, ...]
+        let offset = coordsOffset;
+        const ringCount = coords[offset++];
+        const rings: GeometryPoint[][] = new Array(ringCount);
+        for (let r = 0; r < ringCount; r++) {
+          const length = coords[offset++];
+          const ring: GeometryPoint[] = new Array(length);
+          for (let i = 0; i < length; i++) {
+            ring[i] = { x: coords[offset], y: coords[offset + 1] };
+            offset += 2;
+          }
+          rings[r] = ring;
+        }
+
         features.push({
           ...rest,
           style,
+          // Fill features keep all rings; others are one feature per ring
+          points: style.type === 'fill' ? rings : rings[0],
           color: colorFromHex(colorHex),
         } as TileFeature);
       }

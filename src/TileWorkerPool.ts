@@ -1,10 +1,10 @@
 import { Worker } from 'worker_threads';
 
 import Styler from './Styler';
-import { SerializedTileLayer } from './Tile';
+import { ParsedTilePayload, SerializedTileLayer } from './Tile';
 
 type PendingJob = {
-  resolve: (layers: Record<string, SerializedTileLayer>) => void;
+  resolve: (payload: ParsedTilePayload) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
 };
@@ -12,6 +12,7 @@ type PendingJob = {
 interface WorkerResponse {
   id: number;
   layers?: Record<string, SerializedTileLayer>;
+  coords?: ArrayBuffer;
   error?: string;
 }
 
@@ -189,29 +190,36 @@ function resolveStyleValue(value, zoom, fallback) {
   return stops[stops.length - 1][1];
 }
 
-function addBoundaries(deep, data) {
+// Append the rings to the shared coords array and return the feature with
+// its buffer offset and bounding box. Buffer layout per feature:
+// [ringCount, ringLength0, x, y, x, y, ..., ringLength1, x, y, ...]
+// Keeping the ring structure inside the buffer means feature metadata
+// carries a single offset number instead of a small array per feature.
+function encodeGeometry(coords, rings, base) {
   let minX = Number.MAX_VALUE;
   let maxX = -Number.MAX_VALUE;
   let minY = Number.MAX_VALUE;
   let maxY = -Number.MAX_VALUE;
-  const rings = deep ? data.points : [data.points];
+  const coordsOffset = coords.length;
+
+  coords.push(rings.length);
   for (const ring of rings) {
+    coords.push(ring.length);
     for (const p of ring) {
+      coords.push(p.x, p.y);
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
       if (p.y > maxY) maxY = p.y;
     }
   }
-  data.minX = minX;
-  data.maxX = maxX;
-  data.minY = minY;
-  data.maxY = maxY;
-  return data;
+
+  return { ...base, coordsOffset, minX, maxX, minY, maxY };
 }
 
 function parseTile(vectorTile, styler, zoom, language) {
   const layers = {};
+  const coords = [];
   for (const name in vectorTile.layers) {
     const layer = vectorTile.layers[name];
     const features = [];
@@ -233,9 +241,10 @@ function parseTile(vectorTile, styler, zoom, language) {
       const label = styleLayer.type === 'symbol'
         ? feature.properties['name_' + language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num
         : undefined;
-      // Features reference the style layer by id only: shipping a style
-      // object per feature through structured clone is what made the worker
-      // path slower than main-thread parsing.
+      // Features reference the style layer by id only, and geometry goes
+      // into the shared coords buffer: shipping style objects and point
+      // objects per feature through structured clone is what made the
+      // worker path slower than main-thread parsing.
       const base = {
         id: feature.id,
         layer: name,
@@ -244,16 +253,12 @@ function parseTile(vectorTile, styler, zoom, language) {
         label,
         sort,
         colorHex,
-        minX: 0,
-        maxX: 0,
-        minY: 0,
-        maxY: 0,
       };
       if (styleLayer.type === 'fill') {
-        features.push(addBoundaries(true, { ...base, points: geometries }));
+        features.push(encodeGeometry(coords, geometries, base));
       } else {
-        for (const points of geometries) {
-          features.push(addBoundaries(false, { ...base, points }));
+        for (const ring of geometries) {
+          features.push(encodeGeometry(coords, [ring], base));
         }
       }
     }
@@ -261,7 +266,7 @@ function parseTile(vectorTile, styler, zoom, language) {
       layers[name] = { extent: layer.extent, features };
     }
   }
-  return layers;
+  return { layers, coords };
 }
 
 // The style is sent ONCE (and again only when it changes); the compiled
@@ -285,8 +290,11 @@ parentPort.on('message', async (message) => {
     let buffer = Buffer.from(message.buffer);
     if (isGzipped(buffer)) buffer = await gunzipAsync(buffer);
     const vectorTile = new VectorTile(new Pbf(buffer));
-    const layers = parseTile(vectorTile, compiledStyler, message.zoom, message.language || 'en');
-    parentPort.postMessage({ id: message.id, layers });
+    const result = parseTile(vectorTile, compiledStyler, message.zoom, message.language || 'en');
+    // MVT geometry coordinates are integers; ship them all as one
+    // zero-copy transferred buffer.
+    const coords = new Int32Array(result.coords);
+    parentPort.postMessage({ id: message.id, layers: result.layers, coords: coords.buffer }, [coords.buffer]);
   } catch (error) {
     parentPort.postMessage({ id: message.id, error: error && error.message ? error.message : String(error) });
   }
@@ -316,7 +324,7 @@ export default class TileWorkerPool {
     zoom: number,
     styler: Styler,
     language: string
-  ): Promise<Record<string, SerializedTileLayer>> {
+  ): Promise<ParsedTilePayload> {
     if (this.disabled) {
       throw new Error('Tile worker disabled');
     }
@@ -385,7 +393,10 @@ export default class TileWorkerPool {
       job.reject(new Error(message.error));
     } else {
       this.consecutiveFailures = 0;
-      job.resolve(message.layers || {});
+      job.resolve({
+        layers: message.layers || {},
+        coords: message.coords ? new Int32Array(message.coords) : new Int32Array(0),
+      });
     }
   }
 
