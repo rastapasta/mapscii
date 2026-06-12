@@ -10,13 +10,26 @@
 import fs from 'fs';
 import path from 'path';
 import { homedir } from 'os';
+import { fileURLToPath } from 'url';
 
 import Tile from './Tile';
 import config from './config';
 import Styler from './Styler';
+import TileWorkerPool from './TileWorkerPool';
 
-// Use Bun's home directory for cache
-const cacheDir = path.join(homedir(), '.mapscii', 'cache-2');
+const cacheRoot = process.env.XDG_CACHE_HOME || path.join(homedir(), '.cache');
+const cacheDir = path.join(cacheRoot, 'mapscii', 'cache-2');
+const legacyCacheDir = path.join(homedir(), '.mapscii', 'cache-2');
+
+export interface TileCacheResetResult {
+  memoryEntries: number;
+  persistentPaths: string[];
+  errors: string[];
+}
+
+export interface TileCacheResetOptions {
+  persistent?: boolean;
+}
 
 // MBTiles interface for dynamic import
 interface MBTilesInstance {
@@ -63,6 +76,7 @@ export default class TileSource {
   public cached: string[] = [];
   public mode: TileMode | null = null;
   public mbtiles: MBTilesInstance | null = null;
+  public vectorTilePath: string | null = null;
   public styler: Styler | null = null;
   public maxZoom: number | null = null;
   // De-dupe concurrent requests for the same tile (the globe view requests
@@ -70,11 +84,13 @@ export default class TileSource {
   private inflight: Map<string, Promise<Tile>> = new Map();
   // Tiles the source definitively doesn't have (per session)
   private notFound: Set<string> = new Set();
+  private cacheGeneration: number = 0;
 
   async init(source: string): Promise<void> {
     this.source = source;
     this.cache = {};
     this.cached = [];
+    this.vectorTilePath = null;
 
     if (this.source.startsWith('http')) {
       if (config.persistDownloadedTiles) {
@@ -83,13 +99,19 @@ export default class TileSource {
 
       this.mode = TileMode.HTTP;
       this.maxZoom = config.maxZoom;
-    } else if (this.source.endsWith('.mbtiles')) {
+    } else if (this._isMBTilesSource(this.source)) {
       if (!MBTiles) {
         throw new Error('MBTiles support must be installed with following command: \'npm install -g @mapbox/mbtiles\'');
       }
 
       this.mode = TileMode.MBTiles;
-      await this.loadMBTiles(source);
+      await this.loadMBTiles(this._sourceToLocalPath(source));
+    } else if (this._isVectorTileSource(this.source)) {
+      this.mode = TileMode.VectorTile;
+      this.vectorTilePath = this._sourceToLocalPath(source);
+      // The standalone tile is served as 0/0/0 and overzoomed: Mapscii sets
+      // tileRange to 0 for this mode so all zoom levels scale the same tile.
+      this.maxZoom = 8;
     } else {
       throw new Error('source type isn\'t supported yet');
     }
@@ -132,6 +154,10 @@ export default class TileSource {
     return this.maxZoom ?? config.maxZoom;
   }
 
+  isSingleVectorTile(): boolean {
+    return this.mode === TileMode.VectorTile;
+  }
+
   async getTile(z: number, x: number, y: number): Promise<Tile> {
     if (!this.mode) {
       throw new Error('no TileSource defined');
@@ -144,6 +170,7 @@ export default class TileSource {
     }
 
     const cacheKey = [z, x, y].join('-');
+    const generation = this.cacheGeneration;
 
     if (this.notFound.has(cacheKey)) {
       throw new TileNotFoundError(`tile not found: ${z}/${x}/${y}`);
@@ -163,11 +190,13 @@ export default class TileSource {
       .then((tile) => {
         // Only fully loaded tiles enter the cache, so concurrent callers can
         // never observe a half-parsed tile with empty layers.
-        this._commitToCache(cacheKey, tile);
+        if (generation === this.cacheGeneration) {
+          this._commitToCache(cacheKey, tile);
+        }
         return tile;
       })
       .catch((err) => {
-        if (err instanceof TileNotFoundError) {
+        if (err instanceof TileNotFoundError && generation === this.cacheGeneration) {
           this.notFound.add(cacheKey);
         }
         throw err;
@@ -178,6 +207,40 @@ export default class TileSource {
 
     this.inflight.set(cacheKey, promise);
     return promise;
+  }
+
+  resetCache(options: TileCacheResetOptions = {}): TileCacheResetResult {
+    const memoryEntries = Object.keys(this.cache).length + this.cached.length + this.notFound.size + this.inflight.size;
+    this.cacheGeneration += 1;
+    this.cache = {};
+    this.cached = [];
+    this.notFound.clear();
+    this.inflight.clear();
+
+    const result: TileCacheResetResult = {
+      memoryEntries,
+      persistentPaths: [],
+      errors: [],
+    };
+
+    if (options.persistent !== false) {
+      [cacheDir, legacyCacheDir].forEach((folder) => {
+        try {
+          if (fs.existsSync(folder)) {
+            fs.rmSync(folder, { recursive: true, force: true });
+            result.persistentPaths.push(folder);
+          }
+        } catch (error: unknown) {
+          result.errors.push(error instanceof Error ? error.message : String(error));
+        }
+      });
+    }
+
+    if (config.persistDownloadedTiles && options.persistent !== false) {
+      this._initPersistence();
+    }
+
+    return result;
   }
 
   private _commitToCache(cacheKey: string, tile: Tile): void {
@@ -194,6 +257,8 @@ export default class TileSource {
     switch (this.mode) {
       case TileMode.MBTiles:
         return this._getMBTile(z, x, y);
+      case TileMode.VectorTile:
+        return this._getVectorTile(z, x, y);
       case TileMode.HTTP:
         return this._getHTTP(z, x, y);
       default:
@@ -206,7 +271,7 @@ export default class TileSource {
       const persistedTile = this._getPersisted(z, x, y);
       if (persistedTile) {
         try {
-          return await new Tile(this.styler).load(persistedTile);
+          return await this._parseTile(persistedTile, z);
         } catch {
           // Corrupt persisted tile (e.g. an HTTP error page persisted by an
           // older version): delete it and fall through to a fresh download.
@@ -225,7 +290,7 @@ export default class TileSource {
     const buffer = Buffer.from(await response.arrayBuffer());
 
     // Parse first, persist only what parsed successfully
-    const tile = await new Tile(this.styler).load(buffer);
+    const tile = await this._parseTile(buffer, z);
     if (config.persistDownloadedTiles) {
       this._persistTile(z, x, y, buffer);
     }
@@ -247,7 +312,32 @@ export default class TileSource {
         resolve(data);
       });
     });
-    return new Tile(this.styler).load(buffer);
+    return this._parseTile(buffer, z);
+  }
+
+  private async _getVectorTile(z: number, x: number, y: number): Promise<Tile> {
+    if (z !== 0 || x !== 0 || y !== 0) {
+      throw new TileNotFoundError(`single vector tile source only provides 0/0/0, requested ${z}/${x}/${y}`);
+    }
+    if (!this.vectorTilePath) {
+      throw new Error('Vector tile source not initialized');
+    }
+
+    const buffer = await fs.promises.readFile(this.vectorTilePath);
+    return this._parseTile(buffer, z);
+  }
+
+  private async _parseTile(buffer: Buffer, z: number): Promise<Tile> {
+    if (config.useTileWorker && this.styler) {
+      try {
+        const layers = await TileWorkerPool.parse(buffer, z, this.styler, config.language);
+        return Tile.fromParsedLayers(this.styler, layers, z);
+      } catch {
+        // Fall back to main-thread parsing if worker startup/import/parse fails.
+      }
+    }
+
+    return new Tile(this.styler).load(buffer, z);
   }
 
   private _initPersistence(): void {
@@ -266,19 +356,29 @@ export default class TileSource {
   }
 
   private _getPersisted(z: number, x: number, y: number): Buffer | false {
+    const relativePath = path.join(z.toString(), `${x}-${y}.pbf`);
+
     try {
-      return fs.readFileSync(path.join(cacheDir, z.toString(), `${x}-${y}.pbf`));
+      return fs.readFileSync(path.join(cacheDir, relativePath));
     } catch {
-      return false;
+      try {
+        const buffer = fs.readFileSync(path.join(legacyCacheDir, relativePath));
+        this._persistTile(z, x, y, buffer);
+        return buffer;
+      } catch {
+        return false;
+      }
     }
   }
 
   private _deletePersisted(z: number, x: number, y: number): void {
-    try {
-      fs.unlinkSync(path.join(cacheDir, z.toString(), `${x}-${y}.pbf`));
-    } catch {
-      // ignore
-    }
+    [cacheDir, legacyCacheDir].forEach((folder) => {
+      try {
+        fs.unlinkSync(path.join(folder, z.toString(), `${x}-${y}.pbf`));
+      } catch {
+        // ignore
+      }
+    });
   }
 
   private _createFolder(folderPath: string): boolean {
@@ -289,5 +389,18 @@ export default class TileSource {
       if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return true;
       throw error;
     }
+  }
+
+  private _sourceToLocalPath(source: string): string {
+    return source.startsWith('file://') ? fileURLToPath(source) : source;
+  }
+
+  private _isMBTilesSource(source: string): boolean {
+    return this._sourceToLocalPath(source).toLowerCase().endsWith('.mbtiles');
+  }
+
+  private _isVectorTileSource(source: string): boolean {
+    const normalized = this._sourceToLocalPath(source).toLowerCase();
+    return normalized.endsWith('.pbf') || normalized.endsWith('.mvt');
   }
 }

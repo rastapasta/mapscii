@@ -24,7 +24,7 @@ function drawHelpModal(context: HelpContext): void {
 
   // Calculate center position for the popup
   const boxWidth = 52;
-  const boxHeight = 38;
+  const boxHeight = 40;
   const startX = Math.max(1, Math.floor((cols - boxWidth) / 2));
   const startY = Math.max(1, Math.floor((rows - boxHeight) / 2));
 
@@ -72,6 +72,8 @@ function drawHelpModal(context: HelpContext): void {
     '│ c          │ Toggle render mode  │',
     '│ t          │ Toggle labels (min) │',
     '│ m          │ Clear markers       │',
+    '│ S          │ Save ANSI screenshot│',
+    '│ R          │ Reset tile cache    │',
     '│ ?          │ Show this help      │',
     '│ q          │ Quit                │',
     '└──────────────────────────────────┘',

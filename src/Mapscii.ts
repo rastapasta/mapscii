@@ -6,11 +6,13 @@
 */
 
 import fs from 'fs';
-import Renderer, { Marker } from './Renderer';
+import path from 'path';
+import stringWidth from 'string-width';
+import Renderer, { Marker, HoverItem } from './Renderer';
 import { MarkerInput } from './Markers';
-import TileSource from './TileSource';
+import TileSource, { type TileCacheResetResult } from './TileSource';
 import * as utils from './utils';
-import config from './config';
+import config, { type ColorMode, type TerrainConfig } from './config';
 import InputHandler, { InputEvent, term } from './InputHandler';
 import Canvas from './Canvas';
 import { getCurrentLocation } from './Geolocation';
@@ -47,11 +49,48 @@ export interface MapsciiOptions {
   markerInputs?: MarkerInput[];
   cellGeometry?: { width: number; height: number };
   noLabels?: boolean;
+  colorMode?: ColorMode;
+  useTileWorker?: boolean;
+  showAttribution?: boolean;
+  attribution?: string;
+  ansiScreenshotFile?: string | null;
+  exitAfterAnsiScreenshot?: boolean;
+  terrain?: TerrainConfig;
   /** If true, show current location marker and zoom to it (like pressing 'G') */
   locateOnStart?: boolean;
   /** Source description for location (e.g., 'IP (Paris, FR)') */
   locationSource?: string;
 }
+
+export interface MapsciiState {
+  center: utils.LatLon;
+  zoom: number;
+  markers: Marker[];
+}
+
+export interface MapsciiPointerEvent {
+  x: number;
+  y: number;
+  lat: number;
+  lon: number;
+  features: HoverItem[];
+}
+
+export interface MapsciiEventMap {
+  ready: MapsciiState;
+  update: MapsciiState;
+  move: MapsciiState;
+  zoom: MapsciiState;
+  click: MapsciiPointerEvent;
+  hover: MapsciiPointerEvent;
+  'marker:add': Marker;
+  'marker:remove': { id: string };
+  'markers:clear': undefined;
+  quit: MapsciiState;
+  error: Error;
+}
+
+type MapsciiEventHandler<K extends keyof MapsciiEventMap> = (payload: MapsciiEventMap[K]) => void;
 
 export default class Mapscii {
   private width: number = 0;
@@ -72,6 +111,10 @@ export default class Mapscii {
   private locationSource: string = '';
   private isDrawing: boolean = false;
   private redrawPending: boolean = false;
+  private currentDrawPromise: Promise<void> | null = null;
+  private initialAnsiScreenshotSaved: boolean = false;
+  private hoverItems: HoverItem[] = [];
+  private listeners: Partial<Record<keyof MapsciiEventMap, Set<(payload: unknown) => void>>> = {};
 
   constructor(options: MapsciiOptions = {}) {
     Object.assign(config, options);
@@ -102,37 +145,93 @@ export default class Mapscii {
     if (this.locateOnStart) {
       this._setLocationAndDraw(this.center.lat, this.center.lon, this.locationSource);
     } else {
-      this._draw();
+      await this._draw();
       this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
     }
+    this.emit('ready', this.getState());
   }
 
   // Public API for programmatic use (Issue #35, #97)
+  on<K extends keyof MapsciiEventMap>(event: K, handler: MapsciiEventHandler<K>): () => void {
+    if (!this.listeners[event]) {
+      this.listeners[event] = new Set();
+    }
+    this.listeners[event]?.add(handler as (payload: unknown) => void);
+    return () => this.off(event, handler);
+  }
+
+  off<K extends keyof MapsciiEventMap>(event: K, handler: MapsciiEventHandler<K>): void {
+    this.listeners[event]?.delete(handler as (payload: unknown) => void);
+  }
+
+  getState(): MapsciiState {
+    return {
+      center: { ...this.center },
+      zoom: this.zoom,
+      markers: this.getMarkers(),
+    };
+  }
+
+  getCenter(): utils.LatLon {
+    return { ...this.center };
+  }
+
+  getZoom(): number {
+    return this.zoom;
+  }
+
+  featuresAt(x: number, y: number): HoverItem[] {
+    return this.renderer?.featuresAt(x, y) ?? [];
+  }
+
   setCenter(lat: number, lon: number): void {
     this.center = utils.normalize({ lat, lon });
+    this.emit('move', this.getState());
     this._draw();
   }
 
   setZoom(zoom: number): void {
     this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
+    this.emit('zoom', this.getState());
     this._draw();
   }
 
   addMarker(input: MarkerInput): Marker | null {
     const marker = this.renderer?.markerStore.upsertMarker(input) ?? null;
+    if (marker) this.emit('marker:add', marker);
     this._draw();
     return marker;
   }
 
   removeMarker(id: string): boolean {
     const removed = this.renderer?.markerStore.removeMarker(id) ?? false;
+    if (removed) this.emit('marker:remove', { id });
     this._draw();
     return removed;
   }
 
   clearMarkers(): void {
     this.renderer?.clearMarkers();
+    this.emit('markers:clear', undefined);
     this._draw();
+  }
+
+  async resetTileCache(): Promise<TileCacheResetResult | null> {
+    const result = this.tileSource?.resetCache() ?? null;
+    this._write('\x1B[2J');
+    this._draw();
+    return result;
+  }
+
+  exportAnsiScreenshot(filePath?: string): string {
+    if (!this.renderer) {
+      throw new Error('Renderer is not initialized');
+    }
+
+    const outputPath = path.resolve(filePath || this._defaultAnsiScreenshotPath());
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, this.renderer.getAnsiScreenshot(), 'utf8');
+    return outputPath;
   }
 
   getMarkers(): Marker[] {
@@ -143,6 +242,13 @@ export default class Mapscii {
     this.tileSource = new TileSource();
     await this.tileSource.init(config.source);
     this.maxZoom = this.tileSource.getMaxZoom();
+
+    // A standalone .pbf/.mvt only provides the 0/0/0 tile: pin the base tile
+    // zoom to 0 so every zoom level overzooms (scales) that single tile
+    // instead of requesting tiles that don't exist.
+    if (this.tileSource.isSingleVectorTile()) {
+      config.tileRange = 0;
+    }
   }
 
   private _initInput(): void {
@@ -237,6 +343,7 @@ export default class Mapscii {
 
     this._resizeRenderer();
     this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom));
   }
 
   private _resizeRenderer(): void {
@@ -245,7 +352,9 @@ export default class Mapscii {
     this.width = config.size?.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
     this.height = config.size?.height ? config.size.height * 4 : config.output.rows * 4 - 4;
 
-    this.minZoom = 4 - Math.log(4096 / this.width) / Math.LN2;
+    this.minZoom = this.tileSource?.isSingleVectorTile()
+      ? 0
+      : 4 - Math.log(4096 / this.width) / Math.LN2;
 
     // Enforce zoom limits after resize - if window got bigger, minZoom decreases
     // and current zoom might now be below the new minimum
@@ -319,6 +428,14 @@ export default class Mapscii {
     }
 
     // Center on clicked position
+    const features = this.renderer?.featuresAt(event.x, event.y) ?? [];
+    this.emit('click', {
+      x: event.x,
+      y: event.y,
+      lat: this.mousePosition.lat,
+      lon: this.mousePosition.lon,
+      features,
+    });
     this.setCenter(this.mousePosition.lat, this.mousePosition.lon);
     this._draw();
   }
@@ -396,6 +513,14 @@ export default class Mapscii {
     }
 
     this._updateMousePosition(event);
+    this.hoverItems = this.renderer?.featuresAt(event.x, event.y) ?? [];
+    this.emit('hover', {
+      x: event.x,
+      y: event.y,
+      lat: this.mousePosition.lat,
+      lon: this.mousePosition.lon,
+      features: this.hoverItems,
+    });
     this.notify(this._getFooter());
   }
 
@@ -406,10 +531,22 @@ export default class Mapscii {
     if (config.keyCallback && !config.keyCallback(key)) return;
     if (!key || !key.name) return;
 
+    // Try the exact key first (uppercase bindings like S/R), then fall back
+    // to the lowercase binding so e.g. 'A' still zooms like 'a'.
+    if (this._handleKeyName(key.name)) return;
+    const lower = key.name.toLowerCase();
+    if (lower !== key.name) {
+      this._handleKeyName(lower);
+    }
+  }
+
+  private _handleKeyName(name: string): boolean {
+    let handled = true;
     let draw = true;
-    switch (key.name) {
+    switch (name) {
       case 'q':
         this.inputHandler?.stop();
+        this.emit('quit', this.getState());
         if (config.quitCallback) {
           config.quitCallback();
         } else {
@@ -452,6 +589,16 @@ export default class Mapscii {
         this.clearMarkers();
         this.notify('Markers cleared');
         break;
+      case 'S':
+        // Export current canvas as an ANSI terminal screenshot
+        this._handleExportAnsiScreenshot();
+        draw = false;
+        break;
+      case 'R':
+        // Reset tile caches when persisted data got corrupted
+        void this._handleResetTileCache();
+        draw = false;
+        break;
       case '/':
       case 's':
         // Search / goto prompt (Issue #27, #105)
@@ -475,37 +622,49 @@ export default class Mapscii {
         draw = false;
         break;
       default:
+        handled = false;
         draw = false;
     }
 
     if (draw) {
       this._draw();
     }
+    return handled;
   }
 
-  private _draw(): void {
+  private _draw(): Promise<void> {
     // Coalesce: keep at most one frame in flight and one pending, so rapid
     // input (drag/scroll) always ends with a frame of the latest state
     // instead of dropping it with "renderer is busy".
     if (this.isDrawing) {
       this.redrawPending = true;
-      return;
+      return this.currentDrawPromise ?? Promise.resolve();
     }
     const renderer = this.renderer;
-    if (!renderer) return;
+    if (!renderer) return Promise.resolve();
     this.isDrawing = true;
-    renderer.draw(this.center, this.zoom).then((frame) => {
+    this.currentDrawPromise = renderer.draw(this.center, this.zoom).then((frame) => {
       this._write(frame);
+      this._saveInitialAnsiScreenshotIfRequested();
       this.notify(this._getFooter());
-    }).catch(() => {
-      this.notify('renderer is busy');
+      this.emit('update', this.getState());
+    }).catch((error: Error) => {
+      this.emit('error', error);
+      this.notify(error?.message === 'Already drawing'
+        ? 'renderer is busy'
+        : `Render failed: ${error?.message || error}`);
     }).finally(() => {
       this.isDrawing = false;
+      // Clear the promise reference BEFORE kicking off the pending redraw,
+      // otherwise we'd null out the new frame's promise.
+      this.currentDrawPromise = null;
       if (this.redrawPending) {
         this.redrawPending = false;
         this._draw();
       }
     });
+
+    return this.currentDrawPromise;
   }
 
   private _getFooter(): string {
@@ -514,13 +673,85 @@ export default class Mapscii {
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
     }
+    if (this.hoverItems.length) {
+      footer += `  hover: ${this._describeHoverItem(this.hoverItems[0])} `;
+    }
     return footer;
+  }
+
+  private _describeHoverItem(item: HoverItem): string {
+    const feature = item.feature;
+    const layer = 'layer' in item ? item.layer : feature?.layer;
+    const text = this._singleLineStatusText(item.text || feature?.label || layer || '');
+    if (!feature) return text || 'marker';
+    return text ? `${feature.layer}:${text}` : feature.layer;
   }
 
   notify(text: string): void {
     config.onUpdate?.();
     if (!config.headless) {
-      this._write('\r\x1B[K' + text);
+      const maxRow = config.output.rows || Math.floor(this.height / 4) + 1;
+      const row = Math.min(maxRow, Math.max(1, Math.floor(this.height / 4) + 1));
+      this._write(`\x1B[${row};1H\x1B[2K${this._fitStatusText(text)}`);
+    }
+  }
+
+  private _fitStatusText(text: string): string {
+    text = this._singleLineStatusText(text);
+    const maxWidth = Math.max(1, (config.output.columns || Math.floor(this.width / 2) || 80) - 1);
+
+    if (stringWidth(text) <= maxWidth) return text;
+    if (maxWidth <= 3) return text.slice(0, maxWidth);
+
+    // Accumulate per-character widths instead of re-measuring the whole
+    // prefix each step (O(n) instead of O(n²)).
+    let output = '';
+    let width = 0;
+    const budget = maxWidth - 3; // room for the ellipsis
+    for (const char of text) {
+      const charWidth = stringWidth(char);
+      if (width + charWidth > budget) break;
+      output += char;
+      width += charWidth;
+    }
+    return output + '...';
+  }
+
+  private _singleLineStatusText(text: string): string {
+    return String(text)
+      .replace(/[\r\n\t]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trimEnd();
+  }
+
+  private _defaultAnsiScreenshotPath(): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `mapscii-${timestamp}.ans`;
+  }
+
+  private _handleExportAnsiScreenshot(): void {
+    try {
+      const savedPath = this.exportAnsiScreenshot();
+      this.notify(`ANSI screenshot saved: ${savedPath}`);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.emit('error', err);
+      this.notify(`ANSI screenshot failed: ${err.message}`);
+    }
+  }
+
+  private _saveInitialAnsiScreenshotIfRequested(): void {
+    if (!config.ansiScreenshotFile || this.initialAnsiScreenshotSaved) return;
+
+    const savedPath = this.exportAnsiScreenshot(config.ansiScreenshotFile);
+    this.initialAnsiScreenshotSaved = true;
+
+    if (config.exitAfterAnsiScreenshot) {
+      if (!config.headless) {
+        this.notify(`ANSI screenshot saved: ${savedPath}`);
+      }
+      this.inputHandler?.stop();
+      process.exit(0);
     }
   }
 
@@ -722,5 +953,21 @@ export default class Mapscii {
 
   moveBy(lat: number, lon: number): void {
     this.setCenter(this.center.lat + lat, this.center.lon + lon);
+  }
+
+  private async _handleResetTileCache(): Promise<void> {
+    try {
+      const result = await this.resetTileCache();
+      const persistent = result?.persistentPaths.length ?? 0;
+      this.notify(`Tile cache reset (${persistent} persistent ${persistent === 1 ? 'path' : 'paths'} cleared)`);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.emit('error', err);
+      this.notify(`Tile cache reset failed: ${err.message}`);
+    }
+  }
+
+  private emit<K extends keyof MapsciiEventMap>(event: K, payload: MapsciiEventMap[K]): void {
+    this.listeners[event]?.forEach((handler) => handler(payload));
   }
 }

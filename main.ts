@@ -87,6 +87,21 @@ const argv = await yargs(hideBin(process.argv))
     default: config.headless,
     type: 'boolean',
   })
+  .option('colorMode', {
+    description: 'Terminal color mode',
+    choices: ['xterm-256', 'ansi-16'] as const,
+    default: config.colorMode,
+  })
+  .option('ansi16', {
+    description: 'Use ANSI 16-color output instead of xterm 256-color output',
+    type: 'boolean',
+    default: false,
+  })
+  .option('tileWorker', {
+    description: 'Parse downloaded vector tiles in a worker thread',
+    type: 'boolean',
+    default: config.useTileWorker,
+  })
   .option('tile_source', {
     alias: 'tileSource',
     description: 'URL or path to osm2vectortiles source',
@@ -126,6 +141,41 @@ const argv = await yargs(hideBin(process.argv))
     description: 'Disable text labels and POI markers for minimal rendering',
     type: 'boolean',
     default: false,
+  })
+  .option('attribution', {
+    description: 'Attribution text rendered persistently in the bottom-right corner',
+    type: 'string',
+    default: config.attribution,
+  })
+  .option('noAttribution', {
+    description: 'Disable persistent bottom-right attribution',
+    type: 'boolean',
+    default: false,
+  })
+  .option('ansiScreenshot', {
+    alias: ['ans', 'screenshot'],
+    description: 'Save the initial rendered canvas as an ANSI .ans file and exit',
+    type: 'string',
+  })
+  .option('terrain', {
+    description: 'Enable terrain/elevation hillshade background',
+    type: 'boolean',
+    default: config.terrain.enabled,
+  })
+  .option('terrainSource', {
+    description: 'Terrain tile URL template with {z}/{x}/{y}',
+    type: 'string',
+    default: config.terrain.source,
+  })
+  .option('terrainMode', {
+    description: 'Terrain render mode',
+    choices: ['elevation', 'hillshade'] as const,
+    default: config.terrain.mode,
+  })
+  .option('terrainOpacity', {
+    description: 'Terrain hillshade opacity from 0 to 1',
+    type: 'number',
+    default: config.terrain.opacity,
   })
   .strict()
   .parse();
@@ -203,7 +253,9 @@ const options = {
     height: argv.height
   },
   useBraille: argv.braille,
-  headless: argv.headless,
+  colorMode: argv.ansi16 ? 'ansi-16' as const : argv.colorMode,
+  useTileWorker: argv.tileWorker,
+  headless: argv.headless || Boolean(argv.ansiScreenshot),
   source: argv.tile_source,
   styleFile: argv.style_file,
   markerInputs: markerInputs,
@@ -212,6 +264,17 @@ const options = {
     height: cellHeight,
   },
   noLabels: argv.noLabels,
+  showAttribution: !argv.noAttribution,
+  attribution: argv.attribution,
+  ansiScreenshotFile: argv.ansiScreenshot,
+  exitAfterAnsiScreenshot: Boolean(argv.ansiScreenshot),
+  terrain: {
+    ...config.terrain,
+    enabled: argv.terrain,
+    mode: argv.terrainMode,
+    source: argv.terrainSource,
+    opacity: argv.terrainOpacity,
+  },
   locateOnStart: locateOnStart,
   locationSource: locationSource,
 };

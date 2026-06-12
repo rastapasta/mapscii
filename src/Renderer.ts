@@ -5,20 +5,23 @@
   The Console Vector Tile renderer
 */
 
-import x256 from 'x256';
 import simplify from 'simplify-js';
 import stringWidth from 'string-width';
+import RBush from 'rbush';
 
 import Canvas, { Point } from './Canvas';
 import LabelBuffer, { LabelItem } from './LabelBuffer';
 import Styler, { MapStyle } from './Styler';
-import { hex2rgb, baseZoom, ll2tile, tilesizeAtZoom, LatLon } from './utils';
+import { baseZoom, ll2tile, normalize, tile2ll, tilesizeAtZoom, LatLon } from './utils';
 import config from './config';
 import TileSource from './TileSource';
 import { TileFeature, TileLayer } from './Tile';
 import { Marker, MarkerStore } from './Markers';
 import { clipPolylineToRect } from './clipping';
 import { generateDrawOrder, isLabelLayer } from './drawOrder';
+import { colorFromHex } from './color';
+import { resolveStyleValue } from './styleValues';
+import TerrainSource from './TerrainSource';
 
 // Re-export Marker type for convenience
 export type { Marker } from './Markers';
@@ -31,6 +34,19 @@ interface RenderTile {
   data?: { layers?: Record<string, TileLayer> };
   layers?: Record<string, { scale: number; extent: number; features: TileFeature[] }>;
 }
+
+export interface FeatureHitItem {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  kind: 'line' | 'fill' | 'symbol';
+  feature: TileFeature;
+  layer: string;
+  text?: string;
+}
+
+export type HoverItem = LabelItem | FeatureHitItem;
 
 export default class Renderer {
   public output: NodeJS.WriteStream;
@@ -46,10 +62,17 @@ export default class Renderer {
   private _seen: Record<string, boolean> = {};
   private _markerStore: MarkerStore = new MarkerStore();
   private _textWidthCache: Map<string, number> = new Map();
+  // Hover hit-testing: items are collected into a plain array during the
+  // frame and bulk-loaded into an rbush lazily on the first featuresAt()
+  // call, so panning/zooming pays nothing for hover support.
+  private featureHits: RBush<FeatureHitItem> = new RBush<FeatureHitItem>();
+  private featureHitItems: FeatureHitItem[] = [];
+  private featureHitsDirty: boolean = false;
+  private terrainSource: TerrainSource = new TerrainSource();
 
   public terminal = {
     CLEAR: '\x1B[2J',
-    MOVE: '\x1B[?6h',
+    MOVE: '\x1B[H',
   };
 
   constructor(output: NodeJS.WriteStream, tileSource: TileSource, style: MapStyle) {
@@ -92,13 +115,15 @@ export default class Renderer {
     this.isDrawing = true;
 
     this.labelBuffer.clear();
+    this.featureHitItems = [];
+    this.featureHitsDirty = true;
     this._seen = {};
 
     const bgStyle = this.styler.styleById['background'];
-    const color = bgStyle?.paint?.['background-color'];
+    const color = resolveStyleValue(bgStyle?.paint?.['background-color'], zoom, '#000000');
 
     if (color && this.canvas) {
-      this.canvas.setBackground(x256(hex2rgb(color)));
+      this.canvas.setBackground(colorFromHex(color));
     }
 
     if (this.canvas) {
@@ -106,6 +131,7 @@ export default class Renderer {
     }
 
     try {
+      await this._renderTerrain(center, zoom);
       const tiles = this._visibleTiles(center, zoom);
       await Promise.all(tiles.map(async (tile) => {
         // A single failing tile (network hiccup, missing tile) shouldn't
@@ -119,6 +145,7 @@ export default class Renderer {
       }));
       this._renderTiles(tiles);
       this._renderMarkers(center, zoom);
+      this._renderAttribution();
       return this._getFrame();
     } catch (e) {
       console.error(e);
@@ -302,7 +329,7 @@ export default class Renderer {
         continue;
       }
 
-      const color = marker.color ?? x256(hex2rgb('#ff0000'));
+      const color = marker.color ?? colorFromHex('#ff0000');
       const glyph = marker.glyph || config.poiMarker;
 
       // Draw marker glyph
@@ -314,11 +341,74 @@ export default class Renderer {
         const glyphWidth = stringWidth(glyph);
         const labelX = x + glyphWidth * 2;  // *2 because internal coords are 2x cell width
         // Use LabelBuffer to avoid collision with other labels
-        if (this.labelBuffer.writeIfPossible(marker.label, labelX, y, null, config.labelMargin)) {
-          this.canvas.text(marker.label, labelX, y, color);
+        const placement = this.labelBuffer.writeIfPossible(marker.label, labelX, y, null, config.labelMargin);
+        if (placement && typeof placement !== 'boolean') {
+          this.canvas.text(placement.text, labelX, y, color);
         }
       }
     }
+  }
+
+  private _renderAttribution(): void {
+    if (!this.canvas || !config.showAttribution || !config.attribution) return;
+
+    const columns = Math.floor(this.width / 2);
+    const rows = Math.floor(this.height / 4);
+    const width = stringWidth(config.attribution);
+    const x = Math.max(0, (columns - width - 1) * 2);
+    const y = Math.max(0, (rows - 1) * 4);
+
+    this.canvas.text(config.attribution, x, y, colorFromHex('#999999'));
+  }
+
+  private async _renderTerrain(center: LatLon, zoom: number): Promise<void> {
+    if (!this.canvas || !config.terrain.enabled) return;
+
+    const columns = Math.floor(this.width / 2);
+    const rows = Math.floor(this.height / 4);
+
+    // Pass 1: compute each cell's lat/lon once and prefetch the small set of
+    // distinct terrain tiles the view spans (instead of one promise per cell).
+    const points: LatLon[] = new Array(columns * rows);
+    const neededTiles = new Map<string, { z: number; x: number; y: number }>();
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < columns; col += 1) {
+        const point = this._screenPointToLatLon(center, zoom, col * 2 + 1, row * 4 + 2);
+        points[row * columns + col] = point;
+        const coord = this.terrainSource.tileCoordFor(point.lon, point.lat, zoom);
+        if (coord) neededTiles.set(coord.key, coord);
+      }
+    }
+
+    await Promise.all(
+      [...neededTiles.values()].map((coord) => this.terrainSource.prefetch(coord.z, coord.x, coord.y))
+    );
+
+    // Pass 2: synchronous per-cell sampling from the resolved tiles.
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < columns; col += 1) {
+        const point = points[row * columns + col];
+        const color = this.terrainSource.colorAtSync(point.lon, point.lat, zoom);
+        if (color) {
+          this.canvas.background(col * 2, row * 4, colorFromHex(color));
+        }
+      }
+    }
+  }
+
+  private _screenPointToLatLon(center: LatLon, zoom: number, x: number, y: number): LatLon {
+    const size = tilesizeAtZoom(zoom);
+    const dx = x - this.width / 2;
+    const dy = y - this.height / 2;
+    const cellWidth = config.cellGeometry?.width || 2;
+    const cellHeight = config.cellGeometry?.height || 4;
+    const standardRatio = 4 / 2;
+    const actualRatio = cellHeight / cellWidth;
+    const aspectY = standardRatio / actualRatio;
+    const z = baseZoom(zoom);
+    const centerTile = ll2tile(center.lon, center.lat, z);
+
+    return normalize(tile2ll(centerTile.x + dx / size, centerTile.y + dy / size / aspectY, z));
   }
 
   private _getFrame(): string {
@@ -331,8 +421,33 @@ export default class Renderer {
     return frame;
   }
 
-  featuresAt(x: number, y: number): LabelItem[] {
-    return this.labelBuffer.featuresAt(x, y);
+  getAnsiScreenshot(): string {
+    return this.terminal.CLEAR + this.terminal.MOVE + (this.canvas?.frame() || '');
+  }
+
+  featuresAt(x: number, y: number): HoverItem[] {
+    if (this.featureHitsDirty) {
+      this.featureHits = new RBush<FeatureHitItem>();
+      this.featureHits.load(this.featureHitItems);
+      this.featureHitsDirty = false;
+    }
+
+    const labels = this.labelBuffer.featuresAt(x, y);
+    const hits = this.featureHits.search({ minX: x, maxX: x, minY: y, maxY: y });
+    const seen = new Set<TileFeature>();
+    const output: HoverItem[] = [];
+
+    for (const item of labels) {
+      if (item.feature) seen.add(item.feature);
+      output.push(item);
+    }
+    for (const item of hits) {
+      if (seen.has(item.feature)) continue;
+      seen.add(item.feature);
+      output.push(item);
+    }
+
+    return output;
   }
 
   /**
@@ -432,10 +547,11 @@ export default class Renderer {
 
     switch (feature.style.type) {
       case 'line': {
-        let width = feature.style.paint?.['line-width'] as number | { stops: [number, number][] };
-        if (typeof width === 'object') {
-          width = width.stops[0][1];
-        }
+        const width = resolveStyleValue(
+          feature.style.paint?.['line-width'] as number | { stops: [number, number][] } | undefined,
+          tile.zoom,
+          1
+        );
 
         const raw = feature.points as Point[];
 
@@ -449,7 +565,10 @@ export default class Renderer {
           // Use clip+split approach to avoid "shortcut chords" when segments cross offscreen
           const screenParts = this._scaleReduceAndClipLine(tile, feature, tilePart, scale);
           for (const pts of screenParts) {
-            if (pts.length >= 2) this.canvas.polyline(pts, feature.color, width as number);
+            if (pts.length >= 2) {
+              this.canvas.polyline(pts, feature.color, width);
+              this._insertFeatureHit(pts, feature, 'line', Math.max(2, width * 2));
+            }
           }
         }
         break;
@@ -459,6 +578,9 @@ export default class Renderer {
           return this._scaleAndReduce(tile, feature, p, scale, false);
         });
         this.canvas.polygon(polygonPoints, feature.color);
+        for (const ring of polygonPoints) {
+          this._insertFeatureHit(ring, feature, 'fill', 2);
+        }
         break;
       }
       case 'symbol': {
@@ -483,14 +605,20 @@ export default class Renderer {
           const x = point.x - Math.floor(textW / 2) * 2;
           const layerConfig = config.layers[feature.layer];
           const margin = layerConfig?.margin || config.labelMargin;
-          if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
-            this.canvas.text(text, x, point.y, feature.color);
+          const placement = this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin);
+          if (placement && typeof placement !== 'boolean') {
+            this.canvas.text(placement.text, x, point.y, feature.color);
+            this._insertFeatureHit([{ x, y: point.y }], feature, 'symbol', 4, placement.text);
             placed = true;
             break;
           } else {
             const cluster = layerConfig?.cluster;
-            if (cluster && this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)) {
-              this.canvas.text(config.poiMarker, point.x, point.y, feature.color);
+            const clusterPlacement = cluster
+              ? this.labelBuffer.writeIfPossible(config.poiMarker, point.x, point.y, feature, 3)
+              : false;
+            if (clusterPlacement && typeof clusterPlacement !== 'boolean') {
+              this.canvas.text(clusterPlacement.text, point.x, point.y, feature.color);
+              this._insertFeatureHit([{ x: point.x, y: point.y }], feature, 'symbol', 4, clusterPlacement.text);
               placed = true;
               break;
             }
@@ -501,6 +629,43 @@ export default class Renderer {
       }
     }
     return true;
+  }
+
+  private _insertFeatureHit(
+    points: Point[],
+    feature: TileFeature,
+    kind: FeatureHitItem['kind'],
+    padding: number = 0,
+    text?: string
+  ): void {
+    if (!points.length) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const point of points) {
+      if (point.x < minX) minX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y > maxY) maxY = point.y;
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return;
+    }
+
+    this.featureHitItems.push({
+      minX: Math.floor((minX - padding) / 2),
+      minY: Math.floor((minY - padding) / 4),
+      maxX: Math.ceil((maxX + padding) / 2),
+      maxY: Math.ceil((maxY + padding) / 4),
+      kind,
+      feature,
+      layer: feature.layer,
+      text,
+    });
   }
 
   private _scaleAndReduce(tile: RenderTile, feature: TileFeature, points: Point[], scale: number, filter: boolean = true): Point[] {

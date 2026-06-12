@@ -10,11 +10,11 @@ import Pbf from 'pbf';
 import { gunzip } from 'zlib';
 import { promisify } from 'util';
 import RBush from 'rbush';
-import x256 from 'x256';
 
 import config from './config';
-import { hex2rgb } from './utils';
 import Styler, { StyleLayer } from './Styler';
+import { colorFromHex } from './color';
+import { resolveStyleValue } from './styleValues';
 
 const gunzipAsync = promisify(gunzip);
 
@@ -55,19 +55,69 @@ export interface TileLayer {
   tree: RBush<TileFeature>;
 }
 
+export interface SerializedTileFeature extends Omit<TileFeature, 'color' | 'style'> {
+  colorHex: string;
+  // Style layers are referenced by id and rehydrated from the main-thread
+  // styler - cloning style objects per feature through structured clone is
+  // prohibitively slow.
+  styleId: string;
+}
+
+export interface SerializedTileLayer {
+  extent: number;
+  features: SerializedTileFeature[];
+}
+
 export default class Tile {
   public styler: Styler | null;
   public tile: VectorTile | null = null;
   public layers: Record<string, TileLayer> = {};
+  public zoom: number = 0;
 
   constructor(styler: Styler | null) {
     this.styler = styler;
   }
 
-  async load(buffer: Buffer): Promise<this> {
+  static fromParsedLayers(
+    styler: Styler | null,
+    parsedLayers: Record<string, SerializedTileLayer>,
+    zoom: number
+  ): Tile {
+    const tile = new Tile(styler);
+    tile.zoom = zoom;
+    tile.layers = {};
+
+    for (const name in parsedLayers) {
+      const layer = parsedLayers[name];
+      const features: TileFeature[] = [];
+      for (const feature of layer.features) {
+        const { colorHex, styleId, ...rest } = feature;
+        const style = styler?.styleById[styleId];
+        if (!style) continue;
+        features.push({
+          ...rest,
+          style,
+          color: colorFromHex(colorHex),
+        } as TileFeature);
+      }
+      if (features.length === 0) continue;
+
+      const tree = new RBush<TileFeature>(18);
+      tree.load(features);
+      tile.layers[name] = {
+        extent: layer.extent,
+        tree,
+      };
+    }
+
+    return tile;
+  }
+
+  async load(buffer: Buffer, zoom: number = 0): Promise<this> {
+    this.zoom = zoom;
     const unzippedBuffer = await this._unzipIfNeeded(buffer);
     this._loadTile(unzippedBuffer);
-    this._loadLayers();
+    this._loadLayers(zoom);
     return this;
   }
 
@@ -86,7 +136,7 @@ export default class Tile {
     return buffer.length >= 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
   }
 
-  private _loadLayers(): Record<string, TileLayer> {
+  private _loadLayers(zoom: number): Record<string, TileLayer> {
     const layers: Record<string, TileLayer> = {};
     const colorCache: Record<string, number> = {};
 
@@ -120,15 +170,9 @@ export default class Tile {
         // Skip if no color found
         if (!rawColor) continue;
 
-        // Handle zoom stops - color can be string or object with stops
-        let color: string;
-        if (typeof rawColor === 'object' && 'stops' in rawColor) {
-          color = (rawColor as { stops: [number, string][] }).stops[0][1];
-        } else {
-          color = rawColor as string;
-        }
+        const color = resolveStyleValue(rawColor as string | { stops: [number, string][] }, zoom, '#ffffff');
 
-        const colorCode = colorCache[color] || (colorCache[color] = x256(hex2rgb(color)));
+        const colorCode = colorCache[color] || (colorCache[color] = colorFromHex(color));
 
         const geometries = feature.loadGeometry();
         const sort = (feature.properties.localrank as number | undefined) || (feature.properties.scalerank as number | undefined);

@@ -79,8 +79,10 @@ export default class InputHandler {
   private _handleKey(name: string): void {
     if (!this.enabled || !this.callback) return;
 
-    // Map terminal-kit key names to our key names
-    let key = name.toLowerCase();
+    // Map terminal-kit key names to our key names. Single printable
+    // characters keep their case so uppercase bindings (e.g. S, R) can
+    // fire; consumers fall back to the lowercase binding themselves.
+    let key = name;
 
     if (name === 'UP') key = 'up';
     else if (name === 'DOWN') key = 'down';
@@ -88,6 +90,7 @@ export default class InputHandler {
     else if (name === 'RIGHT') key = 'right';
     else if (name === 'ESCAPE') key = 'escape';
     else if (name === 'CTRL_C') key = 'q';
+    else if (name.length > 1) key = name.toLowerCase();
 
     this.callback({ type: 'key', key });
   }

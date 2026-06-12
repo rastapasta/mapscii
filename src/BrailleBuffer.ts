@@ -12,6 +12,8 @@
 
 import stringWidth from 'string-width';
 import config from './config';
+import { terminalColorSequence } from './color';
+import { shapeTextForTerminal } from './textShaping';
 import { population } from './utils';
 
 interface AsciiMapEntry {
@@ -136,16 +138,10 @@ export default class BrailleBuffer {
   }
 
   private _termColor(foreground: number, background: number): string {
-    background |= this.globalBackground;
-    if (foreground && background) {
-      return `\x1B[38;5;${foreground};48;5;${background}m`;
-    } else if (foreground) {
-      return `\x1B[49;38;5;${foreground}m`;
-    } else if (background) {
-      return `\x1B[39;48;5;${background}m`;
-    } else {
-      return termReset;
-    }
+    // Cell background wins over the global one. (Bitwise OR would mash the
+    // two palette indexes together into a wrong color when both are set.)
+    background = background || this.globalBackground;
+    return terminalColorSequence(foreground, background) || termReset;
   }
 
   frame(): string {
@@ -214,6 +210,14 @@ export default class BrailleBuffer {
   }
 
   writeText(text: string, x: number, y: number, color: number, center: boolean = true): void {
+    shapeTextForTerminal(text)
+      .split('\n')
+      .forEach((line, index) => {
+        this._writeTextLine(line, x, y + index * 4, color, center);
+      });
+  }
+
+  private _writeTextLine(text: string, x: number, y: number, color: number, center: boolean): void {
     // Big perf win: only measure full string width when we actually need centering
     if (center) {
       x -= stringWidth(text) + 1;

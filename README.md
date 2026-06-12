@@ -20,6 +20,12 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 * Connect to any public or private vector tile server
 * Or just use the supplied and optimized [OSM2VectorTiles](https://github.com/osm2vectortiles) based one
 * Work offline and discover local [VectorTile](https://github.com/mapbox/vector-tile-spec)/[MBTiles](https://github.com/mapbox/mbtiles-spec)
+* Render standalone `.pbf` / `.mvt` vector tiles directly
+* Hover labels, POIs, lines and polygons from mouse-enabled terminals
+* Multi-line and Arabic/right-to-left labels
+* Optional ANSI 16-color output for low-color terminals
+* Optional terrain/elevation hillshade background
+* Persistent OpenStreetMap attribution in the rendered frame
 * Compatible with most Linux and OSX terminals
 * Highly optimized algorithms for a smooth experience
 * 100% pure JavaScript! :sunglasses:
@@ -60,16 +66,85 @@ This is pretty simple too.
 mapscii
 ```
 
+Useful options:
+
+```sh
+mapscii --tile_source ./tile.pbf
+mapscii --tile_source ./tiles.mbtiles
+mapscii --style_file ./styles/dark.json
+mapscii --ansi16
+mapscii --terrain
+mapscii --terrain --terrainMode hillshade
+mapscii --terrainSource "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
+mapscii --ansiScreenshot ./map.ans --width 120 --height 40
+mapscii --noAttribution
+```
+
+Downloaded HTTP tiles are cached under `~/.cache/mapscii/cache-2` when persistence is enabled. Existing tiles from the legacy `~/.mapscii/cache-2` location are read and migrated lazily.
+
 ## Keyboard shortcuts
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
 * Press **a** or **z** to zoom in and out
 * Press **c** to switch to block character mode
+* Press **S** to save the current canvas as an ANSI `.ans` screenshot
+* Press **R** to reset the tile cache if cached tiles become corrupted
 * Press **q** to quit
 
 ## Mouse control
 
 If your terminal supports mouse events you can drag the map and use your scroll wheel to zoom in and out.
+
+## Library API
+
+See the full [library API documentation](./docs/library-api.md).
+
+MapSCII can also be embedded from Node.js:
+
+```js
+import Mapscii from 'mapscii';
+
+const map = new Mapscii({
+  initialLat: 48.8566,
+  initialLon: 2.3522,
+  initialZoom: 12,
+  source: 'https://tiles.openfreemap.org/planet/map/',
+  styleFile: './styles/dark.json',
+  colorMode: 'ansi-16',
+  showAttribution: true,
+});
+
+map.on('ready', (state) => {
+  console.log('ready', state.center, state.zoom);
+});
+
+map.on('hover', (event) => {
+  console.log(event.lat, event.lon, event.features);
+});
+
+map.on('click', (event) => {
+  console.log('clicked features', event.features);
+});
+
+await map.init();
+```
+
+Public methods:
+
+* `setCenter(lat, lon)` and `getCenter()`
+* `setZoom(zoom)`, `zoomBy(step)` and `getZoom()`
+* `moveBy(latDelta, lonDelta)`
+* `addMarker(marker)`, `removeMarker(id)`, `clearMarkers()` and `getMarkers()`
+* `featuresAt(column, row)` for programmatic label, POI, line and polygon hit-testing
+* `getState()` for `{ center, zoom, markers }`
+* `on(event, handler)` and `off(event, handler)` for events
+
+Events:
+
+* `ready`, `update`, `move`, `zoom`, `quit`
+* `hover` and `click`, both with `{ x, y, lat, lon, features }`
+* `marker:add`, `marker:remove`, `markers:clear`
+* `error`
 
 ## Behind the scenes
 ### Libraries
@@ -105,21 +180,21 @@ If your terminal supports mouse events you can drag the map and use your scroll 
       * [X] zoom
       * [ ] demo mode?
 
-  * [ ] mouse control
-    * [ ] hover POIs/labels
-    * [ ] hover maybe even polygons/-lines?
+  * [x] mouse control
+    * [x] hover POIs/labels
+    * [x] hover maybe even polygons/-lines?
 
 * Styler
-  * [ ] respect zoom based style ranges
+  * [x] respect zoom based style ranges
 
 * Renderer
-  * [ ] download and process tiles in a different thread ([#3](https://github.com/rastapasta/mapscii/issues/3))
+  * [x] download and process tiles in a different thread ([#3](https://github.com/rastapasta/mapscii/issues/3))
   * [ ] optimize renderer for large areas ([#6](https://github.com/rastapasta/mapscii/issues/6))
   * [ ] label drawing
-    * [ ] multi line label?
+    * [x] multi line label?
 
 * TileSource
-  * [ ] implement single vector-tile handling
+  * [x] implement single vector-tile handling
 
 ## Special thanks
 

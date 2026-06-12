@@ -33,6 +33,20 @@ export interface CellGeometry {
   height: number;
 }
 
+export type ColorMode = 'xterm-256' | 'ansi-16';
+export type TerrainMode = 'elevation' | 'hillshade';
+
+export interface TerrainConfig {
+  enabled: boolean;
+  mode: TerrainMode;
+  source: string;
+  minZoom: number;
+  maxZoom: number;
+  opacity: number;
+  azimuth: number;
+  altitude: number;
+}
+
 export interface MapsciiConfig {
   language: string;
   source: string;
@@ -44,10 +58,18 @@ export interface MapsciiConfig {
   initialLon: number;
   simplifyPolylines: boolean;
   useBraille: boolean;
+  colorMode: ColorMode;
+  useTileWorker: boolean;
   persistDownloadedTiles: boolean;
   tileRange: number;
   projectSize: number;
   labelMargin: number;
+  labelMaxWidth: number;
+  showAttribution: boolean;
+  attribution: string;
+  ansiScreenshotFile: string | null;
+  exitAfterAnsiScreenshot: boolean;
+  terrain: TerrainConfig;
   layers: Record<string, LayerConfig>;
   input: NodeJS.ReadStream;
   output: NodeJS.WriteStream;
@@ -86,14 +108,36 @@ const config: MapsciiConfig = {
   simplifyPolylines: false,
 
   useBraille: true,
+  colorMode: 'xterm-256',
+  // Off-thread tile parsing (opt-in via --tileWorker): the worker keeps the
+  // main thread free but structured-cloning parsed geometry makes each tile
+  // take ~3x longer to appear, so main-thread parsing is the better default.
+  useTileWorker: false,
 
-  // Downloaded files get persisted in ~/.mapscii
+  // Downloaded files get persisted in ~/.cache/mapscii
   persistDownloadedTiles: true,
 
   tileRange: 14,
   projectSize: 256,
 
   labelMargin: 5,
+  labelMaxWidth: 24,
+
+  showAttribution: true,
+  attribution: '(c) OpenStreetMap contributors',
+  ansiScreenshotFile: null,
+  exitAfterAnsiScreenshot: false,
+
+  terrain: {
+    enabled: false,
+    mode: 'elevation',
+    source: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+    minZoom: 0,
+    maxZoom: 15,
+    opacity: 0.65,
+    azimuth: 315,
+    altitude: 45,
+  },
 
   layers: {
     housenumber: {
@@ -113,7 +157,7 @@ const config: MapsciiConfig = {
 
   headless: false,
 
-  delimeter: '\n\r',
+  delimeter: '\r\n',
 
   poiMarker: '◉',
 

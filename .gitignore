@@ -6,3 +6,5 @@ dist
 mbtiles
 tiles
 .DS_Store
+/analysis
+.vscode

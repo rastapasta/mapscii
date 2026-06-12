@@ -25,6 +25,43 @@ declare module 'x256' {
   export default x256;
 }
 
+declare module 'bidi-js' {
+  interface BidiLevels {
+    levels: Uint8Array;
+    paragraphs: Array<{ start: number; end: number; level: number }>;
+  }
+
+  interface BidiApi {
+    getEmbeddingLevels(text: string, explicitDirection?: 'ltr' | 'rtl'): BidiLevels;
+    getReorderSegments(text: string, embeddingLevels: BidiLevels, start?: number, end?: number): Array<[number, number]>;
+    getMirroredCharactersMap(text: string, embeddingLevels: BidiLevels, start?: number, end?: number): Map<number, string>;
+  }
+
+  export default function bidiFactory(): BidiApi;
+}
+
+declare module 'arabic-persian-reshaper' {
+  export const ArabicShaper: {
+    convertArabic(text: string): string;
+    convertArabicBack(text: string): string;
+  };
+  export const PersianShaper: {
+    convertPersian(text: string): string;
+    convertPersianBack(text: string): string;
+  };
+}
+
+declare module 'pngjs' {
+  export class PNG {
+    width: number;
+    height: number;
+    data: Buffer;
+    static sync: {
+      read(buffer: Buffer): PNG;
+    };
+  }
+}
+
 declare module 'simplify-js' {
   interface Point {
     x: number;

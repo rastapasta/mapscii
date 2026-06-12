@@ -186,15 +186,16 @@ export class GlobeTransformer {
 // Interactive Globe View
 // ============================================================================
 
-import x256 from 'x256';
 import Styler, { MapStyle } from './Styler';
 import LabelBuffer from './LabelBuffer';
 import TileSource, { TileNotFoundError } from './TileSource';
 import { term } from './InputHandler';
-import { hex2rgb, baseZoom, ll2tile, tile2ll, LatLon, normalize } from './utils';
+import { baseZoom, ll2tile, tile2ll, LatLon, normalize } from './utils';
 import { TileFeature, TileLayer } from './Tile';
 import { clipPolylineToRect } from './clipping';
 import { generateDrawOrder, isLabelLayer } from './drawOrder';
+import { colorFromHex } from './color';
+import { resolveStyleValue } from './styleValues';
 
 interface GlobeMarker {
     lat: number;
@@ -355,13 +356,9 @@ function globeDrawOrder(zoom: number): string[] {
   return layers;
 }
 
-function resolveStyleColor(color: string | { stops: [number, string][] } | undefined): string | undefined {
+function resolveStyleColor(color: string | { stops: [number, string][] } | undefined, zoom: number): string | undefined {
   if (!color) return undefined;
-  if (typeof color === 'string') return color;
-  if ('stops' in color && Array.isArray(color.stops) && color.stops.length > 0) {
-    return color.stops[0][1];
-  }
-  return undefined;
+  return resolveStyleValue(color, zoom, '#ffffff');
 }
 
 /**
@@ -465,24 +462,6 @@ export async function showGlobeView(options: GlobeViewOptions): Promise<void> {
         height,
       });
 
-      // Get background color from style
-      const bgStyle = styler.styleById['background'];
-      const bgColor = bgStyle?.paint?.['background-color'];
-      if (bgColor) {
-        canvas.setBackground(x256(hex2rgb(bgColor)));
-      }
-      canvas.clear();
-      labelBuffer.clear();
-      const labelJobs: GlobeLabelJob[] = [];
-
-      const proj = transformer.getProjection();
-      const waterStyle = styler.styleById['water'];
-      const waterColorValue = resolveStyleColor(waterStyle?.paint?.['fill-color']);
-      const waterColor = waterColorValue ? x256(hex2rgb(waterColorValue)) : undefined;
-      if (waterColor !== undefined) {
-        drawPolarCap(canvas, transformer, proj, MERCATOR_MAX_LAT, waterColor);
-      }
-
       // Calculate which tiles we need based on scale and zoom
       // At globe scale 1.0, use very low zoom (0) to see whole Earth
       // As we zoom in with higher scale, increase tile detail gradually
@@ -493,6 +472,25 @@ export async function showGlobeView(options: GlobeViewOptions): Promise<void> {
       const scaleZoomBonus = Math.floor(Math.log2(scaleRatio));
       const baseGlobeZoom = state.zoom;
       let tileZoom = Math.max(0, Math.min(baseGlobeZoom + scaleZoomBonus, runtimeMaxTileZoom));
+
+      // Get background color from style, resolved at the CURRENT zoom so
+      // zoom-dependent style stops respond to globe zooming
+      const bgStyle = styler.styleById['background'];
+      const bgColor = resolveStyleColor(bgStyle?.paint?.['background-color'], tileZoom);
+      if (bgColor) {
+        canvas.setBackground(colorFromHex(bgColor));
+      }
+      canvas.clear();
+      labelBuffer.clear();
+      const labelJobs: GlobeLabelJob[] = [];
+
+      const proj = transformer.getProjection();
+      const waterStyle = styler.styleById['water'];
+      const waterColorValue = resolveStyleColor(waterStyle?.paint?.['fill-color'], tileZoom);
+      const waterColor = waterColorValue ? colorFromHex(waterColorValue) : undefined;
+      if (waterColor !== undefined) {
+        drawPolarCap(canvas, transformer, proj, MERCATOR_MAX_LAT, waterColor);
+      }
 
       // Probe: if this zoom doesn't exist in the tileset, clamp down until it does.
       // (This fixes "black past X" even if getMaxZoom() is wrong.)
@@ -600,7 +598,7 @@ export async function showGlobeView(options: GlobeViewOptions): Promise<void> {
         for (const marker of options.markers) {
           const projected = transformer.project(marker.lat, marker.lon);
           if (projected && projected.z > 0) {
-            const color = marker.color ?? x256(hex2rgb('#ff0000'));
+            const color = marker.color ?? colorFromHex('#ff0000');
             canvas.text(marker.glyph, Math.round(projected.x), Math.round(projected.y), color);
             if (marker.label) {
               canvas.text(marker.label, Math.round(projected.x) + 4, Math.round(projected.y), color);

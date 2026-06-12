@@ -19,4 +19,21 @@ describe('TileSource', () => {
       expect(tileSource.mode).toBe(3);
     });
   });
+
+  describe('resetCache', () => {
+    test('clears in-memory tile caches', () => {
+      config.persistDownloadedTiles = false;
+
+      const tileSource = new TileSource();
+      tileSource.cache['0-0-0'] = {} as never;
+      tileSource.cached.push('0-0-0');
+
+      const result = tileSource.resetCache({ persistent: false });
+
+      expect(tileSource.cache).toEqual({});
+      expect(tileSource.cached).toEqual([]);
+      expect(result.memoryEntries).toBe(2);
+      expect(result.errors).toEqual([]);
+    });
+  });
 });

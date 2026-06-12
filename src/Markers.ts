@@ -14,8 +14,7 @@
     - Array of [lat, lon] pairs
 */
 
-import x256 from 'x256';
-import { hex2rgb } from './utils';
+import { colorFromHex } from './color';
 
 // Marker definition for custom map overlays
 export interface Marker {
@@ -70,7 +69,7 @@ export class MarkerStore {
 
   // Default marker appearance
   private defaultGlyph = '●';
-  private defaultColor = x256(hex2rgb('#ff0000'));  // Red
+  private defaultColor = colorFromHex('#ff0000');  // Red
 
   // Add or update a marker
   upsertMarker(input: MarkerInput): Marker | null {
@@ -87,7 +86,7 @@ export class MarkerStore {
 
     let color = this.defaultColor;
     if (typeof input.color === 'string') {
-      color = x256(hex2rgb(input.color));
+      color = colorFromHex(input.color);
     } else if (typeof input.color === 'number') {
       color = input.color;
     }

@@ -3,14 +3,21 @@
   "version": "0.5.0",
   "description": "MapSCII is a Braille & ASCII world map renderer for your console, based on OpenStreetMap",
   "type": "module",
-  "main": "dist/main.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./cli": "./dist/main.js"
+  },
   "scripts": {
     "start": "bun run main.ts",
     "dev": "bun run --watch main.ts",
     "typecheck": "bun x tsc --noEmit",
     "lint": "bun x eslint src main.ts",
     "test": "bun test",
-    "build": "bun build main.ts --outdir ./dist --target node",
+    "build": "bun build main.ts index.ts --outdir ./dist --target node",
     "prepack": "bun run build",
     "prepublishOnly": "bun run typecheck && bun run build"
   },
@@ -43,10 +50,13 @@
   "dependencies": {
     "@derhuerst/location": "^1.0.0",
     "@mapbox/vector-tile": "^2.0.4",
+    "arabic-persian-reshaper": "^1.0.1",
+    "bidi-js": "^1.0.3",
     "bresenham": "^0.0.4",
     "earcut": "^3.0.1",
     "ngeohash": "^0.6.3",
     "pbf": "^4.0.1",
+    "pngjs": "^7.0.0",
     "rbush": "^4.0.1",
     "simplify-js": "^1.2.4",
     "string-width": "^8.1.0",

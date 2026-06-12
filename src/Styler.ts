@@ -10,10 +10,10 @@
 */
 
 export interface StylePaint {
-  'line-color'?: string;
-  'fill-color'?: string;
-  'text-color'?: string;
-  'background-color'?: string;
+  'line-color'?: string | { stops: [number, string][] };
+  'fill-color'?: string | { stops: [number, string][] };
+  'text-color'?: string | { stops: [number, string][] };
+  'background-color'?: string | { stops: [number, string][] };
   'line-width'?: number | { stops: [number, number][] };
 }
 
@@ -61,11 +61,13 @@ function filterValueEquals(a: FilterValue | undefined, b: FilterExpressionValue 
 }
 
 export default class Styler {
+  public style: MapStyle;
   public styleById: Record<string, StyleLayer> = {};
   public styleByLayer: Record<string, StyleLayer[]> = {};
   public styleName: string;
 
   constructor(style: MapStyle) {
+    this.style = style;
     this.styleName = style.name;
 
     if (style.constants) {
