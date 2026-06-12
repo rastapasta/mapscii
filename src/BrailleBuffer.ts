@@ -1,5 +1,5 @@
 /*
-  termap - Terminal Map Viewer
+  MapSCII - Terminal Map Viewer
   by Michael Strassburger <codepoet@cpan.org>
 
   Simple pixel to braille character mapper
@@ -8,132 +8,134 @@
   * added color support
   * added text label support
   * general optimizations
-
-  Will either be merged into node-drawille or become an own module at some point
 */
-'use strict';
-const stringWidth = require('string-width');
-const config = require('./config');
-const utils = require('./utils');
 
-const asciiMap = {
-  // '▬': [2+32, 4+64],
-  // '¯': [1+16],
-  '▀': [1+2+16+32],
-  '▄': [4+8+64+128],
-  '■': [2+4+32+64],
-  '▌': [1+2+4+8],
-  '▐': [16+32+64+128],
-  // '▓': [1+4+32+128, 2+8+16+64],
+import stringWidth from 'string-width';
+import config from './config';
+import { population } from './utils';
+
+interface AsciiMapEntry {
+  mask: number;
+  char: string;
+}
+
+const asciiMap: Record<string, number[]> = {
+  '▀': [1 + 2 + 16 + 32],
+  '▄': [4 + 8 + 64 + 128],
+  '■': [2 + 4 + 32 + 64],
+  '▌': [1 + 2 + 4 + 8],
+  '▐': [16 + 32 + 64 + 128],
   '█': [255],
 };
+
 const termReset = '\x1B[39;49m';
 
-class BrailleBuffer {
-  constructor(width, height) {
-    this.brailleMap = [[0x1, 0x8],[0x2, 0x10],[0x4, 0x20],[0x40, 0x80]];
+export default class BrailleBuffer {
+  private brailleMap: number[][] = [[0x1, 0x8], [0x2, 0x10], [0x4, 0x20], [0x40, 0x80]];
+  private pixelBuffer: Buffer;
+  private charBuffer: (string | undefined)[];
+  private charWidthBuffer: Uint8Array;
+  private foregroundBuffer: Buffer;
+  private backgroundBuffer: Buffer;
+  private asciiToBraille: string[] = [];
+  private globalBackground: number = 0;
+  private widthCache: Map<string, number> = new Map();
+  private segmenter: Intl.Segmenter | null = null;
 
-    this.pixelBuffer = null;
-    this.charBuffer = null;
-    this.foregroundBuffer = null;
-    this.backgroundBuffer = null;
+  public width: number;
+  public height: number;
 
-    this.asciiToBraille = [];
-
-    this.globalBackground = null;
-
+  constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
 
-    const size = width*height/8;
+    const size = width * height / 8;
     this.pixelBuffer = Buffer.alloc(size);
     this.foregroundBuffer = Buffer.alloc(size);
     this.backgroundBuffer = Buffer.alloc(size);
+    this.charBuffer = new Array(size);
+    this.charWidthBuffer = new Uint8Array(size);
+
+    // Node 18+ has this; it makes accents/emoji sequences behave correctly as one "glyph"
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+      this.segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+    }
 
     this._mapBraille();
     this.clear();
   }
 
-  clear() {
+  clear(): void {
     this.pixelBuffer.fill(0);
-    this.charBuffer = [];
+    this.charBuffer = new Array(this.pixelBuffer.length);
+    this.charWidthBuffer.fill(0);
     this.foregroundBuffer.fill(0);
     this.backgroundBuffer.fill(0);
   }
 
-  setGlobalBackground(background) {
+  setGlobalBackground(background: number): void {
     this.globalBackground = background;
   }
 
-  setBackground(x, y, color) {
+  setBackground(x: number, y: number, color: number): void {
     if (0 <= x && x < this.width && 0 <= y && y < this.height) {
       const idx = this._project(x, y);
       this.backgroundBuffer[idx] = color;
     }
   }
 
-  setPixel(x, y, color) {
+  setPixel(x: number, y: number, color: number): void {
     this._locate(x, y, (idx, mask) => {
       this.pixelBuffer[idx] |= mask;
       this.foregroundBuffer[idx] = color;
     });
   }
 
-  unsetPixel(x, y) {
+  unsetPixel(x: number, y: number): void {
     this._locate(x, y, (idx, mask) => {
       this.pixelBuffer[idx] &= ~mask;
     });
   }
 
-  _project(x, y) {
-    return (x>>1) + (this.width>>1)*(y>>2);
+  private _project(x: number, y: number): number {
+    return (x >> 1) + (this.width >> 1) * (y >> 2);
   }
 
-  _locate(x, y, cb) {
+  private _locate(x: number, y: number, cb: (idx: number, mask: number) => void): void {
     if (!((0 <= x && x < this.width) && (0 <= y && y < this.height))) {
       return;
     }
     const idx = this._project(x, y);
     const mask = this.brailleMap[y & 3][x & 1];
-    return cb(idx, mask);
+    cb(idx, mask);
   }
 
-  _mapBraille() {
+  private _mapBraille(): void {
     this.asciiToBraille = [' '];
 
-    const masks = [];
+    const masks: AsciiMapEntry[] = [];
     for (const char in asciiMap) {
       const bits = asciiMap[char];
-      if (!(bits instanceof Array)) continue;
+      if (!Array.isArray(bits)) continue;
       for (const mask of bits) {
-        masks.push({
-          mask: mask,
-          char: char,
-        });
+        masks.push({ mask, char });
       }
     }
 
-    //TODO Optimize this part
-    var i, k;
-    const results = [];
-    for (i = k = 1; k <= 255; i = ++k) {
+    for (let i = 1; i <= 255; i++) {
       const braille = (i & 7) + ((i & 56) << 1) + ((i & 64) >> 3) + (i & 128);
-      results.push(this.asciiToBraille[i] = masks.reduce((function(best, mask) {
-        const covered = utils.population(mask.mask & braille);
+      const best = masks.reduce((best: { char: string; covered: number } | undefined, mask) => {
+        const covered = population(mask.mask & braille);
         if (!best || best.covered < covered) {
-          return {
-            char: mask.char,
-            covered: covered,
-          };
-        } else {
-          return best;
+          return { char: mask.char, covered };
         }
-      }), void 0).char);
+        return best;
+      }, undefined);
+      this.asciiToBraille[i] = best?.char || ' ';
     }
-    return results;
   }
 
-  _termColor(foreground, background) {
+  private _termColor(foreground: number, background: number): string {
     background |= this.globalBackground;
     if (foreground && background) {
       return `\x1B[38;5;${foreground};48;5;${background}m`;
@@ -146,66 +148,116 @@ class BrailleBuffer {
     }
   }
 
-  frame() {
-    const output = [];
-    let currentColor = null;
+  frame(): string {
+    const output: string[] = [];
+    let currentColor: string | null = null;
     let skip = 0;
 
-    for (let y = 0; y < this.height/4; y++) {
+    for (let y = 0; y < this.height / 4; y++) {
       skip = 0;
 
-      for (let x = 0; x < this.width/2; x++) {
-        const idx = y*this.width/2 + x;
+      for (let x = 0; x < this.width / 2; x++) {
+        const idx = y * this.width / 2 + x;
 
         if (idx && !x) {
           output.push(config.delimeter);
         }
 
-        const colorCode = this._termColor(this.foregroundBuffer[idx], this.backgroundBuffer[idx]);
-        if (currentColor !== colorCode) {
-          output.push(currentColor = colorCode);
+        // If the previous printed glyph consumed multiple columns, do NOT emit anything here.
+        // Emitting colors (or chars) during "skip" changes terminal state without advancing the cursor.
+        if (skip > 0) {
+          skip--;
+          continue;
         }
 
         const char = this.charBuffer[idx];
         if (char) {
-          skip += stringWidth(char)-1;
-          if (skip+x < this.width/2) {
+          const charWidth = this.charWidthBuffer[idx] || this._glyphWidth(char);
+
+          const colorCode = this._termColor(this.foregroundBuffer[idx], this.backgroundBuffer[idx]);
+          if (currentColor !== colorCode) {
+            output.push(currentColor = colorCode);
+          }
+
+          // Match old behavior: still reserve the extra columns even if we don't print at EOL
+          skip = Math.max(0, charWidth - 1);
+          if (x + skip < this.width / 2) {
             output.push(char);
           }
         } else {
-          if (!skip) {
-            if (config.useBraille) {
-              output.push(String.fromCharCode(0x2800+this.pixelBuffer[idx]));
-            } else {
-              output.push(this.asciiToBraille[this.pixelBuffer[idx]]);
-            }
+          const colorCode = this._termColor(this.foregroundBuffer[idx], this.backgroundBuffer[idx]);
+          if (currentColor !== colorCode) {
+            output.push(currentColor = colorCode);
+          }
+
+          if (config.useBraille) {
+            output.push(String.fromCharCode(0x2800 + this.pixelBuffer[idx]));
           } else {
-            skip--;
+            output.push(this.asciiToBraille[this.pixelBuffer[idx]]);
           }
         }
       }
     }
 
-    output.push(termReset+config.delimeter);
+    output.push(termReset + config.delimeter);
     return output.join('');
   }
 
-  setChar(char, x, y, color) {
+  setChar(char: string, x: number, y: number, color: number, widthCols?: number): void {
     if (0 <= x && x < this.width && 0 <= y && y < this.height) {
       const idx = this._project(x, y);
       this.charBuffer[idx] = char;
+      const w = Math.max(1, Math.min(255, widthCols ?? this._glyphWidth(char)));
+      this.charWidthBuffer[idx] = w;
       this.foregroundBuffer[idx] = color;
     }
   }
 
-  writeText(text, x, y, color, center = true) {
+  writeText(text: string, x: number, y: number, color: number, center: boolean = true): void {
+    // Big perf win: only measure full string width when we actually need centering
     if (center) {
-      x -= text.length/2+1;
+      x -= stringWidth(text) + 1;
     }
+
+    // Fast path: pure ASCII => each glyph is width 1
+    let ascii = true;
     for (let i = 0; i < text.length; i++) {
-      this.setChar(text.charAt(i), x+i*2, y, color);
+      if (text.charCodeAt(i) > 0x7f) { ascii = false; break; }
+    }
+    if (ascii) {
+      for (let i = 0; i < text.length; i++) {
+        this.setChar(text.charAt(i), x + i * 2, y, color, 1);
+      }
+      return;
+    }
+
+    // Unicode path: use grapheme clusters so accents/emoji sequences stay together
+    const glyphs = this.segmenter
+      ? Array.from(this.segmenter.segment(text), (s) => s.segment)
+      : Array.from(text); // codepoints fallback
+
+    let offsetCols = 0;
+    for (const g of glyphs) {
+      const w = this._glyphWidth(g);
+      this.setChar(g, x + offsetCols * 2, y, color, w);
+      offsetCols += w;
     }
   }
-}
 
-module.exports = BrailleBuffer;
+  private _glyphWidth(glyph: string): number {
+    const cached = this.widthCache.get(glyph);
+    if (cached !== undefined) return cached;
+
+    // Very common case: 1-byte ASCII
+    if (glyph.length === 1 && glyph.charCodeAt(0) <= 0x7f) {
+      this.widthCache.set(glyph, 1);
+      return 1;
+    }
+
+    // string-width is the correct source of truth for terminal column width
+    const w = Math.max(1, stringWidth(glyph));
+    if (this.widthCache.size > 2048) this.widthCache.clear();
+    this.widthCache.set(glyph, w);
+    return w;
+  }
+}

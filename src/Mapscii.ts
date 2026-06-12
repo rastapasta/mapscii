@@ -4,140 +4,326 @@
 
   UI and central command center
 */
-'use strict';
-const fs = require('fs');
-const keypress = require('keypress');
-const TermMouse = require('term-mouse');
 
-const Renderer = require('./Renderer');
-const TileSource = require('./TileSource');
-const utils = require('./utils');
-let config = require('./config');
+import fs from 'fs';
+import Renderer, { Marker } from './Renderer';
+import { MarkerInput } from './Markers';
+import TileSource from './TileSource';
+import * as utils from './utils';
+import config from './config';
+import InputHandler, { InputEvent, term } from './InputHandler';
+import Canvas from './Canvas';
+import { getCurrentLocation } from './Geolocation';
+import { showHelpModal } from './HelpModal';
+import { showSearchPrompt, geocodeQuery } from './SearchBox';
+import { showGlobeView } from './Globe';
 
-class Mapscii {
-  constructor(options) {
-    this.width = null;
-    this.height = null;
-    this.canvas = null;
-    this.mouse = null;
+// Mouse event types
+interface MouseEvent {
+  x: number;
+  y: number;
+  button: 'left' | 'middle' | 'right' | 'up' | 'down' | 'none';
+  shift?: boolean;
+  ctrl?: boolean;
+  meta?: boolean;
+  action?: 'press' | 'release' | 'move' | 'scroll' | 'drag';
+}
 
-    this.mouseDragging = false;
-    this.mousePosition = {
-      x: 0,
-      y: 0,
-    };
+interface DragState {
+  x: number;
+  y: number;
+  center: utils.TileCoord;
+}
 
-    this.tileSource = null;
-    this.renderer = null;
+export interface MapsciiOptions {
+  initialLat?: number;
+  initialLon?: number;
+  initialZoom?: number | null;
+  size?: { width?: number; height?: number };
+  useBraille?: boolean;
+  headless?: boolean;
+  source?: string;
+  styleFile?: string;
+  markerInputs?: MarkerInput[];
+  cellGeometry?: { width: number; height: number };
+  noLabels?: boolean;
+  /** If true, show current location marker and zoom to it (like pressing 'G') */
+  locateOnStart?: boolean;
+  /** Source description for location (e.g., 'IP (Paris, FR)') */
+  locationSource?: string;
+}
 
-    this.zoom = 0;
-    this.minZoom = null;
-    this.maxZoom = null;
-    config = Object.assign(config, options);
+export default class Mapscii {
+  private width: number = 0;
+  private height: number = 0;
+  private canvas: Canvas | null = null;
+  private mouseDragging: DragState | false = false;
+  private mousePosition: utils.LatLon = { lat: 0, lon: 0 };
+  private tileSource: TileSource | null = null;
+  private renderer: Renderer | null = null;
+  private zoom: number = 0;
+  private minZoom: number = 0;
+  private maxZoom: number = 18;
+  private center: utils.LatLon;
+  private inputHandler: InputHandler | null = null;
+  private markerInputs: MarkerInput[] = [];
+  private isInPrompt: boolean = false;  // Flag to prevent key handling during prompts
+  private locateOnStart: boolean = false;
+  private locationSource: string = '';
+  private isDrawing: boolean = false;
+  private redrawPending: boolean = false;
+
+  constructor(options: MapsciiOptions = {}) {
+    Object.assign(config, options);
 
     this.center = {
       lat: config.initialLat,
       lon: config.initialLon
     };
+
+    // Store marker inputs from options (will be added to renderer after init)
+    if (options.markerInputs) {
+      this.markerInputs = options.markerInputs;
+    }
+
+    // Store locate-on-start settings
+    this.locateOnStart = options.locateOnStart ?? false;
+    this.locationSource = options.locationSource ?? '';
   }
 
-  async init() {
+  async init(): Promise<void> {
     if (!config.headless) {
-      this._initKeyboard();
-      this._initMouse();
+      this._initInput();
     }
     await this._initTileSource();
     this._initRenderer();
-    this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+
+    // Handle --locate startup: add marker and zoom like pressing 'G'
+    if (this.locateOnStart) {
+      this._setLocationAndDraw(this.center.lat, this.center.lon, this.locationSource);
+    } else {
+      this._draw();
+      this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    }
   }
 
+  // Public API for programmatic use (Issue #35, #97)
+  setCenter(lat: number, lon: number): void {
+    this.center = utils.normalize({ lat, lon });
+    this._draw();
+  }
 
-  async _initTileSource() {
+  setZoom(zoom: number): void {
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
+    this._draw();
+  }
+
+  addMarker(input: MarkerInput): Marker | null {
+    const marker = this.renderer?.markerStore.upsertMarker(input) ?? null;
+    this._draw();
+    return marker;
+  }
+
+  removeMarker(id: string): boolean {
+    const removed = this.renderer?.markerStore.removeMarker(id) ?? false;
+    this._draw();
+    return removed;
+  }
+
+  clearMarkers(): void {
+    this.renderer?.clearMarkers();
+    this._draw();
+  }
+
+  getMarkers(): Marker[] {
+    return this.renderer?.getMarkers() ?? [];
+  }
+
+  private async _initTileSource(): Promise<void> {
     this.tileSource = new TileSource();
     await this.tileSource.init(config.source);
     this.maxZoom = this.tileSource.getMaxZoom();
   }
 
-  _initKeyboard() {
-    keypress(config.input);
-    if (config.input.setRawMode) {
-      config.input.setRawMode(true);
-    }
-    config.input.resume();
+  private _initInput(): void {
+    this.inputHandler = new InputHandler(config.input as NodeJS.ReadStream, config.output);
 
-    config.input.on('keypress', (ch, key) => this._onKey(key));
-  }
-
-  _initMouse() {
-    this.mouse = TermMouse({
-      input: config.input,
-      output: config.output,
+    this.inputHandler.start((event: InputEvent) => {
+      switch (event.type) {
+        case 'key':
+          this._onKey({ name: event.key || '' });
+          break;
+        case 'mouse':
+          this._handleMouseEvent({
+            x: event.x || 0,
+            y: event.y || 0,
+            button: event.button || 'none',
+            action: event.action as MouseEvent['action']
+          });
+          break;
+        case 'scroll':
+          this._handleMouseEvent({
+            x: event.x || 0,
+            y: event.y || 0,
+            button: (event.delta || 0) > 0 ? 'up' : 'down',
+            action: 'scroll'
+          });
+          break;
+      }
     });
-    this.mouse.start();
 
-    this.mouse.on('click', (event) => this._onClick(event));
-    this.mouse.on('scroll', (event) => this._onMouseScroll(event));
-    this.mouse.on('move', (event) => this._onMouseMove(event));
+    // Cleanup on exit
+    process.on('exit', () => {
+      this.inputHandler?.stop();
+    });
+
+    process.on('SIGINT', () => {
+      this.inputHandler?.stop();
+      process.exit(0);
+    });
   }
 
-  _initRenderer() {
+  private _handleMouseEvent(event: MouseEvent): void {
+    // Ignore mouse events during prompts
+    if (this.isInPrompt) return;
+
+    switch (event.action) {
+      case 'press':
+        if (event.button === 'left') {
+          this._onMouseDown(event);
+        }
+        break;
+      case 'release':
+        if (event.button === 'left' || event.button === 'none') {
+          this._onClick(event);
+        }
+        break;
+      case 'move':
+        this._onMouseMove(event);
+        break;
+      case 'drag':
+        // Handle drag from InputHandler (button is 'left' during drag)
+        event.button = 'left';
+        this._onMouseMove(event);
+        break;
+      case 'scroll':
+        this._onMouseScroll(event);
+        break;
+    }
+  }
+
+  private _initRenderer(): void {
     const style = JSON.parse(fs.readFileSync(config.styleFile, 'utf8'));
-    this.renderer = new Renderer(config.output, this.tileSource, style);
+    this.renderer = new Renderer(config.output, this.tileSource!, style);
+
+    // Add initial markers if any
+    if (this.markerInputs.length > 0) {
+      for (const input of this.markerInputs) {
+        this.renderer.markerStore.upsertMarker(input);
+      }
+    }
 
     config.output.on('resize', () => {
+      // Always resize the renderer to match new terminal size
       this._resizeRenderer();
-      this._draw();
+
+      // Only redraw if not in a prompt (search, help, globe handle their own display)
+      if (!this.isInPrompt) {
+        // Clear screen to prevent visual artifacts during resize
+        this._write('\x1B[2J');
+        this._draw();
+      }
     });
 
     this._resizeRenderer();
     this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
   }
 
-  _resizeRenderer() {
-    this.width = config.size && config.size.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
-    this.height = config.size && config.size.height ? config.size.height * 4 : config.output.rows * 4 - 4;
+  private _resizeRenderer(): void {
+    // Canvas always uses 2x4 internal pixels per character cell (braille standard)
+    // The cellGeometry config is used only for map projection aspect ratio correction
+    this.width = config.size?.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
+    this.height = config.size?.height ? config.size.height * 4 : config.output.rows * 4 - 4;
 
-    this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
+    this.minZoom = 4 - Math.log(4096 / this.width) / Math.LN2;
 
-    this.renderer.setSize(this.width, this.height);
+    // Enforce zoom limits after resize - if window got bigger, minZoom decreases
+    // and current zoom might now be below the new minimum
+    if (this.zoom < this.minZoom) {
+      this.zoom = this.minZoom;
+    }
+    if (this.zoom > this.maxZoom) {
+      this.zoom = this.maxZoom;
+    }
+
+    this.renderer?.setSize(this.width, this.height);
   }
 
-  _colrow2ll(x, y) {
+  private _colrow2ll(x: number, y: number): utils.LatLon {
+    // Convert screen column/row to lat/lon
+    // Screen coordinates are in character cells, internal uses 2x4 pixels
     const projected = {
-      x: (x-0.5)*2,
-      y: (y-0.5)*4,
+      x: (x - 0.5) * 2,
+      y: (y - 0.5) * 4,
     };
 
     const size = utils.tilesizeAtZoom(this.zoom);
-    const [dx, dy] = [projected.x-this.width/2, projected.y-this.height/2];
+    const dx = projected.x - this.width / 2;
+    const dy = projected.y - this.height / 2;
+
+    // Apply aspect correction for Y (inverse of render correction)
+    const cellWidth = config.cellGeometry?.width || 2;
+    const cellHeight = config.cellGeometry?.height || 4;
+    const standardRatio = 4 / 2;
+    const actualRatio = cellHeight / cellWidth;
+    const aspectY = standardRatio / actualRatio;
 
     const z = utils.baseZoom(this.zoom);
     const center = utils.ll2tile(this.center.lon, this.center.lat, z);
 
-    return utils.normalize(utils.tile2ll(center.x+(dx/size), center.y+(dy/size), z));
+    return utils.normalize(utils.tile2ll(center.x + (dx / size), center.y + (dy / size / aspectY), z));
   }
 
-  _updateMousePosition(event) {
+  private _updateMousePosition(event: MouseEvent): void {
     this.mousePosition = this._colrow2ll(event.x, event.y);
   }
 
-  _onClick(event) {
-    if (event.x < 0 || event.x > this.width/2 || event.y < 0 || event.y > this.height/4) {
+  private _onMouseDown(event: MouseEvent): void {
+    if (event.x < 0 || event.x > this.width / 2 || event.y < 0 || event.y > this.height / 4) {
+      return;
+    }
+
+    // Start potential drag
+    this.mouseDragging = {
+      x: event.x,
+      y: event.y,
+      center: utils.ll2tile(this.center.lon, this.center.lat, utils.baseZoom(this.zoom)),
+    };
+  }
+
+  private _onClick(event: MouseEvent): void {
+    if (event.x < 0 || event.x > this.width / 2 || event.y < 0 || event.y > this.height / 4) {
       return;
     }
     this._updateMousePosition(event);
 
-    if (this.mouseDragging && event.button === 'left') {
+    if (this.mouseDragging) {
+      // Check if this was a drag or a click
+      const dragDist = Math.abs(this.mouseDragging.x - event.x) + Math.abs(this.mouseDragging.y - event.y);
+      if (dragDist > 2) {
+        // This was a drag, don't center on click
+        this.mouseDragging = false;
+        return;
+      }
       this.mouseDragging = false;
-    } else {
-      this.setCenter(this.mousePosition.lat, this.mousePosition.lon);
     }
 
+    // Center on clicked position
+    this.setCenter(this.mousePosition.lat, this.mousePosition.lon);
     this._draw();
   }
 
-  _onMouseScroll(event) {
+  private _onMouseScroll(event: MouseEvent): void {
     this._updateMousePosition(event);
 
     // the location of the pointer, where we want to zoom toward
@@ -166,56 +352,64 @@ class Mapscii {
     // move to the new center
     this.setCenter(offsetCenterLonLat.lat, offsetCenterLonLat.lon);
 
+    // Reset drag reference if we're in the middle of a drag, since zoom changed the coordinate system
+    if (this.mouseDragging) {
+      this.mouseDragging = {
+        x: event.x,
+        y: event.y,
+        center: utils.ll2tile(this.center.lon, this.center.lat, utils.baseZoom(this.zoom)),
+      };
+    }
+
     this._draw();
   }
 
-  _onMouseMove(event) {
-    if (event.x < 0 || event.x > this.width/2 || event.y < 0 || event.y > this.height/4) {
+  private _onMouseMove(event: MouseEvent): void {
+    if (event.x < 0 || event.x > this.width / 2 || event.y < 0 || event.y > this.height / 4) {
       return;
     }
     if (config.mouseCallback && !config.mouseCallback(event)) {
       return;
     }
 
-    // start dragging
-    if (event.button === 'left') {
-      if (this.mouseDragging) {
-        const dx = (this.mouseDragging.x-event.x)*2;
-        const dy = (this.mouseDragging.y-event.y)*4;
+    // Handle dragging - apply inverse aspect correction for proper map movement
+    if (this.mouseDragging && event.button === 'left') {
+      const cellWidth = config.cellGeometry?.width || 2;
+      const cellHeight = config.cellGeometry?.height || 4;
+      const standardRatio = 4 / 2;
+      const actualRatio = cellHeight / cellWidth;
+      const aspectY = standardRatio / actualRatio;
 
-        const size = utils.tilesizeAtZoom(this.zoom);
+      const dx = (this.mouseDragging.x - event.x) * 2;
+      const dy = (this.mouseDragging.y - event.y) * 4 / aspectY;
 
-        const newCenter = utils.tile2ll(
-          this.mouseDragging.center.x+(dx/size),
-          this.mouseDragging.center.y+(dy/size),
-          utils.baseZoom(this.zoom)
-        );
+      const size = utils.tilesizeAtZoom(this.zoom);
 
-        this.setCenter(newCenter.lat, newCenter.lon);
+      const newCenter = utils.tile2ll(
+        this.mouseDragging.center.x + (dx / size),
+        this.mouseDragging.center.y + (dy / size),
+        utils.baseZoom(this.zoom)
+      );
 
-        this._draw();
-
-      } else {
-        this.mouseDragging = {
-          x: event.x,
-          y: event.y,
-          center: utils.ll2tile(this.center.lon, this.center.lat, utils.baseZoom(this.zoom)),
-        };
-      }
+      this.setCenter(newCenter.lat, newCenter.lon);
+      this._draw();
     }
 
     this._updateMousePosition(event);
     this.notify(this._getFooter());
   }
 
-  _onKey(key) {
+  private _onKey(key: { name: string }): void {
+    // Ignore keys when in a prompt (search, help, etc.)
+    if (this.isInPrompt) return;
+
     if (config.keyCallback && !config.keyCallback(key)) return;
     if (!key || !key.name) return;
 
-    // check if the pressed key is configured
     let draw = true;
     switch (key.name) {
       case 'q':
+        this.inputHandler?.stop();
         if (config.quitCallback) {
           config.quitCallback();
         } else {
@@ -231,22 +425,54 @@ class Mapscii {
         break;
       case 'left':
       case 'h':
-        this.moveBy(0, -8/Math.pow(2, this.zoom));
+        this.moveBy(0, -8 / Math.pow(2, this.zoom));
         break;
       case 'right':
       case 'l':
-        this.moveBy(0, 8/Math.pow(2, this.zoom));
+        this.moveBy(0, 8 / Math.pow(2, this.zoom));
         break;
       case 'up':
       case 'k':
-        this.moveBy(6/Math.pow(2, this.zoom), 0);
+        this.moveBy(6 / Math.pow(2, this.zoom), 0);
         break;
       case 'down':
       case 'j':
-        this.moveBy(-6/Math.pow(2, this.zoom), 0);
+        this.moveBy(-6 / Math.pow(2, this.zoom), 0);
         break;
       case 'c':
         config.useBraille = !config.useBraille;
+        break;
+      case 't':
+        // Toggle text labels and POI markers (minimal mode)
+        config.noLabels = !config.noLabels;
+        this.notify(config.noLabels ? 'Minimal mode (no text)' : 'Labels enabled');
+        break;
+      case 'm':
+        // Clear all markers
+        this.clearMarkers();
+        this.notify('Markers cleared');
+        break;
+      case '/':
+      case 's':
+        // Search / goto prompt (Issue #27, #105)
+        // Use void to handle async without blocking
+        void this._handleSearch();
+        draw = false;
+        break;
+      case 'g':
+        // Go to current location via IP geolocation (Issue #2, #12)
+        void this._gotoCurrentLocation();
+        draw = false;
+        break;
+      case '?':
+        // Show help
+        void this._handleHelp();
+        draw = false;
+        break;
+      case 'o':
+        // Toggle 3D globe view
+        void this._handleGlobeView();
+        draw = false;
         break;
       default:
         draw = false;
@@ -257,19 +483,32 @@ class Mapscii {
     }
   }
 
-  _draw() {
-    this.renderer.draw(this.center, this.zoom).then((frame) => {
+  private _draw(): void {
+    // Coalesce: keep at most one frame in flight and one pending, so rapid
+    // input (drag/scroll) always ends with a frame of the latest state
+    // instead of dropping it with "renderer is busy".
+    if (this.isDrawing) {
+      this.redrawPending = true;
+      return;
+    }
+    const renderer = this.renderer;
+    if (!renderer) return;
+    this.isDrawing = true;
+    renderer.draw(this.center, this.zoom).then((frame) => {
       this._write(frame);
       this.notify(this._getFooter());
     }).catch(() => {
       this.notify('renderer is busy');
+    }).finally(() => {
+      this.isDrawing = false;
+      if (this.redrawPending) {
+        this.redrawPending = false;
+        this._draw();
+      }
     });
   }
 
-  _getFooter() {
-    // tile = utils.ll2tile(this.center.lon, this.center.lat, this.zoom);
-    // `tile: ${utils.digits(tile.x, 3)}, ${utils.digits(tile.x, 3)}   `+
-
+  private _getFooter(): string {
     let footer = `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)} `;
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
@@ -278,38 +517,210 @@ class Mapscii {
     return footer;
   }
 
-  notify(text) {
-    config.onUpdate && config.onUpdate();
+  notify(text: string): void {
+    config.onUpdate?.();
     if (!config.headless) {
       this._write('\r\x1B[K' + text);
     }
   }
 
-  _write(output) {
-    config.output.write(output);
+  // Handle search using SearchBox module
+  private async _handleSearch(): Promise<void> {
+    this.isInPrompt = true;
+
+    const result = await showSearchPrompt();
+
+    this.isInPrompt = false;
+
+    if (result.type === 'cancelled' || result.type === 'empty') {
+      this._draw();
+      return;
+    }
+
+    if (result.type === 'coordinates' && result.lat !== undefined && result.lon !== undefined) {
+      // Add marker for coordinates
+      this.renderer?.markerStore.upsertMarker({
+        id: `search-${Date.now()}`,
+        lat: result.lat,
+        lon: result.lon,
+        glyph: '⚲',
+        color: '#ff6600',
+      });
+
+      this.center = utils.normalize({ lat: result.lat, lon: result.lon });
+      if (this.zoom < 12) this.zoom = 12;
+      this._draw();
+      this.notify(`[⚲] ${result.lat.toFixed(4)}, ${result.lon.toFixed(4)}`);
+      return;
+    }
+
+    if (result.type === 'geohash' && result.lat !== undefined && result.lon !== undefined) {
+      // Add marker for geohash location
+      this.renderer?.markerStore.upsertMarker({
+        id: `search-${Date.now()}`,
+        lat: result.lat,
+        lon: result.lon,
+        glyph: '#',
+        color: '#9933ff',
+        label: ` ${result.query}`,
+      });
+
+      this.center = utils.normalize({ lat: result.lat, lon: result.lon });
+      // Geohash zoom based on precision (longer = more precise = higher zoom)
+      const geohashLen = result.query?.length || 6;
+      const targetZoom = Math.min(18, 4 + geohashLen * 1.5);
+      if (this.zoom < targetZoom) this.zoom = targetZoom;
+      this._draw();
+      this.notify(`[#] Geohash: ${result.query} → ${result.lat.toFixed(4)}, ${result.lon.toFixed(4)}`);
+      return;
+    }
+
+    if (result.type === 'place') {
+      if (result.lat !== undefined && result.lon !== undefined) {
+        // Already have coordinates from dropdown selection
+        this.renderer?.markerStore.upsertMarker({
+          id: `search-${Date.now()}`,
+          lat: result.lat,
+          lon: result.lon,
+          glyph: '⚲',
+          color: '#ff6600',
+          label: ' ' + result.displayName?.split(',')[0],
+        });
+
+        this.center = utils.normalize({ lat: result.lat, lon: result.lon });
+        if (this.zoom < 12) this.zoom = 12;
+        this._draw();
+        this.notify(`[⚲] ${result.displayName?.slice(0, 60) || 'Found'}`);
+      } else if (result.query) {
+        // Need to geocode the query
+        this.notify(`Searching: ${result.query}...`);
+        const geocoded = await geocodeQuery(result.query);
+
+        if (geocoded) {
+          const lat = parseFloat(geocoded.lat);
+          const lon = parseFloat(geocoded.lon);
+
+          this.renderer?.markerStore.upsertMarker({
+            id: `search-${Date.now()}`,
+            lat,
+            lon,
+            glyph: '⚲',
+            color: '#ff6600',
+            label: ' ' + geocoded.display_name.split(',')[0],
+          });
+
+          this.center = utils.normalize({ lat, lon });
+          if (this.zoom < 12) this.zoom = 12;
+          this._draw();
+          this.notify(`[⚲] ${geocoded.display_name.slice(0, 60)}`);
+        } else {
+          this.notify(`No results for: ${result.query}`);
+          this._draw();
+        }
+      }
+    }
   }
 
-  zoomBy(step) {
-    if (this.zoom+step < this.minZoom) {
+  // Handle help using HelpModal module
+  private async _handleHelp(): Promise<void> {
+    this.isInPrompt = true;
+
+    await showHelpModal({
+      center: this.center,
+      zoom: this.zoom,
+      width: this.width,
+      height: this.height,
+    });
+
+    this.isInPrompt = false;
+    this._draw();
+  }
+
+  // Handle 3D globe view
+  private async _handleGlobeView(): Promise<void> {
+    this.isInPrompt = true;
+
+    // Collect markers from renderer
+    const markers = this.renderer?.getMarkers().map(m => ({
+      lat: m.lat,
+      lon: m.lon,
+      glyph: m.glyph || '●',
+      color: m.color,
+      label: m.label,
+    })) || [];
+
+    // Get the style from the renderer
+    const style = JSON.parse(fs.readFileSync(config.styleFile, 'utf8'));
+
+    await showGlobeView({
+      centerLat: this.center.lat,
+      centerLon: this.center.lon,
+      zoom: this.zoom,
+      markers,
+      tileSource: this.tileSource!,
+      style,
+    });
+
+    this.isInPrompt = false;
+    // Clear and redraw after exiting globe view
+    this._write('\x1B[2J');
+    this._draw();
+  }
+
+  // Go to current location - uses @derhuerst/location with IP fallback
+  private async _gotoCurrentLocation(): Promise<void> {
+    this.notify('Getting location...');
+
+    try {
+      const location = await getCurrentLocation();
+      this._setLocationAndDraw(location.latitude, location.longitude, location.source);
+    } catch {
+      this.notify('Location lookup failed');
+      this._draw();
+    }
+  }
+
+  // Helper to set location and update display
+  private _setLocationAndDraw(lat: number, lon: number, source: string): void {
+    // Add location marker (use 'O' as glyph for "you are here")
+    this.renderer?.markerStore.upsertMarker({
+      id: 'current-location',
+      lat,
+      lon,
+      glyph: '⚲',
+      color: '#00ff00',
+      label: ' You',
+    });
+
+    this.center = utils.normalize({ lat, lon });
+    if (this.zoom < 12) {
+      this.zoom = 12;
+    }
+    this._draw();
+    this.notify(`[⚲] ${source} (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+  }
+
+  private _write(output: string): void {
+    // Use terminal-kit's noFormat when InputHandler is active to avoid interference
+    if (this.inputHandler) {
+      term.noFormat(output);
+    } else {
+      config.output.write(output);
+    }
+  }
+
+  zoomBy(step: number): number {
+    if (this.zoom + step < this.minZoom) {
       return this.zoom = this.minZoom;
     }
-    if (this.zoom+step > this.maxZoom) {
+    if (this.zoom + step > this.maxZoom) {
       return this.zoom = this.maxZoom;
     }
 
-    this.zoom += step;
+    return this.zoom += step;
   }
 
-  moveBy(lat, lon) {
-    this.setCenter(this.center.lat+lat, this.center.lon+lon);
-  }
-
-  setCenter(lat, lon) {
-    this.center = utils.normalize({
-      lon: lon,
-      lat: lat,
-    });
+  moveBy(lat: number, lon: number): void {
+    this.setCenter(this.center.lat + lat, this.center.lon + lon);
   }
 }
-
-module.exports = Mapscii;

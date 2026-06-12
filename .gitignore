@@ -2,6 +2,7 @@ node_modules
 bundle*
 *.log
 tmp
+dist
 mbtiles
 tiles
 .DS_Store

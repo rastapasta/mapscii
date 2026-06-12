@@ -1,47 +1,32 @@
-'use strict';
-const utils = require('./utils');
+import { describe, expect, test } from 'bun:test';
+import { hex2rgb, normalize } from './utils';
 
-describe('utils', () => {
-  describe('hex2rgb', () => {
-    describe.each([
-      ['#ff0000', 255, 0, 0],
-      ['#ffff00', 255, 255, 0],
-      ['#0000ff', 0, 0, 255],
-      ['#112233', 17, 34, 51],
-      ['#888', 136, 136, 136],
-    ])('when given "%s"', (input, r, g, b) => {
-      test(`returns [${r},${g},${b}]`, () => {
-        expect(utils.hex2rgb(input)).toEqual([r, g, b]);
-      });
-    });
+const hexCases: Array<[string, [number, number, number]]> = [
+  ['#ff0000', [255, 0, 0]],
+  ['#ffff00', [255, 255, 0]],
+  ['#0000ff', [0, 0, 255]],
+  ['#112233', [17, 34, 51]],
+  ['#888', [136, 136, 136]],
+];
 
-    test('throws an Error when given "33"', () => {
-      function wrapper() {
-        utils.hex2rgb('33');
-      }
-      expect(wrapper).toThrow('isn\'t a supported hex color');
-    });
+describe('hex2rgb', () => {
+  test.each(hexCases)('parses %s', (input, expected) => {
+    expect(hex2rgb(input)).toEqual(expected);
+  });
+
+  test('throws for unsupported hex colors', () => {
+    expect(() => hex2rgb('33')).toThrow('33 isn\'t a supported hex color');
   });
 });
 
 describe('normalize', () => {
-  describe.each([
+  test.each([
     [0, 0, 0, 0],
     [61, 48, 61, 48],
     [-61, -48, -61, -48],
     [181, 85.06, -179, 85.0511],
     [-181, -85.06, 179, -85.0511],
-  ])('when given lon=%f and lat=%f', (lon, lat, expected_lon, expected_lat) => {
-    const input = {
-      lon,
-      lat,
-    };
-    test(`returns lon=${expected_lon} and lat=${expected_lat}`, () => {
-      const expected = {
-        lon: expected_lon,
-        lat: expected_lat,
-      };
-      expect(utils.normalize(input)).toEqual(expected);
-    });
+  ])('normalizes lon=%f lat=%f', (lon, lat, expectedLon, expectedLat) => {
+    expect(normalize({ lon, lat })).toEqual({ lon: expectedLon, lat: expectedLat });
   });
 });
