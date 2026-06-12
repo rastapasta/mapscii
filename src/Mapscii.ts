@@ -12,8 +12,14 @@ import Renderer, { Marker, HoverItem } from './Renderer';
 import { MarkerInput } from './Markers';
 import TileSource, { type TileCacheResetResult } from './TileSource';
 import * as utils from './utils';
-import config, { type ColorMode, type TerrainConfig } from './config';
-import InputHandler, { InputEvent, term } from './InputHandler';
+import config, {
+  applyMapsciiConfig,
+  createMapsciiConfig,
+  type ColorMode,
+  type MapsciiConfig,
+  type TerrainConfig,
+} from './config';
+import InputHandler, { InputEvent } from './InputHandler';
 import Canvas from './Canvas';
 import { getCurrentLocation } from './Geolocation';
 import { showHelpModal } from './HelpModal';
@@ -115,26 +121,29 @@ export default class Mapscii {
   private initialAnsiScreenshotSaved: boolean = false;
   private hoverItems: HoverItem[] = [];
   private listeners: Partial<Record<keyof MapsciiEventMap, Set<(payload: unknown) => void>>> = {};
+  private instanceConfig: MapsciiConfig;
 
   constructor(options: MapsciiOptions = {}) {
-    Object.assign(config, options);
+    const { markerInputs, locateOnStart, locationSource, ...configOptions } = options;
+    this.instanceConfig = createMapsciiConfig(configOptions);
 
     this.center = {
-      lat: config.initialLat,
-      lon: config.initialLon
+      lat: this.instanceConfig.initialLat,
+      lon: this.instanceConfig.initialLon
     };
 
     // Store marker inputs from options (will be added to renderer after init)
-    if (options.markerInputs) {
-      this.markerInputs = options.markerInputs;
+    if (markerInputs) {
+      this.markerInputs = markerInputs;
     }
 
     // Store locate-on-start settings
-    this.locateOnStart = options.locateOnStart ?? false;
-    this.locationSource = options.locationSource ?? '';
+    this.locateOnStart = locateOnStart ?? false;
+    this.locationSource = locationSource ?? '';
   }
 
   async init(): Promise<void> {
+    this._activateConfig();
     if (!config.headless) {
       this._initInput();
     }
@@ -181,22 +190,26 @@ export default class Mapscii {
   }
 
   featuresAt(x: number, y: number): HoverItem[] {
+    this._activateConfig();
     return this.renderer?.featuresAt(x, y) ?? [];
   }
 
   setCenter(lat: number, lon: number): void {
+    this._activateConfig();
     this.center = utils.normalize({ lat, lon });
     this.emit('move', this.getState());
     this._draw();
   }
 
   setZoom(zoom: number): void {
+    this._activateConfig();
     this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
     this.emit('zoom', this.getState());
     this._draw();
   }
 
   addMarker(input: MarkerInput): Marker | null {
+    this._activateConfig();
     const marker = this.renderer?.markerStore.upsertMarker(input) ?? null;
     if (marker) this.emit('marker:add', marker);
     this._draw();
@@ -204,6 +217,7 @@ export default class Mapscii {
   }
 
   removeMarker(id: string): boolean {
+    this._activateConfig();
     const removed = this.renderer?.markerStore.removeMarker(id) ?? false;
     if (removed) this.emit('marker:remove', { id });
     this._draw();
@@ -211,12 +225,14 @@ export default class Mapscii {
   }
 
   clearMarkers(): void {
+    this._activateConfig();
     this.renderer?.clearMarkers();
     this.emit('markers:clear', undefined);
     this._draw();
   }
 
   async resetTileCache(): Promise<TileCacheResetResult | null> {
+    this._activateConfig();
     const result = this.tileSource?.resetCache() ?? null;
     this._write('\x1B[2J');
     this._draw();
@@ -224,6 +240,7 @@ export default class Mapscii {
   }
 
   exportAnsiScreenshot(filePath?: string): string {
+    this._activateConfig();
     if (!this.renderer) {
       throw new Error('Renderer is not initialized');
     }
@@ -239,6 +256,7 @@ export default class Mapscii {
   }
 
   private async _initTileSource(): Promise<void> {
+    this._activateConfig();
     this.tileSource = new TileSource();
     await this.tileSource.init(config.source);
     this.maxZoom = this.tileSource.getMaxZoom();
@@ -247,14 +265,17 @@ export default class Mapscii {
     // zoom to 0 so every zoom level overzooms (scales) that single tile
     // instead of requesting tiles that don't exist.
     if (this.tileSource.isSingleVectorTile()) {
-      config.tileRange = 0;
+      this.instanceConfig.tileRange = 0;
+      this._activateConfig();
     }
   }
 
   private _initInput(): void {
+    this._activateConfig();
     this.inputHandler = new InputHandler(config.input as NodeJS.ReadStream, config.output);
 
     this.inputHandler.start((event: InputEvent) => {
+      this._activateConfig();
       switch (event.type) {
         case 'key':
           this._onKey({ name: event.key || '' });
@@ -290,6 +311,7 @@ export default class Mapscii {
   }
 
   private _handleMouseEvent(event: MouseEvent): void {
+    this._activateConfig();
     // Ignore mouse events during prompts
     if (this.isInPrompt) return;
 
@@ -319,6 +341,7 @@ export default class Mapscii {
   }
 
   private _initRenderer(): void {
+    this._activateConfig();
     const style = JSON.parse(fs.readFileSync(config.styleFile, 'utf8'));
     this.renderer = new Renderer(config.output, this.tileSource!, style);
 
@@ -347,6 +370,7 @@ export default class Mapscii {
   }
 
   private _resizeRenderer(): void {
+    this._activateConfig();
     // Canvas always uses 2x4 internal pixels per character cell (braille standard)
     // The cellGeometry config is used only for map projection aspect ratio correction
     this.width = config.size?.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
@@ -369,6 +393,7 @@ export default class Mapscii {
   }
 
   private _colrow2ll(x: number, y: number): utils.LatLon {
+    this._activateConfig();
     // Convert screen column/row to lat/lon
     // Screen coordinates are in character cells, internal uses 2x4 pixels
     const projected = {
@@ -525,6 +550,7 @@ export default class Mapscii {
   }
 
   private _onKey(key: { name: string }): void {
+    this._activateConfig();
     // Ignore keys when in a prompt (search, help, etc.)
     if (this.isInPrompt) return;
 
@@ -577,11 +603,13 @@ export default class Mapscii {
         this.moveBy(-6 / Math.pow(2, this.zoom), 0);
         break;
       case 'c':
-        config.useBraille = !config.useBraille;
+        this.instanceConfig.useBraille = !this.instanceConfig.useBraille;
+        this._activateConfig();
         break;
       case 't':
         // Toggle text labels and POI markers (minimal mode)
-        config.noLabels = !config.noLabels;
+        this.instanceConfig.noLabels = !this.instanceConfig.noLabels;
+        this._activateConfig();
         this.notify(config.noLabels ? 'Minimal mode (no text)' : 'Labels enabled');
         break;
       case 'm':
@@ -633,6 +661,7 @@ export default class Mapscii {
   }
 
   private _draw(): Promise<void> {
+    this._activateConfig();
     // Coalesce: keep at most one frame in flight and one pending, so rapid
     // input (drag/scroll) always ends with a frame of the latest state
     // instead of dropping it with "renderer is busy".
@@ -688,6 +717,7 @@ export default class Mapscii {
   }
 
   notify(text: string): void {
+    this._activateConfig();
     config.onUpdate?.();
     if (!config.headless) {
       const maxRow = config.output.rows || Math.floor(this.height / 4) + 1;
@@ -757,6 +787,7 @@ export default class Mapscii {
 
   // Handle search using SearchBox module
   private async _handleSearch(): Promise<void> {
+    this._activateConfig();
     this.isInPrompt = true;
 
     const result = await showSearchPrompt();
@@ -854,6 +885,7 @@ export default class Mapscii {
 
   // Handle help using HelpModal module
   private async _handleHelp(): Promise<void> {
+    this._activateConfig();
     this.isInPrompt = true;
 
     await showHelpModal({
@@ -869,6 +901,7 @@ export default class Mapscii {
 
   // Handle 3D globe view
   private async _handleGlobeView(): Promise<void> {
+    this._activateConfig();
     this.isInPrompt = true;
 
     // Collect markers from renderer
@@ -900,6 +933,7 @@ export default class Mapscii {
 
   // Go to current location - uses @derhuerst/location with IP fallback
   private async _gotoCurrentLocation(): Promise<void> {
+    this._activateConfig();
     this.notify('Getting location...');
 
     try {
@@ -913,6 +947,7 @@ export default class Mapscii {
 
   // Helper to set location and update display
   private _setLocationAndDraw(lat: number, lon: number, source: string): void {
+    this._activateConfig();
     // Add location marker (use 'O' as glyph for "you are here")
     this.renderer?.markerStore.upsertMarker({
       id: 'current-location',
@@ -932,15 +967,12 @@ export default class Mapscii {
   }
 
   private _write(output: string): void {
-    // Use terminal-kit's noFormat when InputHandler is active to avoid interference
-    if (this.inputHandler) {
-      term.noFormat(output);
-    } else {
-      config.output.write(output);
-    }
+    this._activateConfig();
+    config.output.write(output);
   }
 
   zoomBy(step: number): number {
+    this._activateConfig();
     if (this.zoom + step < this.minZoom) {
       return this.zoom = this.minZoom;
     }
@@ -952,10 +984,12 @@ export default class Mapscii {
   }
 
   moveBy(lat: number, lon: number): void {
+    this._activateConfig();
     this.setCenter(this.center.lat + lat, this.center.lon + lon);
   }
 
   private async _handleResetTileCache(): Promise<void> {
+    this._activateConfig();
     try {
       const result = await this.resetTileCache();
       const persistent = result?.persistentPaths.length ?? 0;
@@ -969,5 +1003,9 @@ export default class Mapscii {
 
   private emit<K extends keyof MapsciiEventMap>(event: K, payload: MapsciiEventMap[K]): void {
     this.listeners[event]?.forEach((handler) => handler(payload));
+  }
+
+  private _activateConfig(): void {
+    applyMapsciiConfig(this.instanceConfig);
   }
 }

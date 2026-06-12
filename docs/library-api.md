@@ -2,6 +2,13 @@
 
 MapSCII can be used as a Node.js library as well as a CLI.
 
+Each `Mapscii` instance stores its own option snapshot, so constructing a
+second instance does not overwrite the first instance's options. Interactive
+terminal input still uses `terminal-kit`'s process-level terminal singleton, so
+only one interactive terminal instance should be active at a time. Use
+`headless: true` for programmatic rendering, screenshots, or custom output
+streams.
+
 ```js
 import Mapscii from 'mapscii';
 

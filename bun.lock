@@ -32,6 +32,12 @@
       "optionalDependencies": {
         "wifi-triangulate": "^1.1.2",
       },
+      "peerDependencies": {
+        "@mapbox/mbtiles": "^0.12.1",
+      },
+      "optionalPeers": [
+        "@mapbox/mbtiles",
+      ],
     },
   },
   "packages": {

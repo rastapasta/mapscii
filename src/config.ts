@@ -174,4 +174,30 @@ const config: MapsciiConfig = {
   noLabels: false,
 };
 
+export function createMapsciiConfig(overrides: Partial<MapsciiConfig> = {}): MapsciiConfig {
+  return {
+    ...config,
+    ...overrides,
+    layers: {
+      ...config.layers,
+      ...(overrides.layers ?? {}),
+    },
+    cellGeometry: {
+      ...config.cellGeometry,
+      ...(overrides.cellGeometry ?? {}),
+    },
+    terrain: {
+      ...config.terrain,
+      ...(overrides.terrain ?? {}),
+    },
+    size: overrides.size
+      ? { ...overrides.size }
+      : (config.size ? { ...config.size } : undefined),
+  };
+}
+
+export function applyMapsciiConfig(next: MapsciiConfig): void {
+  Object.assign(config, next);
+}
+
 export default config;

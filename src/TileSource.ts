@@ -41,9 +41,9 @@ interface MBTilesInstance {
 
 type MBTilesConstructor = new (path: string, callback: (err: Error | null, mbtiles: MBTilesInstance) => void) => MBTilesInstance;
 
-// https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
-// To maximize MapSCII's compatibility, MBTiles support must be manually added via
-// $> npm install -g @mapbox/mbtiles
+// https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3).
+// To keep the default package install portable, MBTiles support is an optional
+// peer dependency and must be installed next to mapscii by consumers that need it.
 let MBTiles: MBTilesConstructor | null = null;
 try {
   MBTiles = (await import('@mapbox/mbtiles')).default as unknown as MBTilesConstructor;
@@ -101,7 +101,7 @@ export default class TileSource {
       this.maxZoom = config.maxZoom;
     } else if (this._isMBTilesSource(this.source)) {
       if (!MBTiles) {
-        throw new Error('MBTiles support must be installed with following command: \'npm install -g @mapbox/mbtiles\'');
+        throw new Error('MBTiles support requires installing optional peer dependency @mapbox/mbtiles in this project.');
       }
 
       this.mode = TileMode.MBTiles;

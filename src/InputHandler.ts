@@ -38,6 +38,22 @@ type ResizeHandler = (width: number, height: number) => void;
 // Export for direct access if needed
 export { term };
 
+/**
+ * Map terminal-kit key names to our key names. Single printable characters
+ * keep their case so uppercase bindings (e.g. S, R) can fire; consumers fall
+ * back to the lowercase binding themselves (see Mapscii._onKey).
+ */
+export function normalizeKeyName(name: string): string {
+  if (name === 'UP') return 'up';
+  if (name === 'DOWN') return 'down';
+  if (name === 'LEFT') return 'left';
+  if (name === 'RIGHT') return 'right';
+  if (name === 'ESCAPE') return 'escape';
+  if (name === 'CTRL_C') return 'q';
+  if (name.length > 1) return name.toLowerCase();
+  return name;
+}
+
 export default class InputHandler {
   private callback: EventCallback | null = null;
   private enabled: boolean = false;
@@ -79,20 +95,7 @@ export default class InputHandler {
   private _handleKey(name: string): void {
     if (!this.enabled || !this.callback) return;
 
-    // Map terminal-kit key names to our key names. Single printable
-    // characters keep their case so uppercase bindings (e.g. S, R) can
-    // fire; consumers fall back to the lowercase binding themselves.
-    let key = name;
-
-    if (name === 'UP') key = 'up';
-    else if (name === 'DOWN') key = 'down';
-    else if (name === 'LEFT') key = 'left';
-    else if (name === 'RIGHT') key = 'right';
-    else if (name === 'ESCAPE') key = 'escape';
-    else if (name === 'CTRL_C') key = 'q';
-    else if (name.length > 1) key = name.toLowerCase();
-
-    this.callback({ type: 'key', key });
+    this.callback({ type: 'key', key: normalizeKeyName(name) });
   }
 
   private _handleMouse(name: string, data: MouseData): void {

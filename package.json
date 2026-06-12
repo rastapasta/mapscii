@@ -4,8 +4,10 @@
   "description": "MapSCII is a Braille & ASCII world map renderer for your console, based on OpenStreetMap",
   "type": "module",
   "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
@@ -17,7 +19,10 @@
     "typecheck": "bun x tsc --noEmit",
     "lint": "bun x eslint src main.ts",
     "test": "bun test",
-    "build": "bun build main.ts index.ts --outdir ./dist --target node",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:js": "bun build main.ts index.ts --outdir ./dist --target node",
+    "build:types": "bun x tsc -p tsconfig.declarations.json",
+    "build": "bun run clean && bun run build:js && bun run build:types",
     "prepack": "bun run build",
     "prepublishOnly": "bun run typecheck && bun run build"
   },
@@ -31,6 +36,7 @@
   "files": [
     "bin/mapscii.js",
     "dist/",
+    "docs/*.md",
     "styles/*.json"
   ],
   "engines": {
@@ -66,6 +72,14 @@
   },
   "optionalDependencies": {
     "wifi-triangulate": "^1.1.2"
+  },
+  "peerDependencies": {
+    "@mapbox/mbtiles": "^0.12.1"
+  },
+  "peerDependenciesMeta": {
+    "@mapbox/mbtiles": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

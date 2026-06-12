@@ -354,6 +354,7 @@ export default class TileWorkerPool {
       timer.unref?.();
 
       this.pending.set(id, { resolve, reject, timer });
+      this._syncWorkerRef();
       worker.postMessage({
         type: 'parse',
         id,
@@ -369,7 +370,7 @@ export default class TileWorkerPool {
 
     this.worker = new Worker(WORKER_SOURCE, { eval: true });
     this.styleSentFor = null;
-    this.worker.unref();
+    this._syncWorkerRef();
     this.worker.on('message', (message: WorkerResponse) => this._onMessage(message));
     this.worker.on('error', (error) => this._failAll(error));
     this.worker.on('exit', (code) => {
@@ -387,6 +388,7 @@ export default class TileWorkerPool {
 
     this.pending.delete(message.id);
     clearTimeout(job.timer);
+    this._syncWorkerRef();
     if (message.error) {
       // A single bad tile is not a worker-health problem; the caller falls
       // back to main-thread parsing for it.
@@ -404,11 +406,13 @@ export default class TileWorkerPool {
     // Idempotent: error + exit for the same incident must only count once.
     if (!this.worker && this.pending.size === 0) return;
 
+    const failedWorker = this.worker;
     for (const job of this.pending.values()) {
       clearTimeout(job.timer);
       job.reject(error);
     }
     this.pending.clear();
+    failedWorker?.unref();
     this.worker = null;
     this.styleSentFor = null;
 
@@ -417,6 +421,15 @@ export default class TileWorkerPool {
     this.consecutiveFailures += 1;
     if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
       this.disabled = true;
+    }
+  }
+
+  private static _syncWorkerRef(): void {
+    if (!this.worker) return;
+    if (this.pending.size > 0) {
+      this.worker.ref();
+    } else {
+      this.worker.unref();
     }
   }
 }
