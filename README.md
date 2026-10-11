@@ -60,16 +60,29 @@ This is pretty simple too.
 mapscii
 ```
 
+### OpenMapTiles
+
+MapSCII also reads tiles in the [OpenMapTiles](https://openmaptiles.org/schema/)
+schema, the successor of osm2vectortiles: up-to-date OpenStreetMap data that
+you can build yourself (for example with [planetiler](https://github.com/onthegomap/planetiler))
+or download, and serve offline. Point MapSCII at any server that answers
+`<url>/{z}/{x}/{y}.pbf` and use the matching style:
+
+```
+mapscii --tile_source http://localhost:8080/data/v3/ --style_file styles/openmaptiles-dark.json
+```
+
 ## Keyboard shortcuts
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
-* Press **a** or **z** to zoom in and out
+* Press **a** or **z**, **+** or **-**, **Page Up** or **Page Down**, or **Shift+Up** or **Shift+Down** to zoom in and out
 * Press **c** to switch to block character mode
 * Press **q** to quit
 
 ## Mouse control
 
 If your terminal supports mouse events you can drag the map and use your scroll wheel to zoom in and out.
+Start with `--no-mouse` to leave the mouse to your terminal, for example to select text.
 
 ## Behind the scenes
 ### Libraries

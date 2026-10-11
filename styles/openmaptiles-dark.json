@@ -1,0 +1,423 @@
+{
+ "version": 8,
+ "name": "MapSCII dark for OpenMapTiles",
+ "layers": [
+  {
+   "id": "background",
+   "type": "background",
+   "paint": {
+    "background-color": "#000"
+   }
+  },
+  {
+   "id": "landcover_grass",
+   "type": "fill",
+   "source-layer": "landcover",
+   "filter": [
+    "==",
+    "class",
+    "grass"
+   ],
+   "paint": {
+    "fill-color": "#7b5"
+   }
+  },
+  {
+   "id": "landcover_wood",
+   "type": "line",
+   "source-layer": "landcover",
+   "filter": [
+    "==",
+    "class",
+    "wood"
+   ],
+   "paint": {
+    "line-color": "#6a4"
+   }
+  },
+  {
+   "id": "landcover_other",
+   "type": "line",
+   "source-layer": "landcover",
+   "filter": [
+    "in",
+    "class",
+    "farmland",
+    "wetland",
+    "sand",
+    "rock",
+    "ice"
+   ],
+   "paint": {
+    "line-color": "#5a4"
+   }
+  },
+  {
+   "id": "landuse_cemetery",
+   "type": "line",
+   "source-layer": "landuse",
+   "filter": [
+    "==",
+    "class",
+    "cemetery"
+   ],
+   "paint": {
+    "line-color": "#e0e4dd"
+   }
+  },
+  {
+   "id": "landuse_hospital",
+   "type": "line",
+   "source-layer": "landuse",
+   "filter": [
+    "==",
+    "class",
+    "hospital"
+   ],
+   "paint": {
+    "line-color": "#d9b"
+   }
+  },
+  {
+   "id": "landuse_school",
+   "type": "line",
+   "source-layer": "landuse",
+   "filter": [
+    "in",
+    "class",
+    "school",
+    "university",
+    "college",
+    "kindergarten"
+   ],
+   "paint": {
+    "line-color": "#f0e8f8"
+   }
+  },
+  {
+   "id": "landuse_pitch",
+   "type": "line",
+   "source-layer": "landuse",
+   "filter": [
+    "in",
+    "class",
+    "pitch",
+    "stadium",
+    "playground"
+   ],
+   "paint": {
+    "line-color": "#7b5"
+   }
+  },
+  {
+   "id": "park",
+   "type": "line",
+   "source-layer": "park",
+   "paint": {
+    "line-color": "#d8e8c8"
+   }
+  },
+  {
+   "id": "water",
+   "type": "fill",
+   "source-layer": "water",
+   "paint": {
+    "fill-color": "#5f87ff"
+   }
+  },
+  {
+   "id": "waterway",
+   "type": "line",
+   "source-layer": "waterway",
+   "paint": {
+    "line-color": "#a0c8f0"
+   }
+  },
+  {
+   "id": "aeroway",
+   "type": "line",
+   "source-layer": "aeroway",
+   "minzoom": 11,
+   "paint": {
+    "line-color": "#f0ede9"
+   }
+  },
+  {
+   "id": "building",
+   "type": "line",
+   "source-layer": "building",
+   "paint": {
+    "line-color": "#99b"
+   }
+  },
+  {
+   "id": "rail",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "in",
+    "class",
+    "rail",
+    "transit"
+   ],
+   "paint": {
+    "line-color": "#bbb"
+   }
+  },
+  {
+   "id": "motorway",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "==",
+    "class",
+    "motorway"
+   ],
+   "paint": {
+    "line-color": "#fc8"
+   }
+  },
+  {
+   "id": "trunk_primary",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "in",
+    "class",
+    "trunk",
+    "primary"
+   ],
+   "paint": {
+    "line-color": "#fea"
+   }
+  },
+  {
+   "id": "secondary_tertiary",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "in",
+    "class",
+    "secondary",
+    "tertiary"
+   ],
+   "paint": {
+    "line-color": "#fea"
+   }
+  },
+  {
+   "id": "path",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "in",
+    "class",
+    "path",
+    "pedestrian",
+    "footway",
+    "cycleway",
+    "bridleway",
+    "steps"
+   ],
+   "paint": {
+    "line-color": "#cba"
+   }
+  },
+  {
+   "id": "street",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "in",
+    "class",
+    "minor",
+    "service",
+    "track",
+    "raceway",
+    "busway"
+   ],
+   "paint": {
+    "line-color": "#fff"
+   }
+  },
+  {
+   "id": "ferry",
+   "type": "line",
+   "source-layer": "transportation",
+   "filter": [
+    "==",
+    "class",
+    "ferry"
+   ],
+   "paint": {
+    "line-color": "#74aee9"
+   }
+  },
+  {
+   "id": "boundary_maritime",
+   "type": "line",
+   "source-layer": "boundary",
+   "filter": [
+    "==",
+    "maritime",
+    1
+   ],
+   "paint": {
+    "line-color": "#9bf"
+   }
+  },
+  {
+   "id": "boundary_country",
+   "type": "line",
+   "source-layer": "boundary",
+   "filter": [
+    "==",
+    "admin_level",
+    2
+   ],
+   "paint": {
+    "line-color": "#fff"
+   }
+  },
+  {
+   "id": "boundary_state",
+   "type": "line",
+   "source-layer": "boundary",
+   "filter": [
+    "<=",
+    "admin_level",
+    4
+   ],
+   "paint": {
+    "line-color": "#aac"
+   }
+  },
+  {
+   "id": "water_name",
+   "type": "symbol",
+   "source-layer": "water_name",
+   "paint": {
+    "text-color": "#74aee9"
+   }
+  },
+  {
+   "id": "place_country",
+   "type": "symbol",
+   "source-layer": "place",
+   "filter": [
+    "in",
+    "class",
+    "continent",
+    "country"
+   ],
+   "paint": {
+    "text-color": "#ff0"
+   }
+  },
+  {
+   "id": "place_state",
+   "type": "symbol",
+   "source-layer": "place",
+   "filter": [
+    "==",
+    "class",
+    "state"
+   ],
+   "paint": {
+    "text-color": "#aac"
+   }
+  },
+  {
+   "id": "place_city",
+   "type": "symbol",
+   "source-layer": "place",
+   "filter": [
+    "==",
+    "class",
+    "city"
+   ],
+   "paint": {
+    "text-color": "#f00"
+   }
+  },
+  {
+   "id": "place_town",
+   "type": "symbol",
+   "source-layer": "place",
+   "filter": [
+    "==",
+    "class",
+    "town"
+   ],
+   "paint": {
+    "text-color": "#d33"
+   }
+  },
+  {
+   "id": "place_village",
+   "type": "symbol",
+   "source-layer": "place",
+   "filter": [
+    "==",
+    "class",
+    "village"
+   ],
+   "paint": {
+    "text-color": "#c33"
+   }
+  },
+  {
+   "id": "place_other",
+   "type": "symbol",
+   "source-layer": "place",
+   "paint": {
+    "text-color": "#b33"
+   }
+  },
+  {
+   "id": "poi",
+   "type": "symbol",
+   "source-layer": "poi",
+   "minzoom": 14,
+   "paint": {
+    "text-color": "#ee0"
+   }
+  },
+  {
+   "id": "aerodrome_label",
+   "type": "symbol",
+   "source-layer": "aerodrome_label",
+   "minzoom": 11,
+   "paint": {
+    "text-color": "#666"
+   }
+  },
+  {
+   "id": "mountain_peak",
+   "type": "symbol",
+   "source-layer": "mountain_peak",
+   "minzoom": 12,
+   "paint": {
+    "text-color": "#aaa"
+   }
+  },
+  {
+   "id": "road_name",
+   "type": "symbol",
+   "source-layer": "transportation_name",
+   "minzoom": 15.5,
+   "paint": {
+    "text-color": "#765"
+   }
+  },
+  {
+   "id": "housenumber",
+   "type": "symbol",
+   "source-layer": "housenumber",
+   "minzoom": 17,
+   "paint": {
+    "text-color": "#776"
+   }
+  }
+ ]
+}

@@ -1,8 +1,9 @@
 module.exports = {
   language: 'en',
 
-  // TODO: adapt to osm2vectortiles successor openmaptiles v3)
-  // mapscii.me hosts the last available version, 2016-06-20
+  // mapscii.me hosts the last osm2vectortiles version, 2016-06-20.
+  // Tiles in its successor's schema, OpenMapTiles, work too: pass their
+  // server with --tile_source and styles/openmaptiles-dark.json with --style_file.
   source: 'http://mapscii.me/',
 
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
@@ -24,6 +25,10 @@ module.exports = {
 
   useBraille: true,
 
+  // false leaves the mouse to the terminal: no dragging or wheel zoom, but
+  // text can be selected as usual
+  useMouse: true,
+
   // Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true,
 
@@ -44,6 +49,17 @@ module.exports = {
       cluster: true,
     },
     state_label: {
+      cluster: true,
+    },
+    // the same layers in OpenMapTiles
+    housenumber: {
+      margin: 4
+    },
+    poi: {
+      cluster: true,
+      margin: 5,
+    },
+    place: {
       cluster: true,
     },
   },

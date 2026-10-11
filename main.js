@@ -51,6 +51,11 @@ const argv = require('yargs')
     default: config.headless,
     type: 'boolean',
   })
+  .option('mouse', {
+    description: 'Use the mouse (--no-mouse leaves it to the terminal)',
+    default: config.useMouse,
+    type: 'boolean',
+  })
   .option('tile_source', {
     alias: 'tileSource',
     description: 'URL or path to osm2vectortiles source',
@@ -76,6 +81,7 @@ const options = {
   },
   useBraille: argv.braille,
   headless: argv.headless,
+  useMouse: argv.mouse,
   source: argv.tile_source,
   styleFile: argv.style_file,
 };

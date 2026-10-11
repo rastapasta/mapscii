@@ -144,7 +144,7 @@ class Renderer {
         for (const feature of layer.features) {
           // continue if feature.id and drawn[feature.id]
           // drawn[feature.id] = true;
-          if (layerId.match(/label/)) {
+          if (layerId.match(/label/) || feature.style.type === 'symbol') {
             labels.push({
               tile,
               feature,
@@ -293,29 +293,31 @@ class Renderer {
   }
 
   _generateDrawOrder(zoom) {
+    // mapscii.me (osm2vectortiles) and OpenMapTiles layer names
     if (zoom < 2) {
       return [
-        'admin',
+        'admin', 'boundary',
         'water',
         'country_label',
-        'marine_label',
+        'marine_label', 'water_name',
+        'place',
       ];
     } else {
       return [
-        'landuse',
-        'water',
+        'landuse', 'landcover', 'park',
+        'water', 'waterway',
         'marine_label',
         'building',
-        'road',
-        'admin',
+        'road', 'transportation', 'aeroway',
+        'admin', 'boundary',
         'country_label',
         'state_label',
-        'water_label',
-        'place_label',
+        'water_label', 'water_name',
+        'place_label', 'place',
         'rail_station_label',
-        'poi_label',
-        'road_label',
-        'housenum_label',
+        'poi_label', 'poi', 'aerodrome_label', 'mountain_peak',
+        'road_label', 'transportation_name',
+        'housenum_label', 'housenumber',
       ];
     }
   }
