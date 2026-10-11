@@ -113,8 +113,8 @@ class TileSource {
         .then((buffer) => {
           if (config.persistDownloadedTiles) {
             this._persistTile(z, x, y, buffer);
-            return buffer;
           }
+          return buffer;
         });
     }
     return promise.then((buffer) => {
