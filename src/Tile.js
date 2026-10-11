@@ -86,7 +86,7 @@ class Tile {
         // use feature.loadGeometry() again as soon as we got a 512 extent tileset
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
         const sort = feature.properties.localrank || feature.properties.scalerank;
-        const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
+        const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num || feature.properties.housenumber : void 0;
         if (style.type === 'fill') {
           // A feature can hold several polygons (each an outer ring and its
           // holes): draw and index each on its own, not every ring after
