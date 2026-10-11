@@ -82,6 +82,7 @@ mapscii --tile_source http://localhost:8080/data/v3/ --style_file styles/openmap
 ## Mouse control
 
 If your terminal supports mouse events you can drag the map and use your scroll wheel to zoom in and out.
+Start with `--no-mouse` to leave the mouse to your terminal, for example to select text.
 
 ## Behind the scenes
 ### Libraries

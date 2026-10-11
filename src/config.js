@@ -25,6 +25,10 @@ module.exports = {
 
   useBraille: true,
 
+  // false leaves the mouse to the terminal: no dragging or wheel zoom, but
+  // text can be selected as usual
+  useMouse: true,
+
   // Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true,
 

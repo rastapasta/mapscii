@@ -43,7 +43,9 @@ class Mapscii {
   async init() {
     if (!config.headless) {
       this._initKeyboard();
-      this._initMouse();
+      if (config.useMouse) {
+        this._initMouse();
+      }
     }
     this._initTileSource();
     this._initRenderer();
