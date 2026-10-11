@@ -75,7 +75,7 @@ mapscii --tile_source http://localhost:8080/data/v3/ --style_file styles/openmap
 ## Keyboard shortcuts
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
-* Press **a** or **z** to zoom in and out
+* Press **a** or **z**, **+** or **-**, **Page Up** or **Page Down**, or **Shift+Up** or **Shift+Down** to zoom in and out
 * Press **c** to switch to block character mode
 * Press **q** to quit
 

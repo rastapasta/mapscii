@@ -48,7 +48,7 @@ class Mapscii {
     this._initTileSource();
     this._initRenderer();
     this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    this.notify('Welcome to MapSCII! Arrows move, a/z, +/-, PgUp/PgDn or Shift+Up/Down zoom, q quits.');
   }
 
 
@@ -64,7 +64,7 @@ class Mapscii {
     }
     config.input.resume();
 
-    config.input.on('keypress', (ch, key) => this._onKey(key));
+    config.input.on('keypress', (ch, key) => this._onKey(key, ch));
   }
 
   _initMouse() {
@@ -206,8 +206,19 @@ class Mapscii {
     this.notify(this._getFooter());
   }
 
-  _onKey(key) {
+  _onKey(key, ch) {
     if (config.keyCallback && !config.keyCallback(key)) return;
+    // zoom: + and -, Page Up/Down, Shift+Up/Down (besides a and z)
+    if (ch === '+' || ch === '=' || (key && (key.name === 'pageup' || (key.shift && key.name === 'up')))) {
+      this.zoomBy(config.zoomStep);
+      this._draw();
+      return;
+    }
+    if (ch === '-' || (key && (key.name === 'pagedown' || (key.shift && key.name === 'down')))) {
+      this.zoomBy(-config.zoomStep);
+      this._draw();
+      return;
+    }
     if (!key || !key.name) return;
 
     // check if the pressed key is configured
