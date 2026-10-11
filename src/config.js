@@ -12,6 +12,10 @@ module.exports = {
 
   initialZoom: null,
   maxZoom: 18,
+  // Optional offline GeoNames FTS index, built with tools/maps-search-index.
+  searchDatabase: process.env.MAPSCII_SEARCH_DB || null,
+  sqliteCommand: process.env.MAPSCII_SQLITE || 'sqlite3',
+  searchZoom: 14,
   zoomStep: 0.2,
 
   // sf lat: 37.787946, lon: -122.407522

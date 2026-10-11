@@ -12,10 +12,12 @@ const TermMouse = require('term-mouse');
 const Renderer = require('./Renderer');
 const TileSource = require('./TileSource');
 const utils = require('./utils');
+const {Search, sqliteProvider, clip} = require('./Search');
 let config = require('./config');
 
 class Mapscii {
   constructor(options) {
+    config = Object.assign(config, options);
     this.width = null;
     this.height = null;
     this.canvas = null;
@@ -32,12 +34,22 @@ class Mapscii {
 
     this.zoom = 0;
     this.minZoom = null;
-    config = Object.assign(config, options);
 
     this.center = {
       lat: config.initialLat,
       lon: config.initialLon
     };
+
+    this.search = new Search({
+      provider: config.searchProvider || sqliteProvider(config.searchDatabase, config.sqliteCommand),
+      changed: () => this.notify(this._getFooter()),
+      select: point => {
+        this.setCenter(point.lat, point.lon);
+        this.zoom = Math.max(this.minZoom || 0, Math.min(config.maxZoom,
+          point.zoom === undefined ? config.searchZoom : point.zoom));
+        this._draw();
+      },
+    });
   }
 
   async init() {
@@ -50,7 +62,7 @@ class Mapscii {
     this._initTileSource();
     this._initRenderer();
     this._draw();
-    this.notify('Welcome to MapSCII! Arrows move, a/z, +/-, PgUp/PgDn or Shift+Up/Down zoom, q quits.');
+    this.notify('MapSCII: / searches, arrows move, a/z or +/- zoom, q quits.');
   }
 
 
@@ -123,6 +135,7 @@ class Mapscii {
   }
 
   _onClick(event) {
+    if (this.search.active) return;
     if (event.x < 0 || event.x > this.width/2 || event.y < 0 || event.y > this.height/4) {
       return;
     }
@@ -138,6 +151,7 @@ class Mapscii {
   }
 
   _onMouseScroll(event) {
+    if (this.search.active) return;
     this._updateMousePosition(event);
 
     // the location of the pointer, where we want to zoom toward
@@ -170,6 +184,7 @@ class Mapscii {
   }
 
   _onMouseMove(event) {
+    if (this.search.active) return;
     if (event.x < 0 || event.x > this.width/2 || event.y < 0 || event.y > this.height/4) {
       return;
     }
@@ -209,7 +224,13 @@ class Mapscii {
   }
 
   _onKey(key, ch) {
+    if (this.search.active) return this.search.key(key, ch);
     if (config.keyCallback && !config.keyCallback(key)) return;
+    if (ch === '/') {
+      this.mouseDragging = false;
+      this.search.open();
+      return;
+    }
     // zoom: + and -, Page Up/Down, Shift+Up/Down (besides a and z)
     if (ch === '+' || ch === '=' || (key && (key.name === 'pageup' || (key.shift && key.name === 'up')))) {
       this.zoomBy(config.zoomStep);
@@ -292,7 +313,8 @@ class Mapscii {
   notify(text) {
     config.onUpdate && config.onUpdate();
     if (!config.headless) {
-      this._write('\r\x1B[K' + text);
+      const width = Math.max(0, (config.output.columns || 80) - 1);
+      this._write('\r\x1B[K' + (this.search.active ? this.search.footer(width) : clip(text, width)));
     }
   }
 

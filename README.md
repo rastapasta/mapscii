@@ -14,6 +14,8 @@ If you're on Windows, use the open source telnet client [PuTTY](https://www.chia
 
 ## Features
 
+* Offline place-name and coordinate search with `/`; see [SEARCH.md](SEARCH.md).
+
 * Use your mouse to drag and zoom in and out!
 * Discover Point-of-Interests around any given location
 * Highly customizable layer styling with [Mapbox Styles](https://www.mapbox.com/mapbox-gl-style-spec/) support

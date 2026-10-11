@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Build MapSCII's offline place index from a GeoNames TSV or ZIP (Python 3)."""
+import argparse
+import contextlib
+import datetime
+import io
+import math
+import os
+from pathlib import Path
+import sqlite3
+import sys
+import tempfile
+import unicodedata
+import urllib.request
+import zipfile
+
+ATTRIBUTION = "GeoNames (https://www.geonames.org), CC BY 4.0"
+
+
+@contextlib.contextmanager
+def source_text(source):
+    if zipfile.is_zipfile(source):
+        with zipfile.ZipFile(source) as archive:
+            members = [m for m in archive.infolist() if m.filename.endswith('.txt')
+                       and Path(m.filename).name.lower() not in ('readme.txt', 'license.txt')]
+            if len(members) != 1:
+                raise ValueError('ZIP must contain one GeoNames data .txt file')
+            # Stream the member; never extract archive paths onto the filesystem.
+            with archive.open(members[0]) as data:
+                with io.TextIOWrapper(data, encoding='utf-8-sig') as text:
+                    yield text
+    else:
+        with open(source, encoding='utf-8-sig') as text:
+            yield text
+
+
+def normalized(text):
+    return ''.join(c for c in unicodedata.normalize('NFKD', text)
+                   if not '\u0300' <= c <= '\u036f')
+
+
+def build(source, output, replace=False, provenance=None):
+    output = Path(output).expanduser()
+    if output.exists() and not replace:
+        raise ValueError(f'{output} exists; use --replace to rebuild it')
+    output.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.maps-search-', suffix='.sqlite', dir=output.parent)
+    os.close(fd)
+    count = skipped = 0
+    try:
+        with contextlib.closing(sqlite3.connect(temporary)) as db:
+            db.executescript('''
+                CREATE TABLE places(id INTEGER PRIMARY KEY, name TEXT NOT NULL,
+                    label TEXT NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL,
+                    population INTEGER NOT NULL);
+                CREATE VIRTUAL TABLE place_names USING fts5(names,
+                    tokenize='unicode61 remove_diacritics 2');
+                CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            ''')
+            with source_text(source) as stream:
+                while True:
+                    line = stream.readline(1024 * 1024 + 1)
+                    if not line:
+                        break
+                    if len(line) > 1024 * 1024:
+                        raise ValueError('GeoNames row exceeds 1 MiB')
+                    fields = line.rstrip('\r\n').split('\t')
+                    try:
+                        if len(fields) != 19 or not fields[1]:
+                            raise ValueError()
+                        place_id = int(fields[0])
+                        lat, lon = float(fields[4]), float(fields[5])
+                        population = int(fields[14] or '0')
+                        if not (math.isfinite(lat) and math.isfinite(lon) and
+                                -90 <= lat <= 90 and -180 <= lon <= 180 and
+                                0 < place_id < 2**63 and 0 <= population < 2**63):
+                            raise ValueError()
+                    except (ValueError, IndexError):
+                        skipped += 1
+                        continue
+                    name = fields[1]
+                    label = ', '.join(p for p in [name, fields[10], fields[8]] if p)
+                    inserted = db.execute('INSERT OR IGNORE INTO places VALUES (?, ?, ?, ?, ?, ?)',
+                                          (place_id, name, label, lat, lon, population)).rowcount
+                    if not inserted:
+                        skipped += 1
+                        continue
+                    names = normalized(' '.join([name, fields[2], fields[3].replace(',', ' '),
+                                                  fields[8], fields[10]]))
+                    db.execute('INSERT INTO place_names(rowid, names) VALUES (?, ?)', (place_id, names))
+                    count += 1
+            if not count:
+                raise ValueError('No valid 19-column GeoNames records; old index was kept')
+            db.executemany('INSERT INTO metadata VALUES (?, ?)', [
+                ('format', 'mapscii-geonames-1'), ('attribution', ATTRIBUTION),
+                ('license', 'https://creativecommons.org/licenses/by/4.0/'),
+                ('source', provenance or str(Path(source).resolve())),
+                ('created_utc', datetime.datetime.now(datetime.timezone.utc).isoformat()),
+                ('places', str(count)),
+            ])
+            db.execute("INSERT INTO place_names(place_names) VALUES ('optimize')")
+            db.commit()
+        with open(temporary, 'rb') as ready:
+            os.fsync(ready.fileno())
+        os.chmod(temporary, 0o644)
+        if replace:
+            os.replace(temporary, output)
+        else:
+            # Atomic, without replacing an index created by another process meanwhile.
+            os.link(temporary, output)
+            os.unlink(temporary)
+    finally:
+        for suffix in ('', '-journal', '-wal', '-shm'):
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary + suffix)
+    return count, skipped
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('source', nargs='?', help='GeoNames 19-column TSV or ZIP')
+    parser.add_argument('--download', choices=['cities500', 'cities1000', 'cities5000', 'cities15000'],
+                        help='explicitly download one GeoNames city dataset over HTTPS')
+    parser.add_argument('--output', type=Path, default=Path(os.environ.get(
+        'XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'maps/search.sqlite')
+    parser.add_argument('--replace', action='store_true', help='atomically replace an existing index')
+    args = parser.parse_args()
+    if bool(args.source) == bool(args.download):
+        parser.error('provide either a source file or --download DATASET')
+    try:
+        if args.download:
+            url = f'https://download.geonames.org/export/dump/{args.download}.zip'
+            with tempfile.TemporaryDirectory(prefix='maps-search-') as folder:
+                source = Path(folder) / (args.download + '.zip')
+                request = urllib.request.Request(url, headers={'User-Agent': 'MapSCII-offline-index/1'})
+                with urllib.request.urlopen(request, timeout=60) as response, source.open('wb') as file:
+                    total = 0
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        total += len(chunk)
+                        if total > 512 * 1024 * 1024:
+                            raise ValueError('city download exceeds 512 MiB')
+                        file.write(chunk)
+                count, skipped = build(source, args.output, args.replace, url)
+        else:
+            count, skipped = build(args.source, args.output, args.replace)
+    except (OSError, ValueError, sqlite3.Error, zipfile.BadZipFile) as error:
+        parser.exit(1, f'maps-search-index: {error}\n')
+    print(f'{count:,} places indexed; {skipped:,} rows skipped: {args.output}')
+    print(ATTRIBUTION)
+
+
+if __name__ == '__main__':
+    main()
