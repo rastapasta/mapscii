@@ -7,6 +7,7 @@
   * local MBTiles and VectorTiles
 */
 'use strict';
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
@@ -43,6 +44,7 @@ class TileSource {
     this.styler = null;
     
     if (this.source.startsWith('http')) {
+      this.cacheDir = TileSource.cacheDir(this.source);
       if (config.persistDownloadedTiles) {
         this._initPersistence();
       }
@@ -141,9 +143,19 @@ class TileSource {
     return tile.load(buffer);
   }
 
+  // Tiles from mapscii.me stay where they always were; any other server gets
+  // its own folder, so tiles of different sources or schemas never mix.
+  static cacheDir(source) {
+    if (source === 'http://mapscii.me/') {
+      return paths.cache;
+    }
+    const id = crypto.createHash('sha256').update(source).digest('hex').slice(0, 16);
+    return path.join(paths.cache, 'sources', id);
+  }
+
   _initPersistence() {
     try {
-      this._createFolder(paths.cache);
+      this._createFolder(this.cacheDir);
     } catch (error) {
       config.persistDownloadedTiles = false;
     }
@@ -151,14 +163,14 @@ class TileSource {
 
   _persistTile(z, x, y, buffer) {
     const zoom = z.toString();
-    this._createFolder(path.join(paths.cache, zoom));
-    const filePath = path.join(paths.cache, zoom, `${x}-${y}.pbf`);
+    this._createFolder(path.join(this.cacheDir, zoom));
+    const filePath = path.join(this.cacheDir, zoom, `${x}-${y}.pbf`);
     return fs.writeFile(filePath, buffer, () => null);
   }
 
   _getPersited(z, x, y) {
     try {
-      return fs.readFileSync(path.join(paths.cache, z.toString(), `${x}-${y}.pbf`));
+      return fs.readFileSync(path.join(this.cacheDir, z.toString(), `${x}-${y}.pbf`));
     } catch (error) {
       return false;
     }
@@ -166,7 +178,7 @@ class TileSource {
 
   _createFolder(path) {
     try {
-      fs.mkdirSync(path);
+      fs.mkdirSync(path, {recursive: true});
       return true;
     } catch (error) {
       if (error.code === 'EEXIST') return true;
