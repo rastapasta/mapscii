@@ -88,15 +88,20 @@ class Tile {
         const sort = feature.properties.localrank || feature.properties.scalerank;
         const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
         if (style.type === 'fill') {
-          nodes.push(this._addBoundaries(true, {
-            //            id: feature.id
-            layer: name,
-            style,
-            label,
-            sort,
-            points: geometries,
-            color: colorCode,
-          }));
+          // A feature can hold several polygons (each an outer ring and its
+          // holes): draw and index each on its own, not every ring after
+          // the first as a hole of the first.
+          for (const polygon of this._classifyRings(geometries)) {
+            nodes.push(this._addBoundaries(true, {
+              //            id: feature.id
+              layer: name,
+              style,
+              label,
+              sort,
+              points: polygon,
+              color: colorCode,
+            }));
+          }
         } else {
           for (const points of geometries) {
             nodes.push(this._addBoundaries(false, {
@@ -138,6 +143,30 @@ class Tile {
     data.minY = minY;
     data.maxY = maxY;
     return data;
+  }
+
+  // Split rings into polygons: an outer ring has the winding of the first
+  // ring, a hole the opposite one (as in @mapbox/vector-tile's toGeoJSON).
+  _classifyRings(rings) {
+    if (rings.length <= 1) return [rings];
+    const polygons = [];
+    let polygon, ccw;
+    for (const ring of rings) {
+      let area = 0;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        area += (ring[j].x - ring[i].x) * (ring[i].y + ring[j].y);
+      }
+      if (area === 0) continue;
+      if (ccw === undefined) ccw = area < 0;
+      if (ccw === area < 0) {
+        if (polygon) polygons.push(polygon);
+        polygon = [ring];
+      } else if (polygon) {
+        polygon.push(ring);
+      }
+    }
+    if (polygon) polygons.push(polygon);
+    return polygons;
   }
 
   _reduceGeometry(feature, factor) {
