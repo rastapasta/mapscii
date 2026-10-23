@@ -32,6 +32,9 @@ class Mapscii {
 
     this.zoom = 0;
     this.minZoom = null;
+
+    this.drawTimer = null;
+    this.lastDrawAt = 0;
     config = Object.assign(config, options);
 
     this.center = {
@@ -41,20 +44,24 @@ class Mapscii {
   }
 
   async init() {
+    await this._initTileSource();
     if (!config.headless) {
       this._initKeyboard();
       this._initMouse();
     }
-    this._initTileSource();
     this._initRenderer();
     this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    const attribution = this.tileSource.attribution ? `  Map: ${this.tileSource.attribution}` : '';
+    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.' + attribution);
   }
 
 
   _initTileSource() {
     this.tileSource = new TileSource();
-    this.tileSource.init(config.source);
+    const ready = this.tileSource.init(config.source);
+    // redraw whenever a requested tile arrived (or failed to)
+    this.tileSource.onTileLoaded = () => this._draw();
+    return ready;
   }
 
   _initKeyboard() {
@@ -255,13 +262,24 @@ class Mapscii {
     }
   }
 
+  // Draws the current view as soon as possible. Many requests in a short time
+  // (key repeat, mouse drags, arriving tiles) are combined into one frame, and
+  // no more than config.maxFps frames per second are drawn.
   _draw() {
-    this.renderer.draw(this.center, this.zoom).then((frame) => {
-      this._write(frame);
-      this.notify(this._getFooter());
-    }).catch(() => {
-      this.notify('renderer is busy');
-    });
+    if (this.drawTimer) {
+      return;
+    }
+    const wait = Math.max(0, this.lastDrawAt + 1000 / config.maxFps - Date.now());
+    this.drawTimer = setTimeout(() => {
+      this.drawTimer = null;
+      this.lastDrawAt = Date.now();
+      this.renderer.draw(this.center, this.zoom).then((frame) => {
+        this._write(frame);
+        this.notify(this._getFooter());
+      }).catch(() => {
+        this.notify('renderer is busy');
+      });
+    }, wait);
   }
 
   _getFooter() {
@@ -272,6 +290,19 @@ class Mapscii {
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+    const pending = this.renderer.pendingTiles();
+    if (pending) {
+      footer += `  loading ${pending} tile${pending > 1 ? 's' : ''}… `;
+    }
+    // the map data's attribution, right-aligned if there is room for it
+    const attribution = this.tileSource.attribution;
+    if (attribution) {
+      // (it would wrap the line otherwise - it is shown in full at startup)
+      const space = (config.output.columns || 0) - 1 - footer.length - attribution.length;
+      if (space > 0) {
+        footer += ' '.repeat(space) + attribution;
+      }
     }
     return footer;
   }

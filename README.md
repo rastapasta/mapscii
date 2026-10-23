@@ -60,6 +60,37 @@ This is pretty simple too.
 mapscii
 ```
 
+## Map data sources
+
+MapSCII can draw tiles from these sources, chosen with `--tile_source`:
+
+* `mapscii` (default) - [mapscii.me](https://mapscii.me), [OSM2VectorTiles](https://github.com/osm2vectortiles) data from 2016. Small tiles, quick to download.
+* `openfreemap` - [OpenFreeMap](https://openfreemap.org), current [OpenStreetMap](https://www.openstreetmap.org) data in the [OpenMapTiles](https://openmaptiles.org/schema/) schema, updated weekly. Many more names and details (shops, bus stops, house numbers with the `bright` style), but about twice the download size.
+
+```
+mapscii --tile_source openfreemap
+```
+
+Any other vector tile server works too: pass a [TileJSON](https://github.com/mapbox/tilejson-spec) URL, a tile URL with `{z}/{x}/{y}`, a base URL ending in `/`, or a local `.mbtiles` file. The data schema (OSM2VectorTiles or OpenMapTiles) is detected from a TileJSON; for other sources set it with `--tile_schema openmaptiles` if needed.
+
+## Offline use and faster loading
+
+Every tile MapSCII downloads is kept in a disk cache, so a place you have visited once loads instantly the next time, even without a network connection. While you look at the map, MapSCII also downloads the tiles around the view, and one zoom level in and out, in the background.
+
+To make an area available right away, download it in one go: give the centre and a radius in kilometres.
+
+```
+mapscii --lat 3.848 --lon 11.502 --download 5
+```
+
+Add `--tile_source openfreemap` to download from OpenFreeMap instead. This saves every tile within 5 km of the centre, from the whole-world view down to street level (zoom 14), then exits. Use `--download_max_zoom` to stop at a lower zoom level, e.g. `--download 200 --download_max_zoom 10` for a whole region without street detail. Afterwards, start MapSCII at that place as usual:
+
+```
+mapscii --lat 3.848 --lon 11.502 --zoom 14
+```
+
+The cache lives in `~/.cache/mapscii-nodejs` on Linux, `~/Library/Caches/mapscii-nodejs` on macOS and `%LOCALAPPDATA%\mapscii-nodejs\Cache` on Windows. Each tile source gets its own folder in it. It is safe to delete at any time.
+
 ## Keyboard shortcuts
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
@@ -125,6 +156,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 * [lukasmartinelli](https://github.com/lukasmartinelli) & [manuelroth](https://github.com/manuelroth) for all their work on [OSM2VectorTiles](https://github.com/osm2vectortiles) (global vector tiles from [OSM Planet](https://wiki.openstreetmap.org/wiki/Planet.osm))
 * [mourner](https://github.com/mourner) for all his work on mindblowing GIS algorithms (like the used [earcut](https://github.com/mapbox/earcut), [rbush](https://github.com/mourner/rbush), [simplify-js](https://github.com/mourner/simplify-js), ..)
+* Lister for the 2026 improvements to tile loading, offline caching (`--download`) and label placement
 
 ## Licenses
 
