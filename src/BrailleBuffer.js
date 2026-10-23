@@ -51,7 +51,15 @@ class BrailleBuffer {
     this.backgroundBuffer = Buffer.alloc(size);
 
     this._mapBraille();
+    this.setClip(null);
     this.clear();
+  }
+
+  setClip(clip) {
+    this.clipMinX = clip ? Math.max(0, Math.ceil(clip.minX)) : 0;
+    this.clipMinY = clip ? Math.max(0, Math.ceil(clip.minY)) : 0;
+    this.clipMaxX = clip ? Math.min(this.width, Math.ceil(clip.maxX)) : this.width;
+    this.clipMaxY = clip ? Math.min(this.height, Math.ceil(clip.maxY)) : this.height;
   }
 
   clear() {
@@ -90,7 +98,7 @@ class BrailleBuffer {
   }
 
   _locate(x, y, cb) {
-    if (!((0 <= x && x < this.width) && (0 <= y && y < this.height))) {
+    if (x < this.clipMinX || x >= this.clipMaxX || y < this.clipMinY || y >= this.clipMaxY) {
       return;
     }
     const idx = this._project(x, y);
@@ -147,21 +155,27 @@ class BrailleBuffer {
   }
 
   frame() {
-    const output = [];
-    let currentColor = null;
-    let skip = 0;
+    return this.frameLines().join(config.delimeter) + termReset + config.delimeter;
+  }
+
+  // The frame as one string per terminal row. Every row sets its own colors,
+  // so rows can be redrawn on their own.
+  frameLines() {
+    const lines = [];
+    const columns = this.width/2;
+    const colorCodes = {};
 
     for (let y = 0; y < this.height/4; y++) {
-      skip = 0;
+      const output = [];
+      let currentColor = null;
+      let skip = 0;
 
-      for (let x = 0; x < this.width/2; x++) {
-        const idx = y*this.width/2 + x;
+      for (let x = 0; x < columns; x++) {
+        const idx = y*columns + x;
 
-        if (idx && !x) {
-          output.push(config.delimeter);
-        }
-
-        const colorCode = this._termColor(this.foregroundBuffer[idx], this.backgroundBuffer[idx]);
+        const colorKey = (this.foregroundBuffer[idx] << 8) | this.backgroundBuffer[idx];
+        const colorCode = colorCodes[colorKey] ||
+          (colorCodes[colorKey] = this._termColor(this.foregroundBuffer[idx], this.backgroundBuffer[idx]));
         if (currentColor !== colorCode) {
           output.push(currentColor = colorCode);
         }
@@ -169,7 +183,7 @@ class BrailleBuffer {
         const char = this.charBuffer[idx];
         if (char) {
           skip += stringWidth(char)-1;
-          if (skip+x < this.width/2) {
+          if (skip+x < columns) {
             output.push(char);
           }
         } else {
@@ -184,10 +198,9 @@ class BrailleBuffer {
           }
         }
       }
+      lines.push(output.join(''));
     }
-
-    output.push(termReset+config.delimeter);
-    return output.join('');
+    return lines;
   }
 
   setChar(char, x, y, color) {

@@ -3,7 +3,7 @@ module.exports = {
 
   // TODO: adapt to osm2vectortiles successor openmaptiles v3)
   // mapscii.me hosts the last available version, 2016-06-20
-  source: 'http://mapscii.me/',
+  source: 'https://mapscii.me/',
 
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
 
@@ -27,18 +27,40 @@ module.exports = {
   // Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true,
 
+  // How many parsed tiles to keep in memory (a dense city tile takes ~5MB)
+  tileCacheSize: 40,
+  // Parallel downloads of visible tiles (like a web browser), and how many may wait in line.
+  // Slow links are often limited per connection, so parallel downloads pay off.
+  maxConcurrentDownloads: 6,
+  maxQueuedDownloads: 64,
+  // Download tiles around the view (and one zoom level in and out) when no visible tile is waiting
+  prefetch: true,
+  maxConcurrentPrefetches: 4,
+  // Never more connections than this to the tile server
+  maxConnections: 8,
+  // Give up on a tile request after this many ms, and retry it after tileRetryDelay
+  tileRequestTimeout: 20000,
+  tileRetryDelay: 10000,
+  // Upper limit for redraws per second
+  maxFps: 30,
+
   tileRange: 14,
   projectSize: 256,
 
-  labelMargin: 5,
+  // Free space (in characters) kept around each name
+  labelMargin: 2,
+  // Show every name there is room for, regardless of its zoom level in the style
+  showAllLabels: true,
+  // A repeated name (e.g. a long street) only shows again this far (in pixels) from its other copy
+  labelRepeatDistance: {x: 80, y: 40},
 
   layers: {
     housenum_label: {
-      margin: 4
+      margin: 1
     },
     poi_label: {
       cluster: true,
-      margin: 5,
+      margin: 2,
     },
     place_label: {
       cluster: true,
