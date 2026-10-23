@@ -63,6 +63,16 @@ const argv = require('yargs')
     default: config.styleFile,
     type: 'string',
   })
+  .option('download', {
+    description: 'Download all tiles within this many km around the centre to the disk cache, then exit',
+    type: 'number',
+  })
+  .option('download_max_zoom', {
+    alias: 'downloadMaxZoom',
+    description: 'Highest zoom level to download with --download',
+    default: config.tileRange,
+    type: 'number',
+  })
   .strict()
   .argv;
 
@@ -80,8 +90,25 @@ const options = {
   styleFile: argv.style_file,
 };
 
-const mapscii = new Mapscii(options);
-mapscii.init().catch((err) => {
-  console.error('Failed to start MapSCII.');
-  console.error(err);
-});
+if (argv.download) {
+  // Fill the disk cache for an area, so it can later be viewed fast and offline
+  const TileSource = require('./src/TileSource');
+  const tileSource = new TileSource();
+  tileSource.init(argv.tile_source);
+  console.log(`Downloading tiles within ${argv.download} km of ${argv.latitude}, ${argv.longitude} (zoom 0-${argv.download_max_zoom})...`);
+  tileSource.downloadArea(argv.latitude, argv.longitude, argv.download, argv.download_max_zoom, (done, total, failed) => {
+    process.stdout.write(`\r${done}/${total} tiles${failed ? `, ${failed} failed` : ''}`);
+  }).then(({total, failed}) => {
+    console.log(`\nDone: ${total - failed} of ${total} tiles are in the disk cache.`);
+    process.exit(failed ? 1 : 0);
+  }).catch((err) => {
+    console.error(`\n${err.message}`);
+    process.exit(1);
+  });
+} else {
+  const mapscii = new Mapscii(options);
+  mapscii.init().catch((err) => {
+    console.error('Failed to start MapSCII.');
+    console.error(err);
+  });
+}
