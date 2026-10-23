@@ -14,6 +14,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const http = require('http');
 const https = require('https');
 const fetch = require('node-fetch');
@@ -23,6 +24,7 @@ const paths = envPaths('mapscii');
 const Tile = require('./Tile');
 const config = require('./config');
 const utils = require('./utils');
+const OpenMapTiles = require('./OpenMapTiles');
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 // To maximize MapSCII’s compatibility, MBTiles support must be manually added via
@@ -44,8 +46,11 @@ const httpAgent = new http.Agent(agentOptions);
 const httpsAgent = new https.Agent(agentOptions);
 
 class TileSource {
+  // source: a name from config.sources (e.g. 'openfreemap'), a TileJSON URL, a tile
+  // URL template with {z}/{x}/{y}, a base URL ending in '/', or an .mbtiles file
   init(source) {
-    this.source = source;
+    this.sourceName = config.sources[source] ? source : null;
+    this.source = config.sources[source] || source;
 
     // parsed tiles, kept in least-recently-used order (Map keeps insertion order)
     this.cache = new Map();
@@ -76,13 +81,24 @@ class TileSource {
     this.mbtiles = null;
     this.styler = null;
     this.ready = Promise.resolve();
+    // the data schema of the tiles, see Tile
+    this.schema = config.tileSchema || 'osm2vectortiles';
+    this.attribution = null;
 
     if (this.source.startsWith('http')) {
+      this.cacheDir = this._cacheDirFor(this.source);
       if (config.persistDownloadedTiles) {
         this._initPersistence();
       }
 
       this.mode = modes.HTTP;
+      if (this.source.includes('{z}')) {
+        this.tileUrl = this.source;
+      } else if (this.source.endsWith('/')) {
+        this.tileUrl = this.source + '{z}/{x}/{y}.pbf';
+      } else {
+        this.ready = this._loadTileJSON(this.source);
+      }
 
     } else if (this.source.endsWith('.mbtiles')) {
       if (!MBTiles) {
@@ -95,6 +111,57 @@ class TileSource {
       throw new Error('source type isn\'t supported yet');
     }
     return this.ready;
+  }
+
+  // Tiles of the default source live directly in the cache folder (as they always
+  // did), every other source gets its own folder, so their data never mixes
+  _cacheDirFor(source) {
+    if (source === 'https://mapscii.me/' || source === 'http://mapscii.me/') {
+      return paths.cache;
+    }
+    const name = this.sourceName || source.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9.-]+/g, '_');
+    return path.join(paths.cache, name);
+  }
+
+  // Reads a TileJSON (https://github.com/mapbox/tilejson-spec) for the tile URL,
+  // zoom range, schema and attribution. A copy is kept for offline use.
+  async _loadTileJSON(url) {
+    const copy = path.join(this.cacheDir, 'tilejson.json');
+    let tilejson;
+    try {
+      const res = await fetch(url, {
+        agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? httpAgent : httpsAgent,
+        timeout: config.tileRequestTimeout,
+      });
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      tilejson = await res.json();
+      if (config.persistDownloadedTiles) {
+        this._createFolder(this.cacheDir);
+        fs.writeFile(copy, JSON.stringify(tilejson), () => null);
+      }
+    } catch (error) {
+      try {
+        tilejson = JSON.parse(fs.readFileSync(copy, 'utf8'));
+      } catch (copyError) {
+        throw new Error(`could not load the tile source description ${url}: ${error.message}`);
+      }
+    }
+    if (!tilejson.tiles || !tilejson.tiles.length) {
+      throw new Error(`${url} lists no tiles`);
+    }
+    this.tileUrl = tilejson.tiles[0];
+    if (!config.tileSchema && OpenMapTiles.matches(tilejson.vector_layers)) {
+      this.schema = 'openmaptiles';
+    }
+    if (tilejson.maxzoom !== undefined) {
+      config.tileRange = Math.min(config.tileRange, tilejson.maxzoom);
+    }
+    if (tilejson.attribution) {
+      // the attribution is HTML meant for web maps
+      this.attribution = tilejson.attribution.replace(/<[^>]*>/g, '').replace(/&copy;/g, '©').replace(/\s+/g, ' ').trim();
+    }
   }
 
   loadMBTiles(source) {
@@ -221,7 +288,7 @@ class TileSource {
     }
 
     promise = promise.then((buffer) => {
-      return new Tile(this.styler).load(buffer);
+      return new Tile(this.styler, this.schema).load(buffer);
     }).then((tile) => {
       this.loading.delete(key);
       this.wanted.delete(key);
@@ -409,15 +476,29 @@ class TileSource {
   }
 
   async _download(z, x, y) {
-    const url = this.source + [z, x, y].join('/') + '.pbf';
-    const res = await fetch(url, {
-      agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? httpAgent : httpsAgent,
-      timeout: config.tileRequestTimeout,
-    });
-    if (!res.ok) {
-      throw new Error(`could not load tile ${url}: HTTP ${res.status}`);
+    const url = this.tileUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await fetch(url, {
+          agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? httpAgent : httpsAgent,
+          timeout: config.tileRequestTimeout,
+        });
+        if (!res.ok) {
+          const error = new Error(`could not load tile ${url}: HTTP ${res.status}`);
+          error.retry = res.status >= 500;
+          throw error;
+        }
+        return await res.buffer();
+      } catch (error) {
+        // dropped connections (e.g. a kept-alive one the server just closed) and
+        // server hiccups are worth another try right away - timeouts and 404s aren't
+        const retry = error.retry || (error.type === 'system');
+        if (!retry || attempt >= config.tileRequestRetries) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      }
     }
-    return res.buffer();
   }
 
   _getMBTile(z, x, y) {
@@ -433,15 +514,25 @@ class TileSource {
 
   _initPersistence() {
     try {
-      this._createFolder(paths.cache);
+      this._createFolder(this.cacheDir);
     } catch (error) {
       config.persistDownloadedTiles = false;
     }
   }
 
   _persistTile(z, x, y, buffer) {
+    // servers which compress tiles only for the transfer hand them over unzipped -
+    // they are stored zipped, which takes about a third of the space
+    if (buffer[0] !== 0x1f || buffer[1] !== 0x8b) {
+      zlib.gzip(buffer, (err, zipped) => {
+        if (!err) {
+          this._persistTile(z, x, y, zipped);
+        }
+      });
+      return;
+    }
     try {
-      this._createFolder(path.join(paths.cache, z.toString()));
+      this._createFolder(path.join(this.cacheDir, z.toString()));
       const filePath = this._persistPath(z, x, y);
       // write to a temporary file first, so an interrupted write never leaves a broken tile behind
       const tmpPath = `${filePath}.${process.pid}.tmp`;
@@ -469,7 +560,7 @@ class TileSource {
   }
 
   _persistPath(z, x, y) {
-    return path.join(paths.cache, z.toString(), `${x}-${y}.pbf`);
+    return path.join(this.cacheDir, z.toString(), `${x}-${y}.pbf`);
   }
 
   _createFolder(path) {

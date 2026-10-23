@@ -51,7 +51,8 @@ class Mapscii {
     }
     this._initRenderer();
     this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    const attribution = this.tileSource.attribution ? `  Map: ${this.tileSource.attribution}` : '';
+    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.' + attribution);
   }
 
 
@@ -293,6 +294,15 @@ class Mapscii {
     const pending = this.renderer.pendingTiles();
     if (pending) {
       footer += `  loading ${pending} tile${pending > 1 ? 's' : ''}… `;
+    }
+    // the map data's attribution, right-aligned if there is room for it
+    const attribution = this.tileSource.attribution;
+    if (attribution) {
+      // (it would wrap the line otherwise - it is shown in full at startup)
+      const space = (config.output.columns || 0) - 1 - footer.length - attribution.length;
+      if (space > 0) {
+        footer += ' '.repeat(space) + attribution;
+      }
     }
     return footer;
   }

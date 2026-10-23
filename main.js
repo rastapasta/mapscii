@@ -53,8 +53,14 @@ const argv = require('yargs')
   })
   .option('tile_source', {
     alias: 'tileSource',
-    description: 'URL or path to osm2vectortiles source',
+    description: `Tile source: ${Object.keys(config.sources).join(' or ')}, a TileJSON URL, a tile URL with {z}/{x}/{y}, or an .mbtiles file`,
     default: config.source,
+    type: 'string',
+  })
+  .option('tile_schema', {
+    alias: 'tileSchema',
+    description: 'Data schema of the tile source (detected for TileJSON sources)',
+    choices: ['osm2vectortiles', 'openmaptiles'],
     type: 'string',
   })
   .option('style_file', {
@@ -89,15 +95,20 @@ const options = {
   source: argv.tile_source,
   styleFile: argv.style_file,
 };
+if (argv.tile_schema) {
+  config.tileSchema = argv.tile_schema;
+}
 
 if (argv.download) {
   // Fill the disk cache for an area, so it can later be viewed fast and offline
   const TileSource = require('./src/TileSource');
   const tileSource = new TileSource();
-  tileSource.init(argv.tile_source);
-  console.log(`Downloading tiles within ${argv.download} km of ${argv.latitude}, ${argv.longitude} (zoom 0-${argv.download_max_zoom})...`);
-  tileSource.downloadArea(argv.latitude, argv.longitude, argv.download, argv.download_max_zoom, (done, total, failed) => {
-    process.stdout.write(`\r${done}/${total} tiles${failed ? `, ${failed} failed` : ''}`);
+  Promise.resolve(tileSource.init(argv.tile_source)).then(() => {
+    const maxZoom = Math.min(argv.download_max_zoom, config.tileRange);
+    console.log(`Downloading tiles within ${argv.download} km of ${argv.latitude}, ${argv.longitude} (zoom 0-${maxZoom})...`);
+    return tileSource.downloadArea(argv.latitude, argv.longitude, argv.download, maxZoom, (done, total, failed) => {
+      process.stdout.write(`\r${done}/${total} tiles${failed ? `, ${failed} failed` : ''}`);
+    });
   }).then(({total, failed}) => {
     console.log(`\nDone: ${total - failed} of ${total} tiles are in the disk cache.`);
     process.exit(failed ? 1 : 0);
