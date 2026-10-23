@@ -1,17 +1,16 @@
 module.exports = {
   language: 'en',
 
-  // TODO: adapt to osm2vectortiles successor openmaptiles v3)
-  // mapscii.me hosts the last available version, 2016-06-20
-  source: 'https://mapscii.me/',
+  // A name from sources below, or any source TileSource understands
+  source: 'openfreemap',
 
-  // Tile sources which can be chosen by name, e.g. --tile_source openfreemap
+  // Tile sources which can be chosen by name, e.g. --tile_source mapscii
   sources: {
-    // mapscii.me: osm2vectortiles data from 2016, small tiles
-    mapscii: 'https://mapscii.me/',
     // OpenFreeMap: current OpenStreetMap data (updated weekly) in the OpenMapTiles
-    // schema, more names and details, but about twice the download size
+    // schema, served through a CDN; larger tiles with many more names and details
     openfreemap: 'https://tiles.openfreemap.org/planet',
+    // mapscii.me hosts the last available osm2vectortiles version, 2016-06-20
+    mapscii: 'https://mapscii.me/',
   },
 
   // Data schema of the tile source: 'osm2vectortiles' or 'openmaptiles'.

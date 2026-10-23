@@ -64,11 +64,11 @@ mapscii
 
 MapSCII can draw tiles from these sources, chosen with `--tile_source`:
 
-* `mapscii` (default) - [mapscii.me](https://mapscii.me), [OSM2VectorTiles](https://github.com/osm2vectortiles) data from 2016. Small tiles, quick to download.
-* `openfreemap` - [OpenFreeMap](https://openfreemap.org), current [OpenStreetMap](https://www.openstreetmap.org) data in the [OpenMapTiles](https://openmaptiles.org/schema/) schema, updated weekly. Many more names and details (shops, bus stops, house numbers with the `bright` style), but about twice the download size.
+* `openfreemap` (default) - [OpenFreeMap](https://openfreemap.org), current [OpenStreetMap](https://www.openstreetmap.org) data in the [OpenMapTiles](https://openmaptiles.org/schema/) schema, updated weekly and served through a CDN. Many names and details (shops, bus stops, house numbers with the `bright` style).
+* `mapscii` - [mapscii.me](https://mapscii.me), [OSM2VectorTiles](https://github.com/osm2vectortiles) data from 2016. Smaller tiles, but far fewer names.
 
 ```
-mapscii --tile_source openfreemap
+mapscii --tile_source mapscii
 ```
 
 Any other vector tile server works too: pass a [TileJSON](https://github.com/mapbox/tilejson-spec) URL, a tile URL with `{z}/{x}/{y}`, a base URL ending in `/`, or a local `.mbtiles` file. The data schema (OSM2VectorTiles or OpenMapTiles) is detected from a TileJSON; for other sources set it with `--tile_schema openmaptiles` if needed.
@@ -83,7 +83,7 @@ To make an area available right away, download it in one go: give the centre and
 mapscii --lat 3.848 --lon 11.502 --download 5
 ```
 
-Add `--tile_source openfreemap` to download from OpenFreeMap instead. This saves every tile within 5 km of the centre, from the whole-world view down to street level (zoom 14), then exits. Use `--download_max_zoom` to stop at a lower zoom level, e.g. `--download 200 --download_max_zoom 10` for a whole region without street detail. Afterwards, start MapSCII at that place as usual:
+Add `--tile_source mapscii` to download from mapscii.me instead. This saves every tile within 5 km of the centre, from the whole-world view down to street level (zoom 14), then exits. Use `--download_max_zoom` to stop at a lower zoom level, e.g. `--download 200 --download_max_zoom 10` for a whole region without street detail. Afterwards, start MapSCII at that place as usual:
 
 ```
 mapscii --lat 3.848 --lon 11.502 --zoom 14
