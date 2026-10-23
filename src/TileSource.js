@@ -129,14 +129,7 @@ class TileSource {
     const copy = path.join(this.cacheDir, 'tilejson.json');
     let tilejson;
     try {
-      const res = await fetch(url, {
-        agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? httpAgent : httpsAgent,
-        timeout: config.tileRequestTimeout,
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      tilejson = await res.json();
+      tilejson = JSON.parse((await this._fetch(url)).toString('utf8'));
       if (config.persistDownloadedTiles) {
         this._createFolder(this.cacheDir);
         fs.writeFile(copy, JSON.stringify(tilejson), () => null);
@@ -475,8 +468,12 @@ class TileSource {
     }
   }
 
-  async _download(z, x, y) {
-    const url = this.tileUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y);
+  _download(z, x, y) {
+    return this._fetch(this.tileUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+  }
+
+  // Fetches a URL into a Buffer
+  async _fetch(url) {
     for (let attempt = 0; ; attempt++) {
       try {
         const res = await fetch(url, {
@@ -484,7 +481,7 @@ class TileSource {
           timeout: config.tileRequestTimeout,
         });
         if (!res.ok) {
-          const error = new Error(`could not load tile ${url}: HTTP ${res.status}`);
+          const error = new Error(`could not load ${url}: HTTP ${res.status}`);
           error.retry = res.status >= 500;
           throw error;
         }
