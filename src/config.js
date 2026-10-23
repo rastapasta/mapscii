@@ -5,6 +5,19 @@ module.exports = {
   // mapscii.me hosts the last available version, 2016-06-20
   source: 'https://mapscii.me/',
 
+  // Tile sources which can be chosen by name, e.g. --tile_source openfreemap
+  sources: {
+    // mapscii.me: osm2vectortiles data from 2016, small tiles
+    mapscii: 'https://mapscii.me/',
+    // OpenFreeMap: current OpenStreetMap data (updated weekly) in the OpenMapTiles
+    // schema, more names and details, but about twice the download size
+    openfreemap: 'https://tiles.openfreemap.org/planet',
+  },
+
+  // Data schema of the tile source: 'osm2vectortiles' or 'openmaptiles'.
+  // null detects it from a TileJSON source and assumes osm2vectortiles otherwise.
+  tileSchema: null,
+
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
 
   styleFile: __dirname+'/../styles/dark.json',
@@ -40,6 +53,8 @@ module.exports = {
   maxConnections: 8,
   // Give up on a tile request after this many ms, and retry it after tileRetryDelay
   tileRequestTimeout: 20000,
+  // Retries right away after a dropped connection or a server error
+  tileRequestRetries: 2,
   tileRetryDelay: 10000,
   // Upper limit for redraws per second
   maxFps: 30,
