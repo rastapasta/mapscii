@@ -13,10 +13,18 @@ const x256 = require('x256');
 
 const config = require('./config');
 const utils = require('./utils');
+const OpenMapTiles = require('./OpenMapTiles');
+
+const schemas = {
+  openmaptiles: OpenMapTiles.translate,
+};
 
 class Tile {
-  constructor(styler) {
+  // schema: the tile source's data schema; anything but osm2vectortiles gets
+  // translated into it, which is what the styles are written for
+  constructor(styler, schema) {
     this.styler = styler;
+    this.translate = schemas[schema] || null;
   }
 
   load(buffer) {
@@ -53,18 +61,24 @@ class Tile {
   }
 
   _loadLayers() {
-    const layers = {};
+    const nodesByLayer = {};
+    const extents = {};
     const colorCache = {};
-    for (const name in this.tile.layers) {
-      const layer = this.tile.layers[name];
-      const nodes = [];
-      //continue if name is 'water'
+    for (const sourceLayer in this.tile.layers) {
+      const layer = this.tile.layers[sourceLayer];
       for (let i = 0; i < layer.length; i++) {
-        // TODO: caching of similar attributes to avoid looking up the style each time
-        //continue if @styler and not @styler.getStyleFor layer, feature
-
         const feature = layer.feature(i);
-        feature.properties.$type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        const type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        let name = sourceLayer;
+        if (this.translate) {
+          const translated = this.translate(sourceLayer, feature.properties, type);
+          if (!translated) {
+            continue;
+          }
+          name = translated.layer;
+          feature.properties = translated.properties;
+        }
+        feature.properties.$type = type;
         let style;
         if (this.styler) {
           style = this.styler.getStyleFor(name, feature);
@@ -87,6 +101,8 @@ class Tile {
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
         const sort = feature.properties.localrank || feature.properties.scalerank;
         const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
+        const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
+        extents[name] = layer.extent;
         if (style.type === 'fill') {
           nodes.push(this._addBoundaries(true, {
             //            id: feature.id
@@ -111,10 +127,14 @@ class Tile {
           }
         }
       }
+    }
+
+    const layers = {};
+    for (const name in nodesByLayer) {
       const tree = new RBush(18);
-      tree.load(nodes);
+      tree.load(nodesByLayer[name]);
       layers[name] = {
-        extent: layer.extent,
+        extent: extents[name],
         tree,
       };
     }

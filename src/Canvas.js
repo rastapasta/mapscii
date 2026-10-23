@@ -26,6 +26,10 @@ class Canvas {
     return this.buffer.frame();
   }
 
+  frameLines() {
+    return this.buffer.frameLines();
+  }
+
   clear() {
     this.buffer.clear();
   }
@@ -44,6 +48,11 @@ class Canvas {
       const y1 = points[i - 1].y;
       this._line(x1, y1, points[i].x, points[i].y, width, color);
     }
+  }
+
+  // Restricts drawing to the given {minX, minY, maxX, maxY} area, null to lift it
+  setClip(clip) {
+    this.buffer.setClip(clip);
   }
 
   setBackground(color) {
