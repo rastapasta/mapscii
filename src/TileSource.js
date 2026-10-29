@@ -40,8 +40,15 @@ const modes = {
   HTTP: 3,
 };
 
-// Reuse connections instead of doing a TCP + TLS handshake for every tile
-const agentOptions = {keepAlive: true, maxSockets: config.maxConnections};
+// Reuse connections instead of doing a TCP + TLS handshake for every tile.
+// Node tries a host's addresses one after another and by default gives each only
+// 250ms to connect - too little for slow links, where every attempt would fail
+// for hosts with several addresses (like CDNs).
+const agentOptions = {
+  keepAlive: true,
+  maxSockets: config.maxConnections,
+  autoSelectFamilyAttemptTimeout: config.connectAttemptTimeout,
+};
 const httpAgent = new http.Agent(agentOptions);
 const httpsAgent = new https.Agent(agentOptions);
 

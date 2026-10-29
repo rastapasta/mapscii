@@ -52,6 +52,8 @@ module.exports = {
   maxConnections: 8,
   // Give up on a tile request after this many ms, and retry it after tileRetryDelay
   tileRequestTimeout: 20000,
+  // How long to wait for a connection to each of a server's addresses
+  connectAttemptTimeout: 5000,
   // Retries right away after a dropped connection or a server error
   tileRequestRetries: 2,
   tileRetryDelay: 10000,
