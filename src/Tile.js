@@ -104,15 +104,18 @@ class Tile {
         const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
         extents[name] = layer.extent;
         if (style.type === 'fill') {
-          nodes.push(this._addBoundaries(true, {
-            //            id: feature.id
-            layer: name,
-            style,
-            label,
-            sort,
-            points: geometries,
-            color: colorCode,
-          }));
+          // one feature can hold several polygons, each an outer ring followed by its holes
+          for (const polygon of classifyRings(geometries)) {
+            nodes.push(this._addBoundaries(true, {
+              //            id: feature.id
+              layer: name,
+              style,
+              label,
+              sort,
+              points: polygon,
+              color: colorCode,
+            }));
+          }
         } else {
           for (const points of geometries) {
             nodes.push(this._addBoundaries(false, {
@@ -182,6 +185,48 @@ class Tile {
   }
 }
 
+// Splits the rings of a polygon feature into polygons: the first ring's winding
+// order marks outer rings, the opposite order holes of the polygon before.
+// (The same approach as classifyRings in @mapbox/vector-tile.)
+function classifyRings(rings) {
+  if (rings.length <= 1) {
+    return [rings];
+  }
+  const polygons = [];
+  let polygon = null;
+  let outerIsNegative;
+  for (const ring of rings) {
+    const area = signedArea(ring);
+    if (area === 0) {
+      continue;
+    }
+    if (outerIsNegative === undefined) {
+      outerIsNegative = area < 0;
+    }
+    if (outerIsNegative === area < 0) {
+      if (polygon) {
+        polygons.push(polygon);
+      }
+      polygon = [ring];
+    } else if (polygon) {
+      polygon.push(ring);
+    }
+  }
+  if (polygon) {
+    polygons.push(polygon);
+  }
+  return polygons;
+}
+
+function signedArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j].x - ring[i].x) * (ring[i].y + ring[j].y);
+  }
+  return sum;
+}
+
 Tile.prototype.layers = {};
+Tile.classifyRings = classifyRings;
 
 module.exports = Tile;

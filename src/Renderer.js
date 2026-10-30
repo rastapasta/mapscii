@@ -6,6 +6,7 @@
 */
 'use strict';
 const x256 = require('x256');
+const stringWidth = require('string-width');
 const simplify = require('simplify-js');
 
 const Canvas = require('./Canvas');
@@ -480,7 +481,8 @@ class Renderer {
     }
     const layerMargin = (config.layers[feature.layer] || {}).margin;
     const margin = layerMargin || config.labelMargin;
-    const width = text.length * 2;
+    // in pixels: two per terminal column, and e.g. Japanese characters take two columns
+    const width = stringWidth(text) * 2;
 
     for (const point of this._scaleAndReduce(tile, feature, feature.points, scale)) {
       if (!this._labelAnchorUsable(tile, point)) {
@@ -491,7 +493,7 @@ class Renderer {
         return true;
       }
       // keep the whole name on screen instead of cutting it off at the edge
-      const x = Math.max(0, Math.min(this.width - width, point.x - text.length));
+      const x = Math.max(0, Math.min(this.width - width, point.x - width / 2));
       if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
         this.canvas.text(text, x, point.y, feature.color);
         this._seen[text] = (this._seen[text] || []).concat(point);
