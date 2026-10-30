@@ -32,6 +32,7 @@ class Mapscii {
 
     this.zoom = 0;
     this.minZoom = null;
+    this.sourceError = null;
 
     this.drawTimer = null;
     this.lastDrawAt = 0;
@@ -44,15 +45,28 @@ class Mapscii {
   }
 
   async init() {
-    await this._initTileSource();
+    // the map and keyboard work right away, even while the tile source is still
+    // being looked up - tiles simply show up once it is ready
+    const ready = this._initTileSource();
     if (!config.headless) {
       this._initKeyboard();
       this._initMouse();
     }
     this._initRenderer();
     this._draw();
-    const attribution = this.tileSource.attribution ? `  Map: ${this.tileSource.attribution}` : '';
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.' + attribution);
+    const welcome = 'Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.';
+    this.notify(welcome);
+    try {
+      await ready;
+    } catch (error) {
+      // keep running: the source is tried again with the next tile request
+      this.sourceError = error.message;
+      this.notify(this.sourceError);
+      return;
+    }
+    if (this.tileSource.attribution) {
+      this.notify(`${welcome}  Map: ${this.tileSource.attribution}`);
+    }
   }
 
 
@@ -60,7 +74,12 @@ class Mapscii {
     this.tileSource = new TileSource();
     const ready = this.tileSource.init(config.source);
     // redraw whenever a requested tile arrived (or failed to)
-    this.tileSource.onTileLoaded = () => this._draw();
+    this.tileSource.onTileLoaded = () => {
+      if (this.sourceError && this.tileSource.tileUrl) {
+        this.sourceError = null;
+      }
+      this._draw();
+    };
     return ready;
   }
 
@@ -290,6 +309,9 @@ class Mapscii {
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+    if (this.sourceError) {
+      footer += `  ${this.sourceError} `;
     }
     const pending = this.renderer.pendingTiles();
     if (pending) {

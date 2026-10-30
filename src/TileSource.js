@@ -104,7 +104,7 @@ class TileSource {
       } else if (this.source.endsWith('/')) {
         this.tileUrl = this.source + '{z}/{x}/{y}.pbf';
       } else {
-        this.ready = this._loadTileJSON(this.source);
+        this.ready = this._whenReady();
       }
 
     } else if (this.source.endsWith('.mbtiles')) {
@@ -131,23 +131,40 @@ class TileSource {
   }
 
   // Reads a TileJSON (https://github.com/mapbox/tilejson-spec) for the tile URL,
-  // zoom range, schema and attribution. A copy is kept for offline use.
+  // zoom range, schema and attribution. A copy is kept on disk: when there is one,
+  // MapSCII starts with it right away and fetches a fresh one in the background
+  // (for the following downloads), instead of waiting for the network.
   async _loadTileJSON(url) {
     const copy = path.join(this.cacheDir, 'tilejson.json');
-    let tilejson;
+    let saved = null;
     try {
-      tilejson = JSON.parse((await this._fetch(url)).toString('utf8'));
+      saved = JSON.parse(fs.readFileSync(copy, 'utf8'));
+      this._useTileJSON(saved, url);
+    } catch (error) {
+      saved = null;
+    }
+
+    const fresh = this._fetch(url).then((buffer) => {
+      const tilejson = JSON.parse(buffer.toString('utf8'));
+      this._useTileJSON(tilejson, url);
       if (config.persistDownloadedTiles) {
         this._createFolder(this.cacheDir);
         fs.writeFile(copy, JSON.stringify(tilejson), () => null);
       }
-    } catch (error) {
-      try {
-        tilejson = JSON.parse(fs.readFileSync(copy, 'utf8'));
-      } catch (copyError) {
-        throw new Error(`could not load the tile source description ${url}: ${error.message}`);
-      }
+    });
+
+    if (saved) {
+      fresh.catch(() => null);
+      return;
     }
+    try {
+      await fresh;
+    } catch (error) {
+      throw new Error(`could not load the tile source description ${url}: ${error.message}`);
+    }
+  }
+
+  _useTileJSON(tilejson, url) {
     if (!tilejson.tiles || !tilejson.tiles.length) {
       throw new Error(`${url} lists no tiles`);
     }
@@ -277,18 +294,22 @@ class TileSource {
       return this.loading.get(key);
     }
 
-    let promise;
-    switch (this.mode) {
-      case modes.MBTiles:
-        promise = this._getMBTile(z, x, y);
-        break;
-      case modes.HTTP:
-        promise = this._getHTTP(z, x, y);
-        break;
-    }
+    // even tiles from the disk cache wait for the source: its TileJSON says how
+    // to read them
+    let promise = this._whenReady().then(() => {
+      switch (this.mode) {
+        case modes.MBTiles:
+          return this._getMBTile(z, x, y);
+        case modes.HTTP:
+          return this._getHTTP(z, x, y);
+      }
+    });
 
     promise = promise.then((buffer) => {
-      return new Tile(this.styler, this.schema).load(buffer);
+      return new Tile(this.styler, this.schema).load(buffer).catch((error) => {
+        error.corrupt = true;
+        throw error;
+      });
     }).then((tile) => {
       this.loading.delete(key);
       this.wanted.delete(key);
@@ -302,7 +323,7 @@ class TileSource {
       if (!error.cancelled) {
         this.failed.set(key, Date.now() + config.tileRetryDelay);
         // a tile that can't be parsed must not stay in the disk cache
-        if (this.mode === modes.HTTP && config.persistDownloadedTiles) {
+        if (error.corrupt && this.mode === modes.HTTP && config.persistDownloadedTiles) {
           this.onDisk.delete(key);
           fs.unlink(this._persistPath(z, x, y), () => null);
         }
@@ -352,6 +373,40 @@ class TileSource {
       }
     }));
     return {total: tiles.length, failed};
+  }
+
+  // Resolves once tiles can be loaded, i.e. the TileJSON or MBTiles file is read.
+  // A TileJSON which could not be loaded is tried again after tileRetryDelay; once
+  // it is there, the tiles which failed meanwhile are loaded right away.
+  _whenReady() {
+    if (this.mode !== modes.HTTP) {
+      return this.ready;
+    }
+    if (this.tileUrl) {
+      return Promise.resolve();
+    }
+    if (!this.tileJSONLoading) {
+      this.tileJSONLoading = this._loadTileJSON(this.source).then(() => {
+        if (this.sourceFailed) {
+          this.sourceFailed = false;
+          this.failed.clear();
+          this._notify(null);
+        }
+      }, (error) => {
+        this.sourceFailed = true;
+        // until the next try, requests fail right away instead of asking again
+        clearTimeout(this.tileJSONRetry);
+        this.tileJSONRetry = setTimeout(() => {
+          this.tileJSONLoading = null;
+          this._whenReady().catch(() => null);
+        }, config.tileRetryDelay);
+        if (this.tileJSONRetry.unref) {
+          this.tileJSONRetry.unref();
+        }
+        throw error;
+      });
+    }
+    return this.tileJSONLoading;
   }
 
   _notify(key) {
@@ -475,7 +530,8 @@ class TileSource {
     }
   }
 
-  _download(z, x, y) {
+  async _download(z, x, y) {
+    await this._whenReady();
     return this._fetch(this.tileUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
   }
 
