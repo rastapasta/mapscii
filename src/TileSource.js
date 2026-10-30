@@ -28,7 +28,8 @@ const OpenMapTiles = require('./OpenMapTiles');
 
 // https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
 // To maximize MapSCII’s compatibility, MBTiles support must be manually added via
-// $> npm install -g @mapbox/mbtiles
+// $> npm install -g @mapbox/mbtiles        (if MapSCII is installed with npm -g)
+// $> npm install --no-save @mapbox/mbtiles (in the MapSCII folder, e.g. a git clone)
 let MBTiles = null;
 try {
   MBTiles = require('@mapbox/mbtiles');
@@ -109,7 +110,7 @@ class TileSource {
 
     } else if (this.source.endsWith('.mbtiles')) {
       if (!MBTiles) {
-        throw new Error('MBTiles support must be installed with following command: \'npm install -g @mapbox/mbtiles\'');
+        throw new Error('MBTiles support must be installed first: \'npm install -g @mapbox/mbtiles\' if MapSCII is installed with npm -g, or \'npm install --no-save @mapbox/mbtiles\' in the MapSCII folder');
       }
 
       this.mode = modes.MBTiles;
@@ -188,7 +189,16 @@ class TileSource {
           return reject(err);
         }
         this.mbtiles = mbtiles;
-        resolve();
+        // the file's metadata lists its layers, which tell its schema
+        mbtiles.getInfo((infoErr, info) => {
+          if (!infoErr && info && !config.tileSchema && OpenMapTiles.matches(info.vector_layers)) {
+            this.schema = 'openmaptiles';
+          }
+          if (!infoErr && info && info.attribution) {
+            this.attribution = info.attribution.replace(/<[^>]*>/g, '').replace(/&copy;/g, '©').replace(/\s+/g, ' ').trim();
+          }
+          resolve();
+        });
       });
     });
   }

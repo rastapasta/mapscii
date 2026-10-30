@@ -71,7 +71,9 @@ MapSCII can draw tiles from these sources, chosen with `--tile_source`:
 mapscii --tile_source openfreemap
 ```
 
-Any other vector tile server works too: pass a [TileJSON](https://github.com/mapbox/tilejson-spec) URL, a tile URL with `{z}/{x}/{y}`, a base URL ending in `/`, or a local `.mbtiles` file. The data schema (OSM2VectorTiles or OpenMapTiles) is detected from a TileJSON; for other sources set it with `--tile_schema openmaptiles` if needed.
+Any other vector tile server works too: pass a [TileJSON](https://github.com/mapbox/tilejson-spec) URL, a tile URL with `{z}/{x}/{y}`, a base URL ending in `/`, or a local `.mbtiles` file. The data schema (OSM2VectorTiles or OpenMapTiles) is detected from a TileJSON or an `.mbtiles` file; for other sources set it with `--tile_schema openmaptiles` if needed.
+
+`.mbtiles` files need the optional [`@mapbox/mbtiles`](https://github.com/mapbox/node-mbtiles) package (about 16 MB): `npm install -g @mapbox/mbtiles` if MapSCII was installed with `npm install -g mapscii`, or `npm install --no-save @mapbox/mbtiles` in a MapSCII checkout.
 
 ## Offline use and faster loading
 
