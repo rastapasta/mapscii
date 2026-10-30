@@ -44,7 +44,8 @@ class Renderer {
     this.previousLines = null;
   }
 
-  async draw(center, zoom) {
+  // markers: places to point out on the map, as [{lat, lon}]
+  async draw(center, zoom, markers = []) {
     if (this.isDrawing) return Promise.reject();
     this.isDrawing = true;
 
@@ -75,7 +76,15 @@ class Renderer {
       for (const tile of tiles) {
         this._getTileFeatures(tile, zoom);
       }
+      // markers get their place before the labels, so no name covers them
+      const markerPositions = this._markerPositions(center, zoom, markers);
+      for (const position of markerPositions) {
+        this.labelBuffer.writeIfPossible(config.locationMarker, position.x, position.y, null, 2);
+      }
       this._renderTiles(tiles, zoom);
+      for (const position of markerPositions) {
+        this.canvas.text(config.locationMarker, position.x, position.y, config.locationMarkerColor);
+      }
       return this._getFrame();
     } catch(e) {
       console.error(e);
@@ -121,6 +130,28 @@ class Renderer {
       }
     }
     return tiles;
+  }
+
+  // screen positions of the markers which are on screen
+  _markerPositions(center, zoom, markers) {
+    const z = utils.baseZoom(zoom);
+    const size = utils.tilesizeAtZoom(zoom);
+    const gridSize = Math.pow(2, z);
+    const c = utils.ll2tile(center.lon, center.lat, z);
+    const positions = [];
+    for (const marker of markers) {
+      const m = utils.ll2tile(marker.lon, utils.clamp(marker.lat, -85.0511, 85.0511), z);
+      // the shorter way round the world
+      let dx = m.x - c.x;
+      if (dx > gridSize / 2) dx -= gridSize;
+      if (dx < -gridSize / 2) dx += gridSize;
+      const x = Math.round(this.width / 2 + dx * size);
+      const y = Math.round(this.height / 2 + (m.y - c.y) * size);
+      if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+        positions.push({x, y});
+      }
+    }
+    return positions;
   }
 
   // Number of visible tiles which were still loading during the last draw

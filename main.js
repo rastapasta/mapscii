@@ -10,6 +10,15 @@
 'use strict';
 const config = require('./src/config');
 const Mapscii = require('./src/Mapscii');
+
+// Coordinates often start with a minus ("--goto -33.86,151.21"), which would be
+// taken for an option - so the value after --goto is kept together with it
+const args = process.argv.slice(2);
+const gotoIndex = args.indexOf('--goto');
+if (gotoIndex !== -1 && gotoIndex + 1 < args.length) {
+  args.splice(gotoIndex, 2, `--goto=${args[gotoIndex + 1]}`);
+}
+
 const argv = require('yargs')
   .option('latitude', {
     alias: 'lat',
@@ -69,6 +78,10 @@ const argv = require('yargs')
     default: config.styleFile,
     type: 'string',
   })
+  .option('goto', {
+    description: 'Start at these coordinates and mark them, e.g. --goto "42.3601, -71.0942" (optionally with a zoom level after them)',
+    type: 'string',
+  })
   .option('download', {
     description: 'Download all tiles within this many km around the centre to the disk cache, then exit',
     type: 'number',
@@ -80,7 +93,26 @@ const argv = require('yargs')
     type: 'number',
   })
   .strict()
-  .argv;
+  .parse(args);
+
+// --goto takes coordinates in many notations (see src/coordinates.js)
+let marker = null;
+if (argv.goto !== undefined) {
+  try {
+    const place = require('./src/coordinates').parse(argv.goto);
+    argv.latitude = place.lat;
+    argv.longitude = place.lon;
+    if (place.zoom !== undefined) {
+      argv.zoom = place.zoom;
+    } else if (argv.zoom === null || argv.zoom === undefined) {
+      argv.zoom = config.goToZoom;
+    }
+    marker = {lat: place.lat, lon: place.lon};
+  } catch (error) {
+    console.error(`--goto: ${error.message}`);
+    process.exit(1);
+  }
+}
 
 const options = {
   initialLat: argv.latitude,
@@ -94,6 +126,7 @@ const options = {
   headless: argv.headless,
   source: argv.tile_source,
   styleFile: argv.style_file,
+  marker,
 };
 if (argv.tile_schema) {
   config.tileSchema = argv.tile_schema;
@@ -105,7 +138,7 @@ if (argv.download) {
   const tileSource = new TileSource();
   Promise.resolve(tileSource.init(argv.tile_source)).then(() => {
     const maxZoom = Math.min(argv.download_max_zoom, config.tileRange);
-    console.log(`Downloading tiles within ${argv.download} km of ${argv.latitude}, ${argv.longitude} (zoom 0-${maxZoom})...`);
+    console.log(`Downloading tiles within ${argv.download} km of ${+argv.latitude.toFixed(5)}, ${+argv.longitude.toFixed(5)} (zoom 0-${maxZoom})...`);
     return tileSource.downloadArea(argv.latitude, argv.longitude, argv.download, maxZoom, (done, total, failed) => {
       process.stdout.write(`\r${done}/${total} tiles${failed ? `, ${failed} failed` : ''}`);
     });

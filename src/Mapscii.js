@@ -12,6 +12,7 @@ const TermMouse = require('term-mouse');
 const Renderer = require('./Renderer');
 const TileSource = require('./TileSource');
 const utils = require('./utils');
+const coordinates = require('./coordinates');
 let config = require('./config');
 
 class Mapscii {
@@ -42,6 +43,11 @@ class Mapscii {
       lat: config.initialLat,
       lon: config.initialLon
     };
+
+    // a place pointed out on the map (see goTo), and the "go to" prompt's input
+    this.marker = config.marker || null;
+    this.prompt = null;
+    this.promptError = null;
   }
 
   async init() {
@@ -54,7 +60,7 @@ class Mapscii {
     }
     this._initRenderer();
     this._draw();
-    const welcome = 'Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.';
+    const welcome = 'Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, g to go to coordinates, q to quit.';
     this.notify(welcome);
     try {
       await ready;
@@ -90,7 +96,7 @@ class Mapscii {
     }
     config.input.resume();
 
-    config.input.on('keypress', (ch, key) => this._onKey(key));
+    config.input.on('keypress', (ch, key) => this._onKey(key, ch));
   }
 
   _initMouse() {
@@ -232,8 +238,11 @@ class Mapscii {
     this.notify(this._getFooter());
   }
 
-  _onKey(key) {
+  _onKey(key, ch) {
     if (config.keyCallback && !config.keyCallback(key)) return;
+    if (this.prompt !== null) {
+      return this._onPromptKey(key, ch);
+    }
     if (!key || !key.name) return;
 
     // check if the pressed key is configured
@@ -272,6 +281,20 @@ class Mapscii {
       case 'c':
         config.useBraille = !config.useBraille;
         break;
+      case 'g':
+        // ask for coordinates in the footer line
+        this.prompt = '';
+        this.promptError = null;
+        this.notify(this._getFooter());
+        draw = false;
+        break;
+      case 'escape':
+        if (this.marker) {
+          this.marker = null;
+        } else {
+          draw = false;
+        }
+        break;
       default:
         draw = false;
     }
@@ -279,6 +302,48 @@ class Mapscii {
     if (draw) {
       this._draw();
     }
+  }
+
+  // Typing into the "go to" prompt: Enter goes there, Esc cancels
+  _onPromptKey(key, ch) {
+    const name = key && key.name;
+    if (name === 'escape' || (key && key.ctrl && name === 'c')) {
+      this.prompt = null;
+      this.promptError = null;
+    } else if (name === 'return' || name === 'enter') {
+      this._goToInput(this.prompt);
+    } else if (name === 'backspace') {
+      this.prompt = this.prompt.slice(0, -1);
+      this.promptError = null;
+    } else if (ch && ch.length === 1 && ch >= ' ' && !(key && (key.ctrl || key.meta)) && this.prompt.length < 200) {
+      this.prompt += ch;
+      this.promptError = null;
+    }
+    this.notify(this._getFooter());
+  }
+
+  _goToInput(text) {
+    let place;
+    try {
+      place = coordinates.parse(text);
+    } catch (error) {
+      // keep the prompt open, so the input can be corrected
+      this.promptError = error.message;
+      return;
+    }
+    this.prompt = null;
+    this.promptError = null;
+    this.goTo(place.lat, place.lon, place.zoom);
+  }
+
+  // Centres the map on a place and marks it. Without a zoom level, it zooms in to
+  // config.goToZoom unless the map is already zoomed in further.
+  goTo(lat, lon, zoom) {
+    this.marker = utils.normalize({lat, lon});
+    this.setCenter(lat, lon);
+    const target = zoom !== undefined ? zoom : Math.max(this.zoom, config.goToZoom);
+    this.zoom = utils.clamp(target, this.minZoom, config.maxZoom);
+    this._draw();
   }
 
   // Draws the current view as soon as possible. Many requests in a short time
@@ -292,7 +357,7 @@ class Mapscii {
     this.drawTimer = setTimeout(() => {
       this.drawTimer = null;
       this.lastDrawAt = Date.now();
-      this.renderer.draw(this.center, this.zoom).then((frame) => {
+      this.renderer.draw(this.center, this.zoom, this.marker ? [this.marker] : []).then((frame) => {
         this._write(frame);
         this.notify(this._getFooter());
       }).catch(() => {
@@ -305,10 +370,19 @@ class Mapscii {
     // tile = utils.ll2tile(this.center.lon, this.center.lat, this.zoom);
     // `tile: ${utils.digits(tile.x, 3)}, ${utils.digits(tile.x, 3)}   `+
 
+    if (this.prompt !== null) {
+      const help = this.promptError || 'e.g. 42.3601, -71.0942 or 48°51\'24"N 2°21\'8"E - Enter to go, Esc to cancel';
+      const line = `Go to: ${this.prompt}█   ${help}`;
+      return config.output.columns ? line.slice(0, config.output.columns - 1) : line;
+    }
+
     let footer = `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)} `;
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+    if (this.marker) {
+      footer += `  ${config.locationMarker} ${utils.digits(this.marker.lat, 5)}, ${utils.digits(this.marker.lon, 5)} `;
     }
     if (this.sourceError) {
       footer += `  ${this.sourceError} `;

@@ -60,6 +60,26 @@ This is pretty simple too.
 mapscii
 ```
 
+## Going to coordinates
+
+Press **g**, type the coordinates and press **Enter**: the map centres on them, zooms in to street level (unless you give a zoom level or are already zoomed in further) and marks the exact spot with a red **✚**. Their exact values are shown at the bottom. **Esc** cancels the input, or removes the marker.
+
+To start right there, use `--goto`:
+
+```
+mapscii --goto "42.3601, -71.0942"
+```
+
+Coordinates can be written in many ways, latitude first unless N/S/E/W say otherwise:
+
+| Notation | Example |
+| --- | --- |
+| decimal degrees | `42.3601, -71.0942` or `42.3601 -71.0942` |
+| with a zoom level | `42.3601, -71.0942, 16` or `42.3601 -71.0942 z16` |
+| hemisphere letters | `42.3601N 71.0942W` or `N42.3601 W71.0942` |
+| degrees, minutes, seconds | `42°21'36.4"N 71°05'39.1"W` or `42 21 36 N 71 5 39 W` |
+| links | `geo:42.3601,-71.0942`, Google Maps links (`…/@42.3601,-71.0942,15z`), OpenStreetMap links (`…#map=16/42.3601/-71.0942`) |
+
 ## Map data sources
 
 MapSCII can draw tiles from these sources, chosen with `--tile_source`:
@@ -83,6 +103,8 @@ To make an area available right away, download it in one go: give the centre and
 mapscii --lat 3.848 --lon 11.502 --download 5
 ```
 
+The centre can also be given with `--goto`, in any of the notations above, e.g. `mapscii --goto "3°50'53\"N 11°30'7\"E" --download 5`.
+
 Add `--tile_source openfreemap` to download from OpenFreeMap instead. This saves every tile within 5 km of the centre, from the whole-world view down to street level (zoom 14), then exits. Use `--download_max_zoom` to stop at a lower zoom level, e.g. `--download 200 --download_max_zoom 10` for a whole region without street detail. Afterwards, start MapSCII at that place as usual:
 
 ```
@@ -95,6 +117,7 @@ The cache lives in `~/.cache/mapscii-nodejs` on Linux, `~/Library/Caches/mapscii
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
 * Press **a** or **z** to zoom in and out
+* Press **g** to go to coordinates (see below), **Esc** to remove the marker again
 * Press **c** to switch to block character mode
 * Press **q** to quit
 

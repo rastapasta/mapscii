@@ -95,4 +95,10 @@ module.exports = {
   delimeter: '\n\r',
 
   poiMarker: '◉',
+
+  // Zoom level for going to coordinates (g key, --goto) when none is given
+  goToZoom: 14,
+  // How a place gone to is marked on the map (color: xterm-256 code, 196 = red)
+  locationMarker: '✚',
+  locationMarkerColor: 196,
 };
