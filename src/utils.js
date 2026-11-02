@@ -76,8 +76,9 @@ const utils = {
     }
   },
 
+  // rounded to the given number of decimals, for display
   digits: (number, digits) => {
-    return Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits);
+    return Math.round(number*Math.pow(10, digits))/Math.pow(10, digits);
   },
 
   normalize: (ll) => {

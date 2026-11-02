@@ -160,9 +160,16 @@ class Renderer {
     return this.missingTiles;
   }
 
+  // Visible tiles which couldn't be loaded in the last draw, and why: {count, reason}
+  failedTiles() {
+    return {count: this.failedCount || 0, reason: this.failReason};
+  }
+
   _resolveTiles(tiles) {
     const resolved = [];
     this.missingTiles = 0;
+    this.failedCount = 0;
+    this.failReason = null;
     for (const tile of tiles) {
       const {x, y, z} = tile.xyz;
       tile.data = this.tileSource.peekTile(z, x, y);
@@ -178,6 +185,9 @@ class Renderer {
       this.tileSource.requestTile(z, x, y, rank);
       if (this.tileSource.isLoading(z, x, y)) {
         this.missingTiles++;
+      } else if (this.tileSource.failureOf(z, x, y)) {
+        this.failedCount++;
+        this.failReason = this.tileSource.failureOf(z, x, y);
       }
 
       // stand-ins must stay within the area of the missing tile
