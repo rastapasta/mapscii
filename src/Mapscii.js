@@ -32,32 +32,80 @@ class Mapscii {
 
     this.zoom = 0;
     this.minZoom = null;
+    this.sourceError = null;
+    // a message shown in the footer instead of the status until messageUntil
+    // (or the first key press)
+    this.message = null;
+    this.messageUntil = 0;
+
+    this.drawTimer = null;
+    this.lastDrawAt = 0;
     config = Object.assign(config, options);
 
-    this.center = {
+    this.center = utils.normalize({
       lat: config.initialLat,
       lon: config.initialLon
-    };
+    });
   }
 
   async init() {
+    // the map and keyboard work right away, even while the tile source is still
+    // being looked up - tiles simply show up once it is ready
+    const ready = this._initTileSource();
     if (!config.headless) {
       this._initKeyboard();
       this._initMouse();
+      // the shell prompt goes below the map, not at the end of the footer
+      process.on('exit', () => config.output.write('\x1B[0m\n'));
     }
-    this._initTileSource();
     this._initRenderer();
+    const welcome = 'Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.';
+    this._showMessage(welcome, 6000);
     this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    try {
+      await ready;
+    } catch (error) {
+      // keep running: the source is tried again with the next tile request
+      this.sourceError = error.message;
+      this.message = null;
+      this.notify(this._getFooter());
+      return;
+    }
+    if (this.tileSource.attribution && this.message) {
+      this.message = `${welcome}  Map: ${this.tileSource.attribution}`;
+      this.notify(this._getFooter());
+    }
+  }
+
+  // Shows a message in the footer for a while, instead of the status line
+  _showMessage(text, duration) {
+    this.message = text;
+    this.messageUntil = Date.now() + duration;
+    this.notify(this._getFooter());
+    const timer = setTimeout(() => this.notify(this._getFooter()), duration + 10);
+    if (timer.unref) {
+      timer.unref();
+    }
   }
 
 
   _initTileSource() {
     this.tileSource = new TileSource();
-    this.tileSource.init(config.source);
+    const ready = this.tileSource.init(config.source);
+    // redraw whenever a requested tile arrived (or failed to)
+    this.tileSource.onTileLoaded = () => {
+      if (this.sourceError && this.tileSource.tileUrl) {
+        this.sourceError = null;
+      }
+      this._draw();
+    };
+    return ready;
   }
 
   _initKeyboard() {
+    if (!config.input.isTTY) {
+      throw new Error('it needs an interactive terminal to read keys from (or use --headless)');
+    }
     keypress(config.input);
     if (config.input.setRawMode) {
       config.input.setRawMode(true);
@@ -72,11 +120,35 @@ class Mapscii {
       input: config.input,
       output: config.output,
     });
+    // term-mouse throws on input which ends in the middle of an escape sequence
+    // (e.g. Alt+[ sends just "ESC ["), which would end the program
+    const parse = this.mouse._onData;
+    this.mouse._onData = (data) => {
+      try {
+        parse(data);
+      } catch (error) {
+        // not a complete mouse event - nothing to do
+      }
+    };
+    this.mouse.on('event', () => {
+      this.message = null;
+    });
+    // term-mouse stops reading input on Ctrl+C, so the program has to end then -
+    // otherwise it keeps running (e.g. while tiles download) without taking keys
+    this.mouse.on('ctrl-c', () => this._quit());
     this.mouse.start();
 
     this.mouse.on('click', (event) => this._onClick(event));
     this.mouse.on('scroll', (event) => this._onMouseScroll(event));
     this.mouse.on('move', (event) => this._onMouseMove(event));
+  }
+
+  _quit() {
+    if (config.quitCallback) {
+      config.quitCallback();
+    } else {
+      process.exit(0);
+    }
   }
 
   _initRenderer() {
@@ -89,12 +161,15 @@ class Mapscii {
     });
 
     this._resizeRenderer();
-    this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
+    this.zoom = (config.initialZoom !== null) ? utils.clamp(config.initialZoom, this.minZoom, config.maxZoom) : this.minZoom;
   }
 
   _resizeRenderer() {
-    this.width = config.size && config.size.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
-    this.height = config.size && config.size.height ? config.size.height * 4 : config.output.rows * 4 - 4;
+    // without a terminal (output into a file or pipe) the size isn't known
+    const columns = config.output.columns || 80;
+    const rows = config.output.rows || 24;
+    this.width = config.size && config.size.width ? config.size.width * 2 : columns >> 1 << 2;
+    this.height = config.size && config.size.height ? config.size.height * 4 : rows * 4 - 4;
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
 
@@ -208,17 +283,18 @@ class Mapscii {
 
   _onKey(key) {
     if (config.keyCallback && !config.keyCallback(key)) return;
+    if (this.message) {
+      // any key ends the welcome message
+      this.message = null;
+      this.notify(this._getFooter());
+    }
     if (!key || !key.name) return;
 
     // check if the pressed key is configured
     let draw = true;
     switch (key.name) {
       case 'q':
-        if (config.quitCallback) {
-          config.quitCallback();
-        } else {
-          process.exit(0);
-        }
+        this._quit();
         break;
       case 'a':
         this.zoomBy(config.zoomStep);
@@ -255,23 +331,57 @@ class Mapscii {
     }
   }
 
+  // Draws the current view as soon as possible. Many requests in a short time
+  // (key repeat, mouse drags, arriving tiles) are combined into one frame, and
+  // no more than config.maxFps frames per second are drawn.
   _draw() {
-    this.renderer.draw(this.center, this.zoom).then((frame) => {
-      this._write(frame);
-      this.notify(this._getFooter());
-    }).catch(() => {
-      this.notify('renderer is busy');
-    });
+    if (this.drawTimer) {
+      return;
+    }
+    const wait = Math.max(0, this.lastDrawAt + 1000 / config.maxFps - Date.now());
+    this.drawTimer = setTimeout(() => {
+      this.drawTimer = null;
+      this.lastDrawAt = Date.now();
+      this.renderer.draw(this.center, this.zoom).then((frame) => {
+        this._write(frame);
+        this.notify(this._getFooter());
+      }).catch(() => {
+        this.notify('renderer is busy');
+      });
+    }, wait);
   }
 
   _getFooter() {
     // tile = utils.ll2tile(this.center.lon, this.center.lat, this.zoom);
     // `tile: ${utils.digits(tile.x, 3)}, ${utils.digits(tile.x, 3)}   `+
 
+    if (this.message && Date.now() < this.messageUntil) {
+      return this.message;
+    }
     let footer = `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)} `;
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+    if (this.sourceError) {
+      footer += `  ${this.sourceError} `;
+    }
+    const pending = this.renderer.pendingTiles();
+    if (pending) {
+      footer += `  loading ${pending} tile${pending > 1 ? 's' : ''}… `;
+    }
+    const failed = this.renderer.failedTiles();
+    if (failed.count && !this.sourceError) {
+      footer += `  ${failed.count} tile${failed.count > 1 ? 's' : ''} missing (${failed.reason}), retrying `;
+    }
+    // the map data's attribution, right-aligned if there is room for it
+    const attribution = this.tileSource.attribution;
+    if (attribution) {
+      // (it would wrap the line otherwise - it is shown in full at startup)
+      const space = (config.output.columns || 0) - 1 - footer.length - attribution.length;
+      if (space > 0) {
+        footer += ' '.repeat(space) + attribution;
+      }
     }
     return footer;
   }
@@ -279,7 +389,8 @@ class Mapscii {
   notify(text) {
     config.onUpdate && config.onUpdate();
     if (!config.headless) {
-      this._write('\r\x1B[K' + text);
+      // a line longer than the terminal would wrap and scroll the map up
+      this._write('\r\x1B[K' + utils.fitWidth(text, (config.output.columns || Infinity) - 1));
     }
   }
 
