@@ -8,6 +8,8 @@
   TODO: params parsing and so on
 #*/
 'use strict';
+const fs = require('fs');
+const path = require('path');
 const config = require('./src/config');
 const Mapscii = require('./src/Mapscii');
 
@@ -74,7 +76,7 @@ const argv = require('yargs')
   })
   .option('style_file', {
     alias: 'style',
-    description: 'path to json style file',
+    description: 'Style: dark, bright or the path of a JSON style file',
     default: config.styleFile,
     type: 'string',
   })
@@ -94,6 +96,39 @@ const argv = require('yargs')
   })
   .strict()
   .parse(args);
+
+// stops with a message, without a stack trace
+function fail(message) {
+  console.error(message);
+  process.exit(1);
+}
+
+for (const name of ['latitude', 'longitude', 'zoom', 'width', 'height', 'download', 'download_max_zoom']) {
+  if (argv[name] !== undefined && argv[name] !== null && !Number.isFinite(argv[name])) {
+    fail(`--${name} needs a number`);
+  }
+}
+if (Math.abs(argv.latitude) > 90) {
+  fail('--latitude must be between -90 and 90');
+}
+for (const name of ['width', 'height']) {
+  if (argv[name] !== undefined && argv[name] < 1) {
+    fail(`--${name} must be at least 1`);
+  }
+}
+if (argv.download !== undefined && !(argv.download > 0)) {
+  fail('--download needs a radius in km greater than 0, e.g. --download 5');
+}
+
+// a style can be given by name ("bright") or as a file
+if (!fs.existsSync(argv.style_file)) {
+  const named = path.join(__dirname, 'styles', `${argv.style_file}.json`);
+  if (!fs.existsSync(named)) {
+    const names = fs.readdirSync(path.join(__dirname, 'styles')).map((file) => file.replace(/\.json$/, ''));
+    fail(`--style: no style file "${argv.style_file}" (bundled styles: ${names.join(', ')})`);
+  }
+  argv.style_file = named;
+}
 
 // --goto takes coordinates in many notations (see src/coordinates.js)
 let marker = null;
@@ -150,9 +185,17 @@ if (argv.download) {
     process.exit(1);
   });
 } else {
-  const mapscii = new Mapscii(options);
+  let mapscii;
+  try {
+    mapscii = new Mapscii(options);
+  } catch (err) {
+    fail(`Failed to start MapSCII: ${err.message}`);
+  }
   mapscii.init().catch((err) => {
-    console.error('Failed to start MapSCII.');
-    console.error(err);
+    if (process.stdout.isTTY) {
+      // leave the map screen, so the message stays readable
+      process.stdout.write('\x1B[?1003l\x1B[?1006l\x1B[?1015l\x1B[0m\n');
+    }
+    fail(`Failed to start MapSCII: ${err.message}`);
   });
 }
