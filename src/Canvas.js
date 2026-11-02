@@ -68,7 +68,9 @@ class Canvas {
     const holes = [];
     for (const ring of rings) {
       if (vertices.length) {
-        if (ring.length < 3) continue;
+        // a hole that shrank to a line or a dot on screen hides nothing, and such
+        // rings can send earcut into an endless loop
+        if (ring.length < 3 || !ringArea(ring)) continue;
         holes.push(vertices.length / 2);
       } else {
         if (ring.length < 3) return false;
@@ -204,6 +206,15 @@ class Canvas {
       }
     }
   }
+}
+
+// twice the area of a ring (shoelace formula); 0 when it encloses nothing
+function ringArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j].x - ring[i].x) * (ring[i].y + ring[j].y);
+  }
+  return Math.abs(sum);
 }
 
 Canvas.prototype.stack = [];
