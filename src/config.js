@@ -59,6 +59,8 @@ module.exports = {
   tileRetryDelay: 10000,
   // Upper limit for redraws per second
   maxFps: 30,
+  // reading a tile pauses after this many milliseconds, so keys stay responsive
+  tileLoadSlice: 8,
 
   tileRange: 14,
   projectSize: 256,
