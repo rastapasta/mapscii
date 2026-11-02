@@ -8,7 +8,6 @@
 const fs = require('fs');
 const keypress = require('keypress');
 const TermMouse = require('term-mouse');
-const stringWidth = require('string-width');
 
 const Renderer = require('./Renderer');
 const TileSource = require('./TileSource');
@@ -43,10 +42,10 @@ class Mapscii {
     this.lastDrawAt = 0;
     config = Object.assign(config, options);
 
-    this.center = {
+    this.center = utils.normalize({
       lat: config.initialLat,
       lon: config.initialLon
-    };
+    });
   }
 
   async init() {
@@ -56,6 +55,8 @@ class Mapscii {
     if (!config.headless) {
       this._initKeyboard();
       this._initMouse();
+      // the shell prompt goes below the map, not at the end of the footer
+      process.on('exit', () => config.output.write('\x1B[0m\n'));
     }
     this._initRenderer();
     const welcome = 'Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.';
@@ -102,6 +103,9 @@ class Mapscii {
   }
 
   _initKeyboard() {
+    if (!config.input.isTTY) {
+      throw new Error('it needs an interactive terminal to read keys from (or use --headless)');
+    }
     keypress(config.input);
     if (config.input.setRawMode) {
       config.input.setRawMode(true);
@@ -129,11 +133,22 @@ class Mapscii {
     this.mouse.on('event', () => {
       this.message = null;
     });
+    // term-mouse stops reading input on Ctrl+C, so the program has to end then -
+    // otherwise it keeps running (e.g. while tiles download) without taking keys
+    this.mouse.on('ctrl-c', () => this._quit());
     this.mouse.start();
 
     this.mouse.on('click', (event) => this._onClick(event));
     this.mouse.on('scroll', (event) => this._onMouseScroll(event));
     this.mouse.on('move', (event) => this._onMouseMove(event));
+  }
+
+  _quit() {
+    if (config.quitCallback) {
+      config.quitCallback();
+    } else {
+      process.exit(0);
+    }
   }
 
   _initRenderer() {
@@ -146,12 +161,15 @@ class Mapscii {
     });
 
     this._resizeRenderer();
-    this.zoom = (config.initialZoom !== null) ? config.initialZoom : this.minZoom;
+    this.zoom = (config.initialZoom !== null) ? utils.clamp(config.initialZoom, this.minZoom, config.maxZoom) : this.minZoom;
   }
 
   _resizeRenderer() {
-    this.width = config.size && config.size.width ? config.size.width * 2 : config.output.columns >> 1 << 2;
-    this.height = config.size && config.size.height ? config.size.height * 4 : config.output.rows * 4 - 4;
+    // without a terminal (output into a file or pipe) the size isn't known
+    const columns = config.output.columns || 80;
+    const rows = config.output.rows || 24;
+    this.width = config.size && config.size.width ? config.size.width * 2 : columns >> 1 << 2;
+    this.height = config.size && config.size.height ? config.size.height * 4 : rows * 4 - 4;
 
     this.minZoom = 4-Math.log(4096/this.width)/Math.LN2;
 
@@ -265,18 +283,18 @@ class Mapscii {
 
   _onKey(key) {
     if (config.keyCallback && !config.keyCallback(key)) return;
-    this.message = null;
+    if (this.message) {
+      // any key ends the welcome message
+      this.message = null;
+      this.notify(this._getFooter());
+    }
     if (!key || !key.name) return;
 
     // check if the pressed key is configured
     let draw = true;
     switch (key.name) {
       case 'q':
-        if (config.quitCallback) {
-          config.quitCallback();
-        } else {
-          process.exit(0);
-        }
+        this._quit();
         break;
       case 'a':
         this.zoomBy(config.zoomStep);
@@ -372,7 +390,7 @@ class Mapscii {
     config.onUpdate && config.onUpdate();
     if (!config.headless) {
       // a line longer than the terminal would wrap and scroll the map up
-      this._write('\r\x1B[K' + fitWidth(text, (config.output.columns || Infinity) - 1));
+      this._write('\r\x1B[K' + utils.fitWidth(text, (config.output.columns || Infinity) - 1));
     }
   }
 
@@ -401,21 +419,6 @@ class Mapscii {
       lat: lat,
     });
   }
-}
-
-// the text cut to at most the given number of terminal columns
-function fitWidth(text, columns) {
-  if (stringWidth(text) <= columns) {
-    return text;
-  }
-  let result = '';
-  let width = 0;
-  for (const char of text) {
-    width += stringWidth(char);
-    if (width > columns) break;
-    result += char;
-  }
-  return result;
 }
 
 module.exports = Mapscii;
