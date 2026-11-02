@@ -15,6 +15,8 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const {promisify} = require('util');
+const gunzip = promisify(zlib.gunzip);
 const http = require('http');
 const https = require('https');
 const fetch = require('node-fetch');
@@ -183,7 +185,7 @@ class TileSource {
     }
     if (tilejson.attribution) {
       // the attribution is HTML meant for web maps
-      this.attribution = tilejson.attribution.replace(/<[^>]*>/g, '').replace(/&copy;/g, '©').replace(/\s+/g, ' ').trim();
+      this.attribution = plainText(tilejson.attribution);
     }
   }
 
@@ -200,7 +202,7 @@ class TileSource {
             this.schema = 'openmaptiles';
           }
           if (!infoErr && info && info.attribution) {
-            this.attribution = info.attribution.replace(/<[^>]*>/g, '').replace(/&copy;/g, '©').replace(/\s+/g, ' ').trim();
+            this.attribution = plainText(info.attribution);
           }
           resolve();
         });
@@ -266,8 +268,9 @@ class TileSource {
     if ((this.failed.get(key) || 0) > Date.now()) {
       return;
     }
-    fs.access(this._persistPath(z, x, y), (err) => {
-      if (!err) {
+    // (a damaged file in the cache gets deleted there, and downloaded again)
+    this._getPersisted(z, x, y).then((buffer) => {
+      if (buffer) {
         this.onDisk.add(key);
         return;
       }
@@ -378,39 +381,70 @@ class TileSource {
   // Downloads every tile within radiusKm around a point, from zoom 0 up to
   // maxZoom, into the disk cache - for fast or offline use of that area later.
   // onProgress(done, total, failed) is called after each tile.
+  // The tiles within radiusKm around a point, from zoom 0 up to maxZoom, as
+  // [{z, x, y}] - across the date line too
+  areaTiles(lat, lon, radiusKm, maxZoom) {
+    const tiles = [];
+    for (const {z, left, right, top, bottom} of areaRanges(lat, lon, radiusKm, maxZoom)) {
+      const gridSize = Math.pow(2, z);
+      for (let y = top; y <= bottom; y++) {
+        for (let x = left; x <= right; x++) {
+          tiles.push({z, x: ((x % gridSize) + gridSize) % gridSize, y});
+        }
+      }
+    }
+    return tiles;
+  }
+
+  // How many tiles areaTiles would list, without listing them
+  countAreaTiles(lat, lon, radiusKm, maxZoom) {
+    return areaRanges(lat, lon, radiusKm, maxZoom)
+      .reduce((sum, r) => sum + (r.right - r.left + 1) * Math.max(0, r.bottom - r.top + 1), 0);
+  }
+
+  // Downloads every tile within radiusKm around a point, from zoom 0 up to
+  // maxZoom, into the disk cache - for fast or offline use of that area later.
+  // Refuses areas which wouldn't fit on the disk. onProgress(done, total, failed)
+  // is called after each tile.
   async downloadArea(lat, lon, radiusKm, maxZoom, onProgress) {
     if (this.mode !== modes.HTTP || !config.persistDownloadedTiles) {
       throw new Error('downloading an area needs a HTTP tile source and persistDownloadedTiles');
     }
-    const dLat = radiusKm / 111.32;
-    const dLon = radiusKm / (111.32 * Math.cos(lat * Math.PI / 180));
-    const tiles = [];
-    for (let z = 0; z <= maxZoom; z++) {
-      const topLeft = utils.ll2tile(Math.max(-180, lon - dLon), Math.min(85.0511, lat + dLat), z);
-      const bottomRight = utils.ll2tile(Math.min(180, lon + dLon), Math.max(-85.0511, lat - dLat), z);
-      const max = Math.pow(2, z) - 1;
-      for (let y = Math.max(0, Math.floor(topLeft.y)); y <= Math.min(max, Math.floor(bottomRight.y)); y++) {
-        for (let x = Math.max(0, Math.floor(topLeft.x)); x <= Math.min(max, Math.floor(bottomRight.x)); x++) {
-          tiles.push({z, x, y});
-        }
-      }
+    const count = this.countAreaTiles(lat, lon, radiusKm, maxZoom);
+    const neededMB = Math.ceil(count * config.downloadTileKB / 1024);
+    const smaller = 'choose a smaller radius or a lower --download_max_zoom';
+    if (count > config.maxDownloadTiles) {
+      throw new Error(`Too big: ${count} tiles (about ${neededMB} MB), at most ${config.maxDownloadTiles} at a time - ${smaller}`);
     }
+    this._createFolder(this.cacheDir);
+    const freeMB = freeSpaceMB(this.cacheDir);
+    if (freeMB !== null && neededMB > freeMB) {
+      throw new Error(`Too big: about ${neededMB} MB, but only ${freeMB} MB are free on the disk - ${smaller}`);
+    }
+    const tiles = this.areaTiles(lat, lon, radiusKm, maxZoom);
 
     let done = 0;
     let failed = 0;
-    await Promise.all(tiles.map(async ({z, x, y}) => {
-      try {
-        if (!await this._getPersisted(z, x, y)) {
-          await this._enqueueDownload(z, x, y, false);
+    let next = 0;
+    // a few tiles at a time: the download queue limits the connections, this
+    // keeps the open files and the memory in bounds for big areas
+    const worker = async () => {
+      while (next < tiles.length) {
+        const {z, x, y} = tiles[next++];
+        try {
+          if (!await this._getPersisted(z, x, y)) {
+            await this._enqueueDownload(z, x, y, false);
+          }
+        } catch (error) {
+          failed++;
         }
-      } catch (error) {
-        failed++;
+        done++;
+        if (onProgress) {
+          onProgress(done, tiles.length, failed);
+        }
       }
-      done++;
-      if (onProgress) {
-        onProgress(done, tiles.length, failed);
-      }
-    }));
+    };
+    await Promise.all(Array.from({length: 16}, worker));
     return {total: tiles.length, failed};
   }
 
@@ -537,11 +571,18 @@ class TileSource {
       } else {
         this.activeDownloads++;
       }
-      this._download(item.z, item.x, item.y).then((buffer) => {
+      this._download(item.z, item.x, item.y).then(async (buffer) => {
+        // e.g. a Wi-Fi login page instead of a tile must not get into the cache
+        const data = await unzipTile(buffer);
+        if (!data) {
+          const error = new Error('the server sent something else than a map tile');
+          error.corrupt = true;
+          throw error;
+        }
         if (config.persistDownloadedTiles) {
           this._persistTile(item.z, item.x, item.y, buffer);
         }
-        return buffer;
+        return data;
       }).then(item.resolve, item.reject).then(() => {
         if (item.prefetch) {
           this.activePrefetches--;
@@ -637,26 +678,42 @@ class TileSource {
       // write to a temporary file first, so an interrupted write never leaves a broken tile behind
       const tmpPath = `${filePath}.${process.pid}.tmp`;
       const key = this._key(z, x, y);
+      const discard = () => fs.unlink(tmpPath, () => null);
       fs.writeFile(tmpPath, buffer, (err) => {
-        if (!err) {
-          fs.rename(tmpPath, filePath, (err) => {
-            if (!err) {
-              this.onDisk.add(key);
-            }
-          });
+        if (err) {
+          // e.g. the disk is full: don't leave a partial file behind
+          return discard();
         }
+        fs.rename(tmpPath, filePath, (err) => {
+          if (err) {
+            return discard();
+          }
+          this.onDisk.add(key);
+        });
       });
     } catch (error) {
       void 0;
     }
   }
 
+  // The tile from the disk cache, or false. A damaged file (e.g. cut short, or
+  // from a download which wasn't a tile) is deleted, so the tile gets downloaded
+  // again right away. Tiles are stored gzipped, so an empty file is damaged too.
   async _getPersisted(z, x, y) {
+    const file = this._persistPath(z, x, y);
+    let buffer;
     try {
-      return await fs.promises.readFile(this._persistPath(z, x, y));
+      buffer = await fs.promises.readFile(file);
     } catch (error) {
       return false;
     }
+    const data = buffer.length ? await unzipTile(buffer) : null;
+    if (!data) {
+      this.onDisk.delete(this._key(z, x, y));
+      fs.unlink(file, () => null);
+      return false;
+    }
+    return data;
   }
 
   _persistPath(z, x, y) {
@@ -674,6 +731,106 @@ class TileSource {
   }
 }
 
+// The tile ranges within radiusKm around a point for each zoom level up to
+// maxZoom, as [{z, left, right, top, bottom}]; left and right may lie beyond
+// the date line (wrap them with the grid size)
+function areaRanges(lat, lon, radiusKm, maxZoom) {
+  const dLat = radiusKm / 111.32;
+  const dLon = radiusKm / (111.32 * Math.max(0.01, Math.cos(lat * Math.PI / 180)));
+  const ranges = [];
+  for (let z = 0; z <= maxZoom; z++) {
+    const gridSize = Math.pow(2, z);
+    let left = Math.floor(utils.ll2tile(lon - dLon, lat, z).x);
+    let right = Math.floor(utils.ll2tile(lon + dLon, lat, z).x);
+    if (right - left + 1 >= gridSize) {
+      left = 0;
+      right = gridSize - 1;
+    }
+    const top = Math.max(0, Math.floor(utils.ll2tile(lon, Math.min(85.0511, lat + dLat), z).y));
+    const bottom = Math.min(gridSize - 1, Math.floor(utils.ll2tile(lon, Math.max(-85.0511, lat - dLat), z).y));
+    ranges.push({z, left, right, top, bottom});
+  }
+  return ranges;
+}
+
+// MB free on the disk holding the folder, or null if that can't be found out
+function freeSpaceMB(folder) {
+  try {
+    const stats = fs.statfsSync(folder);
+    return Math.floor(stats.bavail * stats.bsize / 1024 / 1024);
+  } catch (error) {
+    return null;
+  }
+}
+
+// The attribution of a source (HTML meant for web maps) as one line of text,
+// without control characters - they could change the terminal's state
+function plainText(html) {
+  const entities = {'&copy;': '©', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': '\'', '&nbsp;': ' '};
+  return String(html)
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(copy|amp|lt|gt|quot|#39|nbsp);/g, (entity) => entities[entity])
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\s\u0000-\u001f\u007f-\u009f]+/g, ' ')
+    .trim();
+}
+
+function isGzipped(buffer) {
+  return buffer.length >= 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
+}
+
+// The tile's data unzipped (in the background, off the main thread), or null
+// if it isn't a vector tile - e.g. an error page or a broken download
+async function unzipTile(buffer) {
+  let data = buffer;
+  if (isGzipped(data)) {
+    try {
+      data = await gunzip(data);
+    } catch (error) {
+      return null;
+    }
+  }
+  return hasTileShape(data) ? data : null;
+}
+
+// The same, at once (for tests)
+function looksLikeTile(buffer) {
+  let data = buffer;
+  if (isGzipped(data)) {
+    try {
+      data = zlib.gunzipSync(data);
+    } catch (error) {
+      return false;
+    }
+  }
+  return hasTileShape(data);
+}
+
+// Whether unzipped data has the shape of a vector tile: a sequence of layers
+// (protobuf field 3) which ends exactly at the end of the data. Cheap, and
+// enough to turn away error pages and broken downloads.
+function hasTileShape(data) {
+  let pos = 0;
+  while (pos < data.length) {
+    if (data[pos++] !== 0x1a) {
+      return false;
+    }
+    let length = 0;
+    let shift = 0;
+    let byte;
+    do {
+      if (pos >= data.length || shift > 28) {
+        return false;
+      }
+      byte = data[pos++];
+      length += (byte & 0x7f) * Math.pow(2, shift);
+      shift += 7;
+    } while (byte & 0x80);
+    pos += length;
+  }
+  return pos === data.length;
+}
+
 // A short reason for a failed tile, for the footer; null when the server simply
 // has no tile there
 function failureReason(error) {
@@ -684,7 +841,7 @@ function failureReason(error) {
     return `server error ${error.status}`;
   }
   if (error.corrupt) {
-    return 'damaged tile';
+    return error.message.includes('something else') ? 'the server sent no map tile' : 'damaged tile';
   }
   if (error.type === 'system' || error.type === 'request-timeout') {
     return 'no connection to the tile server';
@@ -692,4 +849,6 @@ function failureReason(error) {
   return error.message.slice(0, 60);
 }
 
+TileSource.looksLikeTile = looksLikeTile;
+TileSource.plainText = plainText;
 module.exports = TileSource;

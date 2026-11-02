@@ -13,6 +13,8 @@
 */
 'use strict';
 const stringWidth = require('string-width');
+
+const graphemes = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
 const config = require('./config');
 const utils = require('./utils');
 
@@ -182,7 +184,8 @@ class BrailleBuffer {
 
         const char = this.charBuffer[idx];
         if (char) {
-          skip += stringWidth(char)-1;
+          // a wide character (e.g. Japanese) covers the next cell too
+          skip += Math.max(0, stringWidth(char)-1);
           if (skip+x < columns) {
             output.push(char);
           }
@@ -213,10 +216,18 @@ class BrailleBuffer {
 
   writeText(text, x, y, color, center = true) {
     if (center) {
-      x -= text.length/2+1;
+      x -= stringWidth(text)/2+1;
     }
-    for (let i = 0; i < text.length; i++) {
-      this.setChar(text.charAt(i), x+i*2, y, color);
+    // one cell per character as it appears on screen: a letter with its
+    // combining accents (e.g. "ı̨"), or an emoji made of several code points
+    let i = 0;
+    for (const {segment} of graphemes.segment(text)) {
+      if (stringWidth(segment) === 0) {
+        // nothing to show, and it would take a cell
+        continue;
+      }
+      this.setChar(segment, x+i*2, y, color);
+      i++;
     }
   }
 }
