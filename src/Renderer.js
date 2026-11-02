@@ -80,7 +80,8 @@ class Renderer {
       // markers get their place before the labels, so no name covers them
       const markerPositions = this._markerPositions(center, zoom, markers);
       for (const position of markerPositions) {
-        this.labelBuffer.writeIfPossible(config.locationMarker, position.x, position.y, null, 2);
+        // (a margin of 1 keeps its row clear but lets names sit right above or below it)
+        this.labelBuffer.writeIfPossible(config.locationMarker, position.x, position.y, null, 1);
       }
       this._renderTiles(tiles, zoom);
       for (const position of markerPositions) {
