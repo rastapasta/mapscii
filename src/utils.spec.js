@@ -44,4 +44,13 @@ describe('normalize', () => {
       expect(utils.normalize(input)).toEqual(expected);
     });
   });
+
+  describe('digits', () => {
+    test('rounds to the given number of decimals', () => {
+      expect(utils.digits(14 + 0.2 + 0.2, 2)).toBe(14.4);
+      expect(utils.digits(-71.0949, 3)).toBe(-71.095);
+      expect(utils.digits(-71.0944, 3)).toBe(-71.094);
+      expect(utils.digits(42.360091, 5)).toBe(42.36009);
+    });
+  });
 });
