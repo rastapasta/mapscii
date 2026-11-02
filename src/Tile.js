@@ -113,7 +113,7 @@ class Tile {
         // use feature.loadGeometry() again as soon as we got a 512 extent tileset
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
         const sort = feature.properties.localrank || feature.properties.scalerank;
-        const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
+        const label = style.type === 'symbol' ? cleanLabel(feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num) : void 0;
         const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
         extents[name] = layer.extent;
         if (style.type === 'fill') {
@@ -199,6 +199,17 @@ class Tile {
   }
 }
 
+// A name as it can be put on screen: line breaks, tabs and other control
+// characters (they occur in the map data) would move the terminal's cursor
+function cleanLabel(name) {
+  if (name === undefined || name === null) {
+    return undefined;
+  }
+  // eslint-disable-next-line no-control-regex
+  const text = String(name).replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim();
+  return text || undefined;
+}
+
 // Splits the rings of a polygon feature into polygons: the first ring's winding
 // order marks outer rings, the opposite order holes of the polygon before.
 // (The same approach as classifyRings in @mapbox/vector-tile.)
@@ -242,5 +253,6 @@ function signedArea(ring) {
 
 Tile.prototype.layers = {};
 Tile.classifyRings = classifyRings;
+Tile.cleanLabel = cleanLabel;
 
 module.exports = Tile;
