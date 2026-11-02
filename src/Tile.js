@@ -8,15 +8,24 @@
 const VectorTile = require('@mapbox/vector-tile').VectorTile;
 const Protobuf = require('pbf');
 const zlib = require('zlib');
+const {performance} = require('perf_hooks');
 const RBush = require('rbush');
 const x256 = require('x256');
 
 const config = require('./config');
 const utils = require('./utils');
+const OpenMapTiles = require('./OpenMapTiles');
+
+const schemas = {
+  openmaptiles: OpenMapTiles.translate,
+};
 
 class Tile {
-  constructor(styler) {
+  // schema: the tile source's data schema; anything but osm2vectortiles gets
+  // translated into it, which is what the styles are written for
+  constructor(styler, schema) {
     this.styler = styler;
+    this.translate = schemas[schema] || null;
   }
 
   load(buffer) {
@@ -52,19 +61,37 @@ class Tile {
     return buffer.slice(0, 2).indexOf(Buffer.from([0x1f, 0x8b])) === 0;
   }
 
-  _loadLayers() {
-    const layers = {};
+  // Big tiles take a few hundred milliseconds to read, so this takes breaks to
+  // let keys and drawing through
+  async _loadLayers() {
+    let sliceStart = performance.now();
+    const takeBreak = async () => {
+      if (performance.now() - sliceStart > config.tileLoadSlice) {
+        await new Promise((resolve) => setImmediate(resolve));
+        sliceStart = performance.now();
+      }
+    };
+    const nodesByLayer = {};
+    const extents = {};
     const colorCache = {};
-    for (const name in this.tile.layers) {
-      const layer = this.tile.layers[name];
-      const nodes = [];
-      //continue if name is 'water'
+    for (const sourceLayer in this.tile.layers) {
+      const layer = this.tile.layers[sourceLayer];
       for (let i = 0; i < layer.length; i++) {
-        // TODO: caching of similar attributes to avoid looking up the style each time
-        //continue if @styler and not @styler.getStyleFor layer, feature
-
+        if ((i & 15) === 0) {
+          await takeBreak();
+        }
         const feature = layer.feature(i);
-        feature.properties.$type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        const type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        let name = sourceLayer;
+        if (this.translate) {
+          const translated = this.translate(sourceLayer, feature.properties, type);
+          if (!translated) {
+            continue;
+          }
+          name = translated.layer;
+          feature.properties = translated.properties;
+        }
+        feature.properties.$type = type;
         let style;
         if (this.styler) {
           style = this.styler.getStyleFor(name, feature);
@@ -86,17 +113,22 @@ class Tile {
         // use feature.loadGeometry() again as soon as we got a 512 extent tileset
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
         const sort = feature.properties.localrank || feature.properties.scalerank;
-        const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
+        const label = style.type === 'symbol' ? cleanLabel(feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num) : void 0;
+        const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
+        extents[name] = layer.extent;
         if (style.type === 'fill') {
-          nodes.push(this._addBoundaries(true, {
-            //            id: feature.id
-            layer: name,
-            style,
-            label,
-            sort,
-            points: geometries,
-            color: colorCode,
-          }));
+          // one feature can hold several polygons, each an outer ring followed by its holes
+          for (const polygon of classifyRings(geometries)) {
+            nodes.push(this._addBoundaries(true, {
+              //            id: feature.id
+              layer: name,
+              style,
+              label,
+              sort,
+              points: polygon,
+              color: colorCode,
+            }));
+          }
         } else {
           for (const points of geometries) {
             nodes.push(this._addBoundaries(false, {
@@ -111,10 +143,15 @@ class Tile {
           }
         }
       }
+    }
+
+    const layers = {};
+    for (const name in nodesByLayer) {
+      await takeBreak();
       const tree = new RBush(18);
-      tree.load(nodes);
+      tree.load(nodesByLayer[name]);
       layers[name] = {
-        extent: layer.extent,
+        extent: extents[name],
         tree,
       };
     }
@@ -162,6 +199,60 @@ class Tile {
   }
 }
 
+// A name as it can be put on screen: line breaks, tabs and other control
+// characters (they occur in the map data) would move the terminal's cursor
+function cleanLabel(name) {
+  if (name === undefined || name === null) {
+    return undefined;
+  }
+  // eslint-disable-next-line no-control-regex
+  const text = String(name).replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim();
+  return text || undefined;
+}
+
+// Splits the rings of a polygon feature into polygons: the first ring's winding
+// order marks outer rings, the opposite order holes of the polygon before.
+// (The same approach as classifyRings in @mapbox/vector-tile.)
+function classifyRings(rings) {
+  if (rings.length <= 1) {
+    return [rings];
+  }
+  const polygons = [];
+  let polygon = null;
+  let outerIsNegative;
+  for (const ring of rings) {
+    const area = signedArea(ring);
+    if (area === 0) {
+      continue;
+    }
+    if (outerIsNegative === undefined) {
+      outerIsNegative = area < 0;
+    }
+    if (outerIsNegative === area < 0) {
+      if (polygon) {
+        polygons.push(polygon);
+      }
+      polygon = [ring];
+    } else if (polygon) {
+      polygon.push(ring);
+    }
+  }
+  if (polygon) {
+    polygons.push(polygon);
+  }
+  return polygons;
+}
+
+function signedArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j].x - ring[i].x) * (ring[i].y + ring[j].y);
+  }
+  return sum;
+}
+
 Tile.prototype.layers = {};
+Tile.classifyRings = classifyRings;
+Tile.cleanLabel = cleanLabel;
 
 module.exports = Tile;
