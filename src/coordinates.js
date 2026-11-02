@@ -38,11 +38,11 @@ function parse(text) {
 function fromUrl(input) {
   let m = input.match(/@([-+]?\d+(?:\.\d+)?),([-+]?\d+(?:\.\d+)?)(?:,(\d+(?:\.\d+)?)z)?/);
   if (m) {
-    return check(+m[1], +m[2], m[3] !== undefined ? +m[3] : undefined);
+    return check(+m[1], wrapLongitude(+m[2]), m[3] !== undefined ? +m[3] : undefined);
   }
   m = input.match(/map=(\d+(?:\.\d+)?)\/([-+]?\d+(?:\.\d+)?)\/([-+]?\d+(?:\.\d+)?)/);
   if (m) {
-    return check(+m[2], +m[3], +m[1]);
+    return check(+m[2], wrapLongitude(+m[3]), +m[1]);
   }
   m = input.match(/^geo:([-+]?\d+(?:\.\d+)?),([-+]?\d+(?:\.\d+)?)(?:.*[?&]z=(\d+(?:\.\d+)?))?/i);
   if (m) {
@@ -167,6 +167,15 @@ function readCoordinate(part) {
   }
   const axis = letters[0] === 'N' || letters[0] === 'S' ? 'lat' : letters[0] ? 'lon' : null;
   return {value, axis};
+}
+
+// Map websites put longitudes beyond 180 into their links after panning across
+// the date line (e.g. @21.3,-202.1) - those are the same places, once round
+function wrapLongitude(lon) {
+  if (Math.abs(lon) <= 180 || Math.abs(lon) > 720) {
+    return lon;
+  }
+  return ((lon + 180) % 360 + 360) % 360 - 180;
 }
 
 function check(lat, lon, zoom) {
