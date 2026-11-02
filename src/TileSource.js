@@ -119,7 +119,7 @@ class TileSource {
       this.mode = modes.MBTiles;
       this.ready = this.loadMBTiles(source);
     } else {
-      throw new Error('source type isn\'t supported yet');
+      throw new Error(`unknown tile source "${source}": use ${Object.keys(config.sources).join(' or ')}, an http(s) URL or an .mbtiles file`);
     }
     return this.ready;
   }
@@ -164,7 +164,9 @@ class TileSource {
     try {
       await fresh;
     } catch (error) {
-      throw new Error(`could not load the tile source description ${url}: ${error.message}`);
+      // short, so it fits into the footer
+      const host = url.replace(/^\w+:\/\//, '').split('/')[0];
+      throw new Error(`could not reach ${host}: ${failureReason(error) || error.message}`);
     }
   }
 

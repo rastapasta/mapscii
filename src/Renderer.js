@@ -454,10 +454,11 @@ class Renderer {
   }
 
   _drawLabel(tile, feature, scale) {
-    const text = feature.label;
-    if (!text) {
+    if (!feature.label) {
       return false;
     }
+    // names wider than the screen get shortened instead of cut off at its edge
+    const text = utils.fitWidth(feature.label, this.width >> 1, '…');
     const layerMargin = (config.layers[feature.layer] || {}).margin;
     const margin = layerMargin || config.labelMargin;
     // in pixels: two per terminal column, and e.g. Japanese characters take two columns
@@ -473,10 +474,17 @@ class Renderer {
       }
       // keep the whole name on screen instead of cutting it off at the edge
       const x = Math.max(0, Math.min(this.width - width, point.x - width / 2));
-      if (this.labelBuffer.writeIfPossible(text, x, point.y, feature, margin)) {
-        this.canvas.text(text, x, point.y, feature.color);
-        this._seen[text] = (this._seen[text] || []).concat(point);
-        return true;
+      // The name of a place (not of a road, which has more spots along it) may
+      // move a row up or down when its spot is taken, e.g. by the location marker
+      const rows = feature.points.length === 1 ? [0, -4, 4] : [0];
+      for (const dy of rows) {
+        const y = point.y + dy;
+        if (y < 0 || y >= this.height) continue;
+        if (this.labelBuffer.writeIfPossible(text, x, y, feature, margin)) {
+          this.canvas.text(text, x, y, feature.color);
+          this._seen[text] = (this._seen[text] || []).concat(point);
+          return true;
+        }
       }
     }
     return false;

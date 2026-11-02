@@ -8,6 +8,7 @@
 const VectorTile = require('@mapbox/vector-tile').VectorTile;
 const Protobuf = require('pbf');
 const zlib = require('zlib');
+const {performance} = require('perf_hooks');
 const RBush = require('rbush');
 const x256 = require('x256');
 
@@ -60,13 +61,25 @@ class Tile {
     return buffer.slice(0, 2).indexOf(Buffer.from([0x1f, 0x8b])) === 0;
   }
 
-  _loadLayers() {
+  // Big tiles take a few hundred milliseconds to read, so this takes breaks to
+  // let keys and drawing through
+  async _loadLayers() {
+    let sliceStart = performance.now();
+    const takeBreak = async () => {
+      if (performance.now() - sliceStart > config.tileLoadSlice) {
+        await new Promise((resolve) => setImmediate(resolve));
+        sliceStart = performance.now();
+      }
+    };
     const nodesByLayer = {};
     const extents = {};
     const colorCache = {};
     for (const sourceLayer in this.tile.layers) {
       const layer = this.tile.layers[sourceLayer];
       for (let i = 0; i < layer.length; i++) {
+        if ((i & 15) === 0) {
+          await takeBreak();
+        }
         const feature = layer.feature(i);
         const type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
         let name = sourceLayer;
@@ -134,6 +147,7 @@ class Tile {
 
     const layers = {};
     for (const name in nodesByLayer) {
+      await takeBreak();
       const tree = new RBush(18);
       tree.load(nodesByLayer[name]);
       layers[name] = {
