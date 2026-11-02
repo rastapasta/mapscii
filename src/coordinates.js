@@ -6,23 +6,32 @@
     42.3601N 71.0942W              hemisphere letters, before or after the number
     42°21'36.4"N 71°05'39.1"W      degrees, minutes and seconds
     3 50 53 N 11 30 7 E            ... without the symbols
+    N 42° 21.606 W 071° 05.650     degrees and decimal minutes (geocaching)
+    42,3601 -71,0942               decimal commas
+    lat 42.3601 lon -71.0942       labelled, in either order
     geo:42.3601,-71.0942           geo URIs
     https://www.google.com/maps/@42.3601,-71.0942,15z
     https://www.openstreetmap.org/#map=16/42.3601/-71.0942
+    ... and links with ?q=, ?query=, ?ll=, ?mlat=&mlon= or ?cp= (Google, Apple, OSM, Bing)
 
   parse(text) returns {lat, lon, zoom} (zoom is undefined if none was given),
   or throws an Error saying what is wrong with the text.
 */
 'use strict';
 
-const NUMBER = /[-+]?\d+(?:\.\d+)?/g;
+// a number such as 42, -71.0942, 42. or .5
+const NUM = '[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)';
+const NUMBER = new RegExp(NUM, 'g');
 
 function parse(text) {
-  const input = String(text || '').trim();
+  const input = String(text || '')
+    // minus signs as typeset on web pages
+    .replace(/[\u2212\u2012\u2013\uFE63\uFF0D](?=\s*[\d.])/g, '-')
+    .trim();
   if (!input) {
     throw new Error('no coordinates given');
   }
-  return fromUrl(input) || fromText(input);
+  return fromUrl(input) || fromLabels(input) || fromText(input);
 }
 
 // links from map websites
@@ -39,19 +48,52 @@ function fromUrl(input) {
   if (m) {
     return check(+m[1], +m[2], m[3] !== undefined ? +m[3] : undefined);
   }
-  return null;
+  if (!/^(?:https?:\/\/|www\.)/i.test(input)) {
+    return null;
+  }
+  const zoom = input.match(/[?&](?:z|zoom|lvl)=(\d+(?:\.\d+)?)/i);
+  const zoomLevel = zoom ? +zoom[1] : undefined;
+  // ?q=lat,lon (Google), ?ll= (Apple), ?cp=lat~lon (Bing) and the like
+  m = input.match(new RegExp(`[?&](?:q|query|ll|sll|center|destination|daddr|cp)=(${NUM})(?:,|%2C|~)\\s*(${NUM})`, 'i'));
+  if (m) {
+    return check(+m[1], +m[2], zoomLevel);
+  }
+  // ?mlat=..&mlon=.. (OpenStreetMap)
+  const lat = input.match(new RegExp(`[?&]mlat=(${NUM})`, 'i'));
+  const lon = input.match(new RegExp(`[?&]mlon=(${NUM})`, 'i'));
+  if (lat && lon) {
+    return check(+lat[1], +lon[1], zoomLevel);
+  }
+  throw new Error('this link has no coordinates in it - copy them from the map instead');
+}
+
+// "lat 42.3601 lon -71.0942", "lng: -71.0942, lat: 42.3601"
+function fromLabels(input) {
+  const lat = input.match(new RegExp(`\\blat(?:itude)?\\s*[:=]?\\s*(${NUM})`, 'i'));
+  const lon = input.match(new RegExp(`\\b(?:lon|lng|long|longitude)\\s*[:=]?\\s*(${NUM})`, 'i'));
+  if (!lat || !lon) {
+    return null;
+  }
+  const zoom = input.match(/\b(?:z|zoom)\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  return check(+lat[1], +lon[1], zoom ? +zoom[1] : undefined);
 }
 
 function fromText(input) {
+  if (!/\d/.test(input)) {
+    throw new Error('place names can\'t be looked up - type coordinates, e.g. "42.3601, -71.0942"');
+  }
   let text = input
     .replace(/[′’‘`´]/g, '\'')
     .replace(/[″“”]|''/g, '"')
     .replace(/[º˚]/g, '°');
 
-  // a zoom level written as "z16" or "zoom 16"
+  // decimal commas: "48,8584 2,2945"
+  text = text.replace(/^([-+]?\d+),(\d+)(\s*[\s;]\s*)([-+]?\d+),(\d+)$/, '$1.$2$3$4.$5');
+
+  // a zoom level written as "z16", "zoom 16" or "16z"
   let zoom;
-  text = text.replace(/\b(?:z|zoom)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*$/i, (all, value) => {
-    zoom = +value;
+  text = text.replace(/(?:\b(?:z|zoom)\s*[:=]?\s*(\d+(?:\.\d+)?)|[,;\s]\s*(\d+(?:\.\d+)?)z)\s*$/i, (all, value, suffixed) => {
+    zoom = +(value || suffixed);
     return '';
   }).trim();
 
@@ -80,14 +122,16 @@ function splitCoordinates(text) {
   if (/[,;]/.test(text)) {
     return text.split(/\s*[,;]\s*/).filter(Boolean);
   }
-  // split right after the first hemisphere letter which ends a coordinate ("..N 71..")
-  let m = text.match(/^(.*?\d[^NSEW]*?[NSEW])(?=\s|$)\s*(\S.*)$/i);
-  if (m && /\d/.test(m[2])) {
+  // letters in front of the numbers: split before the second one ("N42.36 W71.09")
+  const leading = /^[NSEW]/i.test(text);
+  let m = text.match(/^([NSEW].*?)\s*([NSEW]\s*\d.*)$/i);
+  if (leading && m) {
     return [m[1], m[2]];
   }
-  // or right before the second leading hemisphere letter ("N42.36 W71.09")
-  m = text.match(/^([NSEW].*?)\s+([NSEW]\s*\d.*)$/i);
-  if (m) {
+  // letters after the numbers: split after the first one ("42.36N 71.09W", "42.36N71.09W")
+  const end = leading ? '(?=\\s|$)' : '(?=\\s|$|[-+\\d.])';
+  m = text.match(new RegExp(`^(.*?\\d[^NSEW]*?[NSEW])${end}\\s*(\\S.*)$`, 'i'));
+  if (m && /\d/.test(m[2])) {
     return [m[1], m[2]];
   }
   const tokens = text.split(/\s+/).filter(Boolean);

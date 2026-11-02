@@ -54,9 +54,37 @@ describe('coordinates.parse', () => {
     expectPlace('geo:42.3601,-71.0942?z=13', 42.3601, -71.0942, 13);
   });
 
+  test('reads degrees with decimal minutes, letters in front', () => {
+    expectPlace('N 48° 51.504 E 002° 17.670', 48.8584, 2.2945, undefined);
+    expectPlace('S 33 51 24 E 151 12 55', -(33 + 51 / 60 + 24 / 3600), 151 + 12 / 60 + 55 / 3600, undefined);
+  });
+
+  test('reads typeset minus signs, decimal commas and short numbers', () => {
+    expectPlace('\u221233.8568, 151.2153', -33.8568, 151.2153, undefined);
+    expectPlace('33.8568, \u2013151.2153', 33.8568, -151.2153, undefined);
+    expectPlace('48,8584 2,2945', 48.8584, 2.2945, undefined);
+    expectPlace('.5, -.5', 0.5, -0.5, undefined);
+    expectPlace('48.8584N2.2945E', 48.8584, 2.2945, undefined);
+    expectPlace('48.8584, 2.2945, 17z', 48.8584, 2.2945, 17);
+  });
+
+  test('reads labelled coordinates in either order', () => {
+    expectPlace('lat 48.8584 lon 2.2945', 48.8584, 2.2945, undefined);
+    expectPlace('lng: 2.2945, lat: 48.8584', 48.8584, 2.2945, undefined);
+  });
+
+  test('reads coordinates from link parameters', () => {
+    expectPlace('https://www.google.com/maps?q=48.8584,2.2945&z=15', 48.8584, 2.2945, 15);
+    expectPlace('https://www.google.com/maps/search/?api=1&query=48.8584%2C2.2945', 48.8584, 2.2945, undefined);
+    expectPlace('https://maps.apple.com/?ll=48.8584,2.2945&z=15', 48.8584, 2.2945, 15);
+    expectPlace('https://www.openstreetmap.org/?mlat=48.8584&mlon=2.2945', 48.8584, 2.2945, undefined);
+    expectPlace('https://www.bing.com/maps?cp=48.8584~2.2945&lvl=16', 48.8584, 2.2945, 16);
+    expect(() => parse('https://www.google.com/maps?q=Eiffel+Tower')).toThrow('no coordinates');
+  });
+
   test('rejects what it cannot read, with a reason', () => {
     expect(() => parse('')).toThrow('no coordinates');
-    expect(() => parse('Cambridge')).toThrow();
+    expect(() => parse('Cambridge')).toThrow('place names');
     expect(() => parse('42.3601')).toThrow('latitude and a longitude');
     expect(() => parse('42.36N 71.09N')).toThrow('N or S');
     expect(() => parse('42 75 00 N 71 0 0 W')).toThrow('between 0 and 60');
