@@ -39,7 +39,7 @@ module.exports = class LabelBuffer {
   }
 
   featuresAt(x, y) {
-    this.tree.search({minX: x, maxX: x, minY: y, maxY: y});
+    return this.tree.search({minX: x, maxX: x, minY: y, maxY: y});
   }
 
   _hasSpace(text, x, y) {
