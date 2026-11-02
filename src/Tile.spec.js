@@ -42,3 +42,17 @@ describe('Tile.classifyRings', () => {
     expect(Tile.classifyRings([outer, flat])).toEqual([[outer]]);
   });
 });
+
+describe('Tile.cleanLabel', () => {
+  test('turns line breaks and other control characters into spaces', () => {
+    expect(Tile.cleanLabel('Whale watching\nFuturismo')).toBe('Whale watching Futurismo');
+    expect(Tile.cleanLabel('a\t\r\nb\u0085c')).toBe('a b c');
+  });
+
+  test('keeps names as they are otherwise, and numbers as text', () => {
+    expect(Tile.cleanLabel('Hawaiʻi Volcanoes')).toBe('Hawaiʻi Volcanoes');
+    expect(Tile.cleanLabel(12)).toBe('12');
+    expect(Tile.cleanLabel(' \n ')).toBe(undefined);
+    expect(Tile.cleanLabel(undefined)).toBe(undefined);
+  });
+});

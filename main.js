@@ -140,7 +140,8 @@ if (argv.download) {
   const tileSource = new TileSource();
   Promise.resolve(tileSource.init(argv.tile_source)).then(() => {
     const maxZoom = Math.min(argv.download_max_zoom, config.tileRange);
-    console.log(`Downloading tiles within ${argv.download} km of ${argv.latitude}, ${argv.longitude} (zoom 0-${maxZoom})...`);
+    const count = tileSource.countAreaTiles(argv.latitude, argv.longitude, argv.download, maxZoom);
+    console.log(`Downloading ${count} tiles (about ${Math.ceil(count * config.downloadTileKB / 1024)} MB) within ${argv.download} km of ${+argv.latitude.toFixed(5)}, ${+argv.longitude.toFixed(5)} (zoom 0-${maxZoom})...`);
     return tileSource.downloadArea(argv.latitude, argv.longitude, argv.download, maxZoom, (done, total, failed) => {
       process.stdout.write(`\r${done}/${total} tiles${failed ? `, ${failed} failed` : ''}`);
     });

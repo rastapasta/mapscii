@@ -62,6 +62,10 @@ module.exports = {
   maxFps: 30,
   // reading a tile pauses after this many milliseconds, so keys stay responsive
   tileLoadSlice: 8,
+  // --download: the most tiles in one go, and the size of a stored tile for
+  // estimating the disk space needed (they average 20-30 KB)
+  maxDownloadTiles: 200000,
+  downloadTileKB: 30,
 
   tileRange: 14,
   projectSize: 256,
