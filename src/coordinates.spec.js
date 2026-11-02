@@ -82,6 +82,12 @@ describe('coordinates.parse', () => {
     expect(() => parse('https://www.google.com/maps?q=Eiffel+Tower')).toThrow('no coordinates');
   });
 
+  test('wraps longitudes beyond 180 in links, as after panning across the date line', () => {
+    expectPlace('https://www.google.com/maps/@21.3069,-202.1417,12z', 21.3069, 157.8583, 12);
+    expectPlace('https://www.openstreetmap.org/#map=10/-17.7/538.3', -17.7, 178.3, 10);
+    expect(() => parse('21.3069, -202.1417')).toThrow('longitude');
+  });
+
   test('rejects what it cannot read, with a reason', () => {
     expect(() => parse('')).toThrow('no coordinates');
     expect(() => parse('Cambridge')).toThrow('place names');
