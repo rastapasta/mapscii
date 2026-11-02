@@ -60,10 +60,66 @@ This is pretty simple too.
 mapscii
 ```
 
+## Going to coordinates
+
+Press **g**, type the coordinates and press **Enter**: the map centres on them, zooms in to street level (unless you give a zoom level or are already zoomed in further) and marks the exact spot with a red **✚**. Their exact values are shown at the bottom. **Esc** cancels the input, or removes the marker.
+
+To start right there, use `--goto`:
+
+```
+mapscii --goto "42.3601, -71.0942"
+```
+
+Coordinates can be written in many ways, latitude first unless N/S/E/W say otherwise:
+
+| Notation | Example |
+| --- | --- |
+| decimal degrees | `42.3601, -71.0942` or `42.3601 -71.0942` |
+| with a zoom level | `42.3601, -71.0942, 16` or `42.3601 -71.0942 z16` |
+| hemisphere letters | `42.3601N 71.0942W` or `N42.3601 W71.0942` |
+| degrees, minutes, seconds | `42°21'36.4"N 71°05'39.1"W` or `42 21 36 N 71 5 39 W` |
+| links | `geo:42.3601,-71.0942`, Google Maps links (`…/@42.3601,-71.0942,15z`), OpenStreetMap links (`…#map=16/42.3601/-71.0942`) |
+
+## Map data sources
+
+MapSCII can draw tiles from these sources, chosen with `--tile_source`:
+
+* `mapscii` (default) - [mapscii.me](https://mapscii.me), [OSM2VectorTiles](https://github.com/osm2vectortiles) data from 2016. Small tiles, quick to download.
+* `openfreemap` - [OpenFreeMap](https://openfreemap.org), current [OpenStreetMap](https://www.openstreetmap.org) data in the [OpenMapTiles](https://openmaptiles.org/schema/) schema, updated weekly. Many more names and details (shops, bus stops, house numbers with the `bright` style), but about twice the download size.
+
+```
+mapscii --tile_source openfreemap
+```
+
+Any other vector tile server works too: pass a [TileJSON](https://github.com/mapbox/tilejson-spec) URL, a tile URL with `{z}/{x}/{y}`, a base URL ending in `/`, or a local `.mbtiles` file. The data schema (OSM2VectorTiles or OpenMapTiles) is detected from a TileJSON or an `.mbtiles` file; for other sources set it with `--tile_schema openmaptiles` if needed.
+
+`.mbtiles` files need the optional [`@mapbox/mbtiles`](https://github.com/mapbox/node-mbtiles) package (about 16 MB): `npm install -g @mapbox/mbtiles` if MapSCII was installed with `npm install -g mapscii`, or `npm install --no-save @mapbox/mbtiles` in a MapSCII checkout.
+
+## Offline use and faster loading
+
+Every tile MapSCII downloads is kept in a disk cache, so a place you have visited once loads instantly the next time, even without a network connection. While you look at the map, MapSCII also downloads the tiles around the view, and one zoom level in and out, in the background.
+
+To make an area available right away, download it in one go: give the centre and a radius in kilometres.
+
+```
+mapscii --lat 3.848 --lon 11.502 --download 5
+```
+
+The centre can also be given with `--goto`, in any of the notations above, e.g. `mapscii --goto "3°50'53\"N 11°30'7\"E" --download 5`.
+
+Add `--tile_source openfreemap` to download from OpenFreeMap instead. This saves every tile within 5 km of the centre, from the whole-world view down to street level (zoom 14), then exits. Use `--download_max_zoom` to stop at a lower zoom level, e.g. `--download 200 --download_max_zoom 10` for a whole region without street detail. Afterwards, start MapSCII at that place as usual:
+
+```
+mapscii --lat 3.848 --lon 11.502 --zoom 14
+```
+
+The cache lives in `~/.cache/mapscii-nodejs` on Linux, `~/Library/Caches/mapscii-nodejs` on macOS and `%LOCALAPPDATA%\mapscii-nodejs\Cache` on Windows. Each tile source gets its own folder in it. It is safe to delete at any time.
+
 ## Keyboard shortcuts
 
 * Arrows **up**, **down**, **left**, **right** to scroll around
 * Press **a** or **z** to zoom in and out
+* Press **g** to go to coordinates (see below), **Esc** to remove the marker again
 * Press **c** to switch to block character mode
 * Press **q** to quit
 
@@ -125,6 +181,7 @@ If your terminal supports mouse events you can drag the map and use your scroll 
 
 * [lukasmartinelli](https://github.com/lukasmartinelli) & [manuelroth](https://github.com/manuelroth) for all their work on [OSM2VectorTiles](https://github.com/osm2vectortiles) (global vector tiles from [OSM Planet](https://wiki.openstreetmap.org/wiki/Planet.osm))
 * [mourner](https://github.com/mourner) for all his work on mindblowing GIS algorithms (like the used [earcut](https://github.com/mapbox/earcut), [rbush](https://github.com/mourner/rbush), [simplify-js](https://github.com/mourner/simplify-js), ..)
+* Lister for the 2026 improvements to tile loading, offline caching (`--download`) and label placement
 
 ## Licenses
 
