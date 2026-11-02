@@ -191,9 +191,14 @@ class Renderer {
     const tile = utils.ll2tile(center.lon, center.lat, z);
     const last = this.lastView;
     if (last && last.z === z) {
+      // across the date line the shorter way round
+      const gridSize = Math.pow(2, z);
+      let dx = tile.x - last.x;
+      if (dx > gridSize / 2) dx -= gridSize;
+      if (dx < -gridSize / 2) dx += gridSize;
       // in screen pixels, older movements fade out
       this.movement = {
-        x: this.movement.x / 2 + (tile.x - last.x) * size,
+        x: this.movement.x / 2 + dx * size,
         y: this.movement.y / 2 + (tile.y - last.y) * size,
       };
     } else {
