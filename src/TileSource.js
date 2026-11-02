@@ -68,6 +68,9 @@ class TileSource {
     this.loading = new Map();
     // tiles which failed to load: key -> timestamp before which we don't retry
     this.failed = new Map();
+    // why they failed: key -> short reason, or null if the server has no tile there
+    this.failReason = new Map();
+    this.retryTimer = null;
 
     // what the renderer currently wants: key -> {generation, rank}
     this.wanted = new Map();
@@ -282,6 +285,27 @@ class TileSource {
     return this.loading.has(this._key(z, x, y));
   }
 
+  // Why the tile couldn't be loaded the last time, or null
+  failureOf(z, x, y) {
+    return this.failReason.get(this._key(z, x, y)) || null;
+  }
+
+  // Failed tiles are tried again after config.tileRetryDelay, with the next
+  // draw - this makes sure there is one, so the map fills in by itself once the
+  // network is back
+  _scheduleRetry() {
+    if (this.retryTimer) {
+      return;
+    }
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this._notify(null);
+    }, config.tileRetryDelay + 100);
+    if (this.retryTimer.unref) {
+      this.retryTimer.unref();
+    }
+  }
+
   _forgetPrefetch(key) {
     // unless the tile became visible in the meantime and is being loaded for real
     if (!this.loading.has(key)) {
@@ -324,6 +348,7 @@ class TileSource {
       this.loading.delete(key);
       this.wanted.delete(key);
       this.failed.delete(key);
+      this.failReason.delete(key);
       this._addToCache(key, tile);
       this._notify(key);
       return tile;
@@ -332,6 +357,8 @@ class TileSource {
       this.wanted.delete(key);
       if (!error.cancelled) {
         this.failed.set(key, Date.now() + config.tileRetryDelay);
+        this.failReason.set(key, failureReason(error));
+        this._scheduleRetry();
         // a tile that can't be parsed must not stay in the disk cache
         if (error.corrupt && this.mode === modes.HTTP && config.persistDownloadedTiles) {
           this.onDisk.delete(key);
@@ -555,6 +582,7 @@ class TileSource {
         });
         if (!res.ok) {
           const error = new Error(`could not load ${url}: HTTP ${res.status}`);
+          error.status = res.status;
           error.retry = res.status >= 500;
           throw error;
         }
@@ -642,6 +670,24 @@ class TileSource {
       throw error;
     }
   }
+}
+
+// A short reason for a failed tile, for the footer; null when the server simply
+// has no tile there
+function failureReason(error) {
+  if (error.status === 404) {
+    return null;
+  }
+  if (error.status) {
+    return `server error ${error.status}`;
+  }
+  if (error.corrupt) {
+    return 'damaged tile';
+  }
+  if (error.type === 'system' || error.type === 'request-timeout') {
+    return 'no connection to the tile server';
+  }
+  return error.message.slice(0, 60);
 }
 
 module.exports = TileSource;
