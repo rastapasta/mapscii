@@ -347,7 +347,7 @@ class Mapscii {
     } else if (name === 'backspace') {
       this.prompt = this.prompt.slice(0, -1);
       this.promptError = null;
-    } else if (ch && ch.length === 1 && ch >= ' ' && !(key && (key.ctrl || key.meta)) && this.prompt.length < 200) {
+    } else if (ch && ch.length === 1 && ch >= ' ' && !(key && (key.ctrl || key.meta)) && this.prompt.length < 2000) {
       this.prompt += ch;
       this.promptError = null;
     }
@@ -407,8 +407,15 @@ class Mapscii {
     }
     if (this.prompt !== null) {
       const help = this.promptError || 'e.g. 42.3601, -71.0942 or 48°51\'24"N 2°21\'8"E - Enter to go, Esc to cancel';
-      const line = `Go to: ${this.prompt}█   ${help}`;
-      return config.output.columns ? line.slice(0, config.output.columns - 1) : line;
+      const columns = config.output.columns || 0;
+      // long input (a pasted link) scrolls, so its end with the cursor stays visible
+      let input = this.prompt;
+      const room = Math.max(10, columns - 12 - Math.min(help.length, 40));
+      if (columns && input.length > room) {
+        input = '…' + input.slice(-(room - 1));
+      }
+      const line = `Go to: ${input}█   ${help}`;
+      return columns ? line.slice(0, columns - 1) : line;
     }
 
     let footer = `center: ${utils.digits(this.center.lat, 3)}, ${utils.digits(this.center.lon, 3)} `;
