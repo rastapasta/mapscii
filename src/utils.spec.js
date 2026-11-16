@@ -44,4 +44,32 @@ describe('normalize', () => {
       expect(utils.normalize(input)).toEqual(expected);
     });
   });
+
+  describe('normalize wraps the longitude', () => {
+    test.each([[400, 40], [-400, -40], [900, -180], [180, 180], [-180, -180], [-541, 179]])('%d -> %d', (lon, expected) => {
+      expect(utils.normalize({lat: 0, lon}).lon).toBeCloseTo(expected, 9);
+    });
+  });
+
+  describe('fitWidth', () => {
+    test('keeps text which fits', () => {
+      expect(utils.fitWidth('Boston', 6, '…')).toBe('Boston');
+    });
+    test('cuts text to the columns, with the ellipsis', () => {
+      expect(utils.fitWidth('Gateway of India', 8, '…')).toBe('Gateway…');
+      expect(utils.fitWidth('Gateway of India', 8)).toBe('Gateway ');
+    });
+    test('counts wide characters as two columns', () => {
+      expect(utils.fitWidth('東京都庁', 5, '…')).toBe('東京…');
+    });
+  });
+
+  describe('digits', () => {
+    test('rounds to the given number of decimals', () => {
+      expect(utils.digits(14 + 0.2 + 0.2, 2)).toBe(14.4);
+      expect(utils.digits(-71.0949, 3)).toBe(-71.095);
+      expect(utils.digits(-71.0944, 3)).toBe(-71.094);
+      expect(utils.digits(42.360091, 5)).toBe(42.36009);
+    });
+  });
 });

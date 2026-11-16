@@ -5,6 +5,7 @@
   methods used all around
 */
 'use strict';
+const stringWidth = require('string-width');
 const config = require('./config');
 
 const constants = {
@@ -12,6 +13,23 @@ const constants = {
 };
 
 const utils = {
+  // The text cut to at most the given number of terminal columns (wide
+  // characters such as Japanese ones take two), ending in ellipsis if given
+  fitWidth: (text, columns, ellipsis = '') => {
+    if (stringWidth(text) <= columns) {
+      return text;
+    }
+    const room = columns - stringWidth(ellipsis);
+    let result = '';
+    let width = 0;
+    for (const char of text) {
+      width += stringWidth(char);
+      if (width > room) break;
+      result += char;
+    }
+    return result + ellipsis;
+  },
+
   clamp: (num, min, max) => {
     if (num <= min) {
       return min;
@@ -76,13 +94,16 @@ const utils = {
     }
   },
 
+  // rounded to the given number of decimals, for display
   digits: (number, digits) => {
-    return Math.floor(number*Math.pow(10, digits))/Math.pow(10, digits);
+    return Math.round(number*Math.pow(10, digits))/Math.pow(10, digits);
   },
 
   normalize: (ll) => {
-    if (ll.lon < -180) ll.lon += 360;
-    if (ll.lon > 180) ll.lon -= 360;
+    // any number of times round the world
+    if (ll.lon < -180 || ll.lon > 180) {
+      ll.lon = ((ll.lon + 180) % 360 + 360) % 360 - 180;
+    }
 
     if (ll.lat > 85.0511) ll.lat = 85.0511;
     if (ll.lat < -85.0511) ll.lat = -85.0511;
