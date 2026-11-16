@@ -6,10 +6,8 @@
   * remote TileServer
   * local MBTiles and VectorTiles
 
-  Tiles are loaded in the background: the renderer asks for what it needs with
-  peekTile() (never blocks) and requestTile() (starts a load), and gets told via
-  onTileLoaded once a tile is ready to be drawn. Tiles around the view can be
-  downloaded ahead of time with prefetchTile(); every download is kept on disk.
+  Tiles load in the background: peekTile() never blocks, requestTile() starts a
+  load, and onTileLoaded says when one is ready. Every download is kept on disk.
 */
 'use strict';
 const fs = require('fs');
@@ -17,9 +15,6 @@ const path = require('path');
 const zlib = require('zlib');
 const {promisify} = require('util');
 const gunzip = promisify(zlib.gunzip);
-const http = require('http');
-const https = require('https');
-const fetch = require('node-fetch');
 const envPaths = require('env-paths');
 const paths = envPaths('mapscii');
 
@@ -27,15 +22,9 @@ const Tile = require('./Tile');
 const config = require('./config');
 const utils = require('./utils');
 const OpenMapTiles = require('./OpenMapTiles');
+const Net = require('./Net');
 
-// https://github.com/mapbox/node-mbtiles has native build dependencies (sqlite3)
-// To maximize MapSCII’s compatibility, MBTiles support must be manually added via
-// $> npm install -g @mapbox/mbtiles        (if MapSCII is installed with npm -g)
-// $> npm install --no-save @mapbox/mbtiles (in the MapSCII folder, e.g. a git clone)
-let MBTiles = null;
-try {
-  MBTiles = require('@mapbox/mbtiles');
-} catch (err) {void 0;}
+const MBTilesFile = require('./MBTilesFile');
 
 const modes = {
   MBTiles: 1,
@@ -43,49 +32,34 @@ const modes = {
   HTTP: 3,
 };
 
-// Reuse connections instead of doing a TCP + TLS handshake for every tile.
-// Node tries a host's addresses one after another and by default gives each only
-// 250ms to connect - too little for slow links, where every attempt would fail
-// for hosts with several addresses (like CDNs).
-const agentOptions = {
-  keepAlive: true,
-  maxSockets: config.maxConnections,
-  autoSelectFamilyAttemptTimeout: config.connectAttemptTimeout,
-};
-const httpAgent = new http.Agent(agentOptions);
-const httpsAgent = new https.Agent(agentOptions);
+const meter = Net.meter;
 
 class TileSource {
-  // source: a name from config.sources (e.g. 'openfreemap'), a TileJSON URL, a tile
-  // URL template with {z}/{x}/{y}, a base URL ending in '/', or an .mbtiles file
+  // source: a name from config.sources, a TileJSON URL, a {z}/{x}/{y} template, a base URL or an .mbtiles file
   init(source) {
     this.sourceName = config.sources[source] ? source : null;
     this.source = config.sources[source] || source;
 
-    // parsed tiles, kept in least-recently-used order (Map keeps insertion order)
+    // parsed tiles in LRU order (a Map keeps insertion order)
     this.cache = new Map();
     this.cacheSize = config.tileCacheSize;
 
-    // tiles currently being loaded: key -> Promise
     this.loading = new Map();
-    // tiles which failed to load: key -> timestamp before which we don't retry
+    // failed tiles: key -> time before which they aren't retried
     this.failed = new Map();
-    // why they failed: key -> short reason, or null if the server has no tile there
+    // key -> short reason, or null if the server has no tile there
     this.failReason = new Map();
     this.retryTimer = null;
 
-    // what the renderer currently wants: key -> {generation, rank}
+    // what the renderer wants: key -> {generation, rank}
     this.wanted = new Map();
-    // every draw starts a new generation - tiles of the newest one load first
+    // each draw starts a generation; the newest loads first
     this.generation = 0;
 
-    // downloads which are queued or running: key -> Promise of the tile's data
     this.downloads = new Map();
-    // network queue: key -> {z, x, y, generation, rank, prefetch, resolve, reject}
     this.queue = new Map();
     this.activeDownloads = 0;
     this.activePrefetches = 0;
-    // tiles known to be in the disk cache
     this.onDisk = new Set();
 
     this.onTileLoaded = null;
@@ -94,7 +68,6 @@ class TileSource {
     this.mbtiles = null;
     this.styler = null;
     this.ready = Promise.resolve();
-    // the data schema of the tiles, see Tile
     this.schema = config.tileSchema || 'osm2vectortiles';
     this.attribution = null;
 
@@ -114,10 +87,6 @@ class TileSource {
       }
 
     } else if (this.source.endsWith('.mbtiles')) {
-      if (!MBTiles) {
-        throw new Error('MBTiles support must be installed first: \'npm install -g @mapbox/mbtiles\' if MapSCII is installed with npm -g, or \'npm install --no-save @mapbox/mbtiles\' in the MapSCII folder');
-      }
-
       this.mode = modes.MBTiles;
       this.ready = this.loadMBTiles(source);
     } else {
@@ -126,8 +95,7 @@ class TileSource {
     return this.ready;
   }
 
-  // Tiles of the default source live directly in the cache folder (as they always
-  // did), every other source gets its own folder, so their data never mixes
+  // the default source's tiles live in the cache folder itself, others in their own folders
   _cacheDirFor(source) {
     if (source === 'https://mapscii.me/' || source === 'http://mapscii.me/') {
       return paths.cache;
@@ -136,10 +104,7 @@ class TileSource {
     return path.join(paths.cache, name);
   }
 
-  // Reads a TileJSON (https://github.com/mapbox/tilejson-spec) for the tile URL,
-  // zoom range, schema and attribution. A copy is kept on disk: when there is one,
-  // MapSCII starts with it right away and fetches a fresh one in the background
-  // (for the following downloads), instead of waiting for the network.
+  // Reads the TileJSON. A cached copy is used at once while a fresh one is fetched in the background.
   async _loadTileJSON(url) {
     const copy = path.join(this.cacheDir, 'tilejson.json');
     let saved = null;
@@ -166,74 +131,151 @@ class TileSource {
     try {
       await fresh;
     } catch (error) {
-      // short, so it fits into the footer
       const host = url.replace(/^\w+:\/\//, '').split('/')[0];
       throw new Error(`could not reach ${host}: ${failureReason(error) || error.message}`);
     }
   }
 
+  // Takes the tile URL, zoom range, schema and attribution from a TileJSON
   _useTileJSON(tilejson, url) {
     if (!tilejson.tiles || !tilejson.tiles.length) {
       throw new Error(`${url} lists no tiles`);
     }
     this.tileUrl = tilejson.tiles[0];
+    this.vectorLayers = tilejson.vector_layers;
     if (!config.tileSchema && OpenMapTiles.matches(tilejson.vector_layers)) {
       this.schema = 'openmaptiles';
+    } else if (!config.tileSchema && tilejson.mapscii_schema) {
+      // another MapSCII sharing its tiles says it
+      this.schema = tilejson.mapscii_schema;
     }
     if (tilejson.maxzoom !== undefined) {
       config.tileRange = Math.min(config.tileRange, tilejson.maxzoom);
     }
     if (tilejson.attribution) {
-      // the attribution is HTML meant for web maps
       this.attribution = plainText(tilejson.attribution);
     }
   }
 
+  // Uses an MBTiles file as the source
   loadMBTiles(source) {
-    return new Promise((resolve, reject) => {
-      new MBTiles(source, (err, mbtiles) => {
-        if (err) {
-          return reject(err);
-        }
-        this.mbtiles = mbtiles;
-        // the file's metadata lists its layers, which tell its schema
-        mbtiles.getInfo((infoErr, info) => {
-          if (!infoErr && info && !config.tileSchema && OpenMapTiles.matches(info.vector_layers)) {
-            this.schema = 'openmaptiles';
-          }
-          if (!infoErr && info && info.attribution) {
-            this.attribution = plainText(info.attribution);
-          }
-          resolve();
-        });
-      });
-    });
+    this.mbtiles = new MBTilesFile(source);
+    const info = this.mbtiles.getInfo();
+    // the metadata's layers tell the schema; MapSCII's packs state it
+    if (!config.tileSchema) {
+      if (info.mapscii_schema) {
+        this.schema = info.mapscii_schema;
+      } else if (OpenMapTiles.matches(info.vector_layers)) {
+        this.schema = 'openmaptiles';
+      }
+    }
+    if (info.attribution) {
+      this.attribution = plainText(info.attribution);
+    }
+    // deeper zooms magnify the deepest tiles in the file
+    if (info.maxzoom !== undefined && Number.isFinite(info.maxzoom)) {
+      config.tileRange = Math.min(config.tileRange, info.maxzoom);
+    }
+    this.packInfo = info;
+    return Promise.resolve();
   }
 
+  // The style, for indexing names by kind
   useStyler(styler) {
     this.styler = styler;
   }
 
-  // Returns the parsed tile if it is in memory, null otherwise - never blocks
+  // Names of tiles read go into this place index (null: none)
+  useIndex(placeIndex) {
+    this.placeIndex = placeIndex;
+    this.indexQueue = [];
+  }
+
+  // indexed one tile at a time, a little later: each takes up to ~10 ms
+  _indexLater(z, x, y, tile) {
+    if (!this.placeIndex) {
+      return;
+    }
+    this.indexQueue.push([z, x, y, tile]);
+    if (this.indexQueue.length > 50) {
+      this.indexQueue.shift();
+    }
+    if (!this.indexTimer) {
+      this._indexNext();
+    }
+  }
+
+  // Indexes the next queued tile's names a little later
+  _indexNext() {
+    this.indexTimer = setTimeout(() => {
+      this.indexTimer = null;
+      const item = this.indexQueue.shift();
+      if (!item || !this.placeIndex) {
+        return;
+      }
+      try {
+        this.placeIndex.addTile(this.source, ...item);
+      } catch (error) {
+        // e.g. a read-only disk
+        this.placeIndex = null;
+        return;
+      }
+      if (this.indexQueue.length) {
+        this._indexNext();
+      }
+    }, config.indexDelay);
+    if (this.indexTimer.unref) {
+      this.indexTimer.unref();
+    }
+  }
+
+  // The deepest zoom level the source has tiles for
+  maxZoom() {
+    return config.tileRange;
+  }
+
+  // Unzipped tile data for TileServer: from the pack or cache, else downloaded if download is set.
+  // Rejects with error.status 404 if there is no such tile, error.notCached if it mustn't be downloaded.
+  async getTileData(z, x, y, {download = true} = {}) {
+    await this._whenReady();
+    if (this.mode === modes.MBTiles) {
+      const data = await unzipTile(await this._getMBTile(z, x, y));
+      if (!data) {
+        throw Object.assign(new Error(`tile ${z}/${x}/${y} in ${this.source} is damaged`), {corrupt: true});
+      }
+      return data;
+    }
+    if (config.persistDownloadedTiles) {
+      const cached = await this._getPersisted(z, x, y);
+      if (cached) {
+        return cached;
+      }
+    }
+    if (!download) {
+      throw Object.assign(new Error(`tile ${z}/${x}/${y} is not in the disk cache`), {notCached: true});
+    }
+    return this._enqueueDownload(z, x, y, false);
+  }
+
+  // The parsed tile if it is in memory, else null; never blocks
   peekTile(z, x, y) {
     const key = this._key(z, x, y);
     const tile = this.cache.get(key);
     if (tile) {
-      // refresh its position in the LRU order
       this.cache.delete(key);
       this.cache.set(key, tile);
+      tile.usedIn = this.generation;
       return tile;
     }
     return null;
   }
 
-  // Called before each draw: tiles requested from now on are the most urgent ones
+  // Starts a frame: tiles requested from now on are the most urgent
   beginFrame() {
     this.generation++;
   }
 
-  // Starts loading a tile in the background (if it isn't already loading).
-  // Tiles requested in the latest frame get fetched first, lowest rank first.
+  // Tiles of the latest frame load first, lowest rank first.
   requestTile(z, x, y, rank = 0) {
     const key = this._key(z, x, y);
     if (this.cache.has(key)) {
@@ -255,8 +297,7 @@ class TileSource {
     this.getTile(z, x, y).catch(() => null);
   }
 
-  // Downloads a tile into the disk cache when no visible tile is waiting, without
-  // parsing it - so it's ready when the user pans or zooms there. Lower ranks first.
+  // Prefetch into the disk cache, without parsing, when no visible tile is waiting.
   prefetchTile(z, x, y, rank = 0) {
     if (this.mode !== modes.HTTP || !config.persistDownloadedTiles) {
       return;
@@ -268,7 +309,7 @@ class TileSource {
     if ((this.failed.get(key) || 0) > Date.now()) {
       return;
     }
-    // (a damaged file in the cache gets deleted there, and downloaded again)
+    // a damaged cached file is deleted and downloaded again
     this._getPersisted(z, x, y).then((buffer) => {
       if (buffer) {
         this.onDisk.add(key);
@@ -286,18 +327,23 @@ class TileSource {
     });
   }
 
+  // Whether a tile is loading
   isLoading(z, x, y) {
     return this.loading.has(this._key(z, x, y));
   }
 
-  // Why the tile couldn't be loaded the last time, or null
+  // Whether the source has no tile there (a 404)
+  isEmpty(z, x, y) {
+    const key = this._key(z, x, y);
+    return this.failReason.has(key) && this.failReason.get(key) === null;
+  }
+
+  // Why the tile couldn't be loaded last time, or null
   failureOf(z, x, y) {
     return this.failReason.get(this._key(z, x, y)) || null;
   }
 
-  // Failed tiles are tried again after config.tileRetryDelay, with the next
-  // draw - this makes sure there is one, so the map fills in by itself once the
-  // network is back
+  // Ensures a draw after config.tileRetryDelay, so the map fills in once the network is back.
   _scheduleRetry() {
     if (this.retryTimer) {
       return;
@@ -311,14 +357,14 @@ class TileSource {
     }
   }
 
+  // Forgets a prefetch nobody wants any more
   _forgetPrefetch(key) {
-    // unless the tile became visible in the meantime and is being loaded for real
     if (!this.loading.has(key)) {
       this.wanted.delete(key);
     }
   }
 
-  // Returns a Promise of the parsed tile, loading it if needed
+  // A promise of the parsed tile, loading it if needed
   getTile(z, x, y) {
     if (!this.mode) {
       throw new Error('no TileSource defined');
@@ -333,8 +379,7 @@ class TileSource {
       return this.loading.get(key);
     }
 
-    // even tiles from the disk cache wait for the source: its TileJSON says how
-    // to read them
+    // cached tiles also wait for the TileJSON, which says how to read them
     let promise = this._whenReady().then(() => {
       switch (this.mode) {
         case modes.MBTiles:
@@ -356,15 +401,19 @@ class TileSource {
       this.failReason.delete(key);
       this._addToCache(key, tile);
       this._notify(key);
+      this._indexLater(z, x, y, tile);
       return tile;
     }, (error) => {
       this.loading.delete(key);
       this.wanted.delete(key);
       if (!error.cancelled) {
-        this.failed.set(key, Date.now() + config.tileRetryDelay);
+        // a file doesn't change: what isn't in it never will be
+        const final = this.mode === modes.MBTiles;
+        this.failed.set(key, final ? Infinity : Date.now() + config.tileRetryDelay);
         this.failReason.set(key, failureReason(error));
-        this._scheduleRetry();
-        // a tile that can't be parsed must not stay in the disk cache
+        if (!final) {
+          this._scheduleRetry();
+        }
         if (error.corrupt && this.mode === modes.HTTP && config.persistDownloadedTiles) {
           this.onDisk.delete(key);
           fs.unlink(this._persistPath(z, x, y), () => null);
@@ -378,11 +427,7 @@ class TileSource {
     return promise;
   }
 
-  // Downloads every tile within radiusKm around a point, from zoom 0 up to
-  // maxZoom, into the disk cache - for fast or offline use of that area later.
-  // onProgress(done, total, failed) is called after each tile.
-  // The tiles within radiusKm around a point, from zoom 0 up to maxZoom, as
-  // [{z, x, y}] - across the date line too
+  // [{z, x, y}] within radiusKm, zoom 0 to maxZoom, across the date line too
   areaTiles(lat, lon, radiusKm, maxZoom) {
     const tiles = [];
     for (const {z, left, right, top, bottom} of areaRanges(lat, lon, radiusKm, maxZoom)) {
@@ -402,11 +447,8 @@ class TileSource {
       .reduce((sum, r) => sum + (r.right - r.left + 1) * Math.max(0, r.bottom - r.top + 1), 0);
   }
 
-  // Downloads every tile within radiusKm around a point, from zoom 0 up to
-  // maxZoom, into the disk cache - for fast or offline use of that area later.
-  // Refuses areas which wouldn't fit on the disk. onProgress(done, total, failed)
-  // is called after each tile.
-  async downloadArea(lat, lon, radiusKm, maxZoom, onProgress) {
+  // Refuses areas that wouldn't fit on the disk; stops starting tiles when shouldStop() says so.
+  async downloadArea(lat, lon, radiusKm, maxZoom, onProgress, {shouldStop = null} = {}) {
     if (this.mode !== modes.HTTP || !config.persistDownloadedTiles) {
       throw new Error('downloading an area needs a HTTP tile source and persistDownloadedTiles');
     }
@@ -426,10 +468,14 @@ class TileSource {
     let done = 0;
     let failed = 0;
     let next = 0;
-    // a few tiles at a time: the download queue limits the connections, this
-    // keeps the open files and the memory in bounds for big areas
+    let stopped = false;
+    // a few at a time keeps open files and memory bounded for big areas
     const worker = async () => {
       while (next < tiles.length) {
+        if (shouldStop && shouldStop()) {
+          stopped = true;
+          return;
+        }
         const {z, x, y} = tiles[next++];
         try {
           if (!await this._getPersisted(z, x, y)) {
@@ -445,12 +491,11 @@ class TileSource {
       }
     };
     await Promise.all(Array.from({length: 16}, worker));
-    return {total: tiles.length, failed};
+    await this.flushWrites();
+    return {total: tiles.length, failed, done, stopped};
   }
 
-  // Resolves once tiles can be loaded, i.e. the TileJSON or MBTiles file is read.
-  // A TileJSON which could not be loaded is tried again after tileRetryDelay; once
-  // it is there, the tiles which failed meanwhile are loaded right away.
+  // Resolves once the TileJSON or MBTiles file is read; a failed TileJSON is retried after tileRetryDelay.
   _whenReady() {
     if (this.mode !== modes.HTTP) {
       return this.ready;
@@ -467,7 +512,6 @@ class TileSource {
         }
       }, (error) => {
         this.sourceFailed = true;
-        // until the next try, requests fail right away instead of asking again
         clearTimeout(this.tileJSONRetry);
         this.tileJSONRetry = setTimeout(() => {
           this.tileJSONLoading = null;
@@ -482,24 +526,48 @@ class TileSource {
     return this.tileJSONLoading;
   }
 
+  // Tells the renderer a tile is ready
   _notify(key) {
     if (this.onTileLoaded) {
       this.onTileLoaded(key);
     }
   }
 
+  // The cache key of a tile
   _key(z, x, y) {
     return z + '-' + x + '-' + y;
   }
 
+  // Keeps a parsed tile in memory, dropping the least recently used beyond the budget
   _addToCache(key, tile) {
+    const old = this.cache.get(key);
+    if (old) {
+      this.cacheBytes -= old.memoryEstimate || 0;
+    }
+    this.cache.delete(key);
     this.cache.set(key, tile);
-    while (this.cache.size > this.cacheSize) {
-      // the first key is the least recently used one
-      this.cache.delete(this.cache.keys().next().value);
+    this.cacheBytes = (this.cacheBytes || 0) + (tile.memoryEstimate || 0);
+    const budget = config.tileCacheMB * 1024 * 1024;
+    // the world tile and the latest frame's tiles stay
+    const world = this._key(0, 0, 0);
+    const keep = (oldKey) => oldKey === world || oldKey === key || this.cache.get(oldKey).usedIn >= this.generation - 1;
+    while (this.cache.size > this.cacheSize || this.cacheBytes > budget) {
+      let evicted = false;
+      for (const oldest of this.cache.keys()) {
+        if (!keep(oldest)) {
+          this.cacheBytes -= this.cache.get(oldest).memoryEstimate || 0;
+          this.cache.delete(oldest);
+          evicted = true;
+          break;
+        }
+      }
+      if (!evicted) {
+        break;
+      }
     }
   }
 
+  // A tile's data from the disk cache, else downloaded
   async _getHTTP(z, x, y) {
     if (config.persistDownloadedTiles) {
       const persistedTile = await this._getPersisted(z, x, y);
@@ -510,7 +578,7 @@ class TileSource {
     return this._enqueueDownload(z, x, y, false);
   }
 
-  // Queues a download (or joins the one already queued or running for this tile)
+  // Queues a download, or joins the one already queued or running
   _enqueueDownload(z, x, y, prefetch) {
     const key = this._key(z, x, y);
     if (this.downloads.has(key)) {
@@ -535,7 +603,7 @@ class TileSource {
     return promise;
   }
 
-  // true if a should be downloaded before b
+  // Whether a should be downloaded before b
   _moreUrgent(a, b) {
     if (a.prefetch !== b.prefetch) {
       return !a.prefetch;
@@ -546,6 +614,7 @@ class TileSource {
     return a.rank < b.rank;
   }
 
+  // Starts queued downloads while connections are free
   _pumpQueue() {
     while (this.queue.size) {
       let next = null;
@@ -554,8 +623,7 @@ class TileSource {
           next = {key, item};
         }
       }
-      // visible tiles get their own connections; prefetching only starts when
-      // no visible tile is waiting, and only on a few extra connections
+      // visible tiles get their own connections; prefetching only uses a few extra ones
       const busy = next.item.prefetch ?
         this.activePrefetches >= config.maxConcurrentPrefetches ||
           this.activeDownloads + this.activePrefetches >= config.maxConnections :
@@ -572,7 +640,7 @@ class TileSource {
         this.activeDownloads++;
       }
       this._download(item.z, item.x, item.y).then(async (buffer) => {
-        // e.g. a Wi-Fi login page instead of a tile must not get into the cache
+        // e.g. a Wi-Fi login page instead of a tile
         const data = await unzipTile(buffer);
         if (!data) {
           const error = new Error('the server sent something else than a map tile');
@@ -594,7 +662,7 @@ class TileSource {
     }
   }
 
-  // drop the least urgent queued downloads - the view has long moved on from them
+  // Drops the least urgent queued downloads: the view has moved on from them
   _trimQueue() {
     while (this.queue.size > config.maxQueuedDownloads) {
       let last = null;
@@ -610,49 +678,29 @@ class TileSource {
     }
   }
 
+  // Downloads a tile once the source is known
   async _download(z, x, y) {
     await this._whenReady();
     return this._fetch(this.tileUrl.replace('{z}', z).replace('{x}', x).replace('{y}', y));
   }
 
   // Fetches a URL into a Buffer
-  async _fetch(url) {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const res = await fetch(url, {
-          agent: (parsedUrl) => parsedUrl.protocol === 'http:' ? httpAgent : httpsAgent,
-          timeout: config.tileRequestTimeout,
-        });
-        if (!res.ok) {
-          const error = new Error(`could not load ${url}: HTTP ${res.status}`);
-          error.status = res.status;
-          error.retry = res.status >= 500;
-          throw error;
-        }
-        return await res.buffer();
-      } catch (error) {
-        // dropped connections (e.g. a kept-alive one the server just closed) and
-        // server hiccups are worth another try right away - timeouts and 404s aren't
-        const retry = error.retry || (error.type === 'system');
-        if (!retry || attempt >= config.tileRequestRetries) {
-          throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
-      }
-    }
+  _fetch(url) {
+    return Net.fetchBuffer(url);
   }
 
+  // a tile missing from the file counts as a 404, so a coarser one stands in
   _getMBTile(z, x, y) {
-    return new Promise((resolve, reject) => {
-      this.mbtiles.getTile(z, x, y, (err, buffer) => {
-        if (err) {
-          return reject(err);
-        }
-        resolve(buffer);
-      });
-    });
+    const data = this.mbtiles.getTile(z, x, y);
+    if (!data) {
+      const error = new Error(`tile ${z}/${x}/${y} is not in ${this.source}`);
+      error.status = 404;
+      return Promise.reject(error);
+    }
+    return Promise.resolve(data);
   }
 
+  // Creates the cache folder
   _initPersistence() {
     try {
       this._createFolder(this.cacheDir);
@@ -661,44 +709,40 @@ class TileSource {
     }
   }
 
+  // Stores a downloaded tile in the background; see flushWrites
   _persistTile(z, x, y, buffer) {
-    // servers which compress tiles only for the transfer hand them over unzipped -
-    // they are stored zipped, which takes about a third of the space
+    const write = this._writeTile(z, x, y, buffer).catch(() => null);
+    this.pendingWrites = this.pendingWrites || new Set();
+    this.pendingWrites.add(write);
+    write.then(() => this.pendingWrites.delete(write));
+    return write;
+  }
+
+  // Resolves when all tiles downloaded so far are on the disk
+  flushWrites() {
+    return Promise.all([...(this.pendingWrites || [])]);
+  }
+
+  // Writes a tile to the disk cache, gzipped
+  async _writeTile(z, x, y, buffer) {
+    // stored gzipped (about a third of the space), even if the server sent it unzipped
     if (buffer[0] !== 0x1f || buffer[1] !== 0x8b) {
-      zlib.gzip(buffer, (err, zipped) => {
-        if (!err) {
-          this._persistTile(z, x, y, zipped);
-        }
-      });
-      return;
+      buffer = await promisify(zlib.gzip)(buffer);
     }
+    this._createFolder(path.join(this.cacheDir, z.toString()));
+    const filePath = this._persistPath(z, x, y);
+    // via a temporary file, so an interrupted write never leaves a broken tile
+    const tmpPath = `${filePath}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`;
     try {
-      this._createFolder(path.join(this.cacheDir, z.toString()));
-      const filePath = this._persistPath(z, x, y);
-      // write to a temporary file first, so an interrupted write never leaves a broken tile behind
-      const tmpPath = `${filePath}.${process.pid}.tmp`;
-      const key = this._key(z, x, y);
-      const discard = () => fs.unlink(tmpPath, () => null);
-      fs.writeFile(tmpPath, buffer, (err) => {
-        if (err) {
-          // e.g. the disk is full: don't leave a partial file behind
-          return discard();
-        }
-        fs.rename(tmpPath, filePath, (err) => {
-          if (err) {
-            return discard();
-          }
-          this.onDisk.add(key);
-        });
-      });
+      await fs.promises.writeFile(tmpPath, buffer);
+      await fs.promises.rename(tmpPath, filePath);
+      this.onDisk.add(this._key(z, x, y));
     } catch (error) {
-      void 0;
+      await fs.promises.unlink(tmpPath).catch(() => null);
     }
   }
 
-  // The tile from the disk cache, or false. A damaged file (e.g. cut short, or
-  // from a download which wasn't a tile) is deleted, so the tile gets downloaded
-  // again right away. Tiles are stored gzipped, so an empty file is damaged too.
+  // A damaged file (cut short, or not a tile) is deleted so it downloads again; an empty file counts as damaged.
   async _getPersisted(z, x, y) {
     const file = this._persistPath(z, x, y);
     let buffer;
@@ -716,10 +760,12 @@ class TileSource {
     return data;
   }
 
+  // The cache file of a tile
   _persistPath(z, x, y) {
     return path.join(this.cacheDir, z.toString(), `${x}-${y}.pbf`);
   }
 
+  // Creates a folder; returns true
   _createFolder(path) {
     try {
       fs.mkdirSync(path, {recursive: true});
@@ -731,9 +777,7 @@ class TileSource {
   }
 }
 
-// The tile ranges within radiusKm around a point for each zoom level up to
-// maxZoom, as [{z, left, right, top, bottom}]; left and right may lie beyond
-// the date line (wrap them with the grid size)
+// [{z, left, right, top, bottom}] per zoom; left and right may lie beyond the date line
 function areaRanges(lat, lon, radiusKm, maxZoom) {
   const dLat = radiusKm / 111.32;
   const dLon = radiusKm / (111.32 * Math.max(0.01, Math.cos(lat * Math.PI / 180)));
@@ -753,7 +797,7 @@ function areaRanges(lat, lon, radiusKm, maxZoom) {
   return ranges;
 }
 
-// MB free on the disk holding the folder, or null if that can't be found out
+// MB free on the disk holding the folder, or null if unknown
 function freeSpaceMB(folder) {
   try {
     const stats = fs.statfsSync(folder);
@@ -763,8 +807,7 @@ function freeSpaceMB(folder) {
   }
 }
 
-// The attribution of a source (HTML meant for web maps) as one line of text,
-// without control characters - they could change the terminal's state
+// the attribution as one line of plain text, without control characters
 function plainText(html) {
   const entities = {'&copy;': '©', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': '\'', '&nbsp;': ' '};
   return String(html)
@@ -775,12 +818,12 @@ function plainText(html) {
     .trim();
 }
 
+// Whether data starts with the gzip header
 function isGzipped(buffer) {
   return buffer.length >= 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
 }
 
-// The tile's data unzipped (in the background, off the main thread), or null
-// if it isn't a vector tile - e.g. an error page or a broken download
+// unzipped off the main thread, or null if it isn't a vector tile (e.g. an error page)
 async function unzipTile(buffer) {
   let data = buffer;
   if (isGzipped(data)) {
@@ -793,7 +836,7 @@ async function unzipTile(buffer) {
   return hasTileShape(data) ? data : null;
 }
 
-// The same, at once (for tests)
+// Whether data has the shape of a vector tile, so error pages are turned away
 function looksLikeTile(buffer) {
   let data = buffer;
   if (isGzipped(data)) {
@@ -806,9 +849,7 @@ function looksLikeTile(buffer) {
   return hasTileShape(data);
 }
 
-// Whether unzipped data has the shape of a vector tile: a sequence of layers
-// (protobuf field 3) which ends exactly at the end of the data. Cheap, and
-// enough to turn away error pages and broken downloads.
+// A cheap check that data is a vector tile: layers (protobuf field 3) ending exactly at the end.
 function hasTileShape(data) {
   let pos = 0;
   while (pos < data.length) {
@@ -831,8 +872,7 @@ function hasTileShape(data) {
   return pos === data.length;
 }
 
-// A short reason for a failed tile, for the footer; null when the server simply
-// has no tile there
+// null when the server simply has no tile there
 function failureReason(error) {
   if (error.status === 404) {
     return null;
@@ -843,12 +883,17 @@ function failureReason(error) {
   if (error.corrupt) {
     return error.message.includes('something else') ? 'the server sent no map tile' : 'damaged tile';
   }
-  if (error.type === 'system' || error.type === 'request-timeout') {
+  if (error.type === 'request-timeout') {
+    return 'the tile server stopped sending';
+  }
+  if (error.type === 'system') {
     return 'no connection to the tile server';
   }
   return error.message.slice(0, 60);
 }
 
 TileSource.looksLikeTile = looksLikeTile;
+TileSource.meter = meter;
+TileSource.paths = paths;
 TileSource.plainText = plainText;
 module.exports = TileSource;

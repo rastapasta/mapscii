@@ -50,6 +50,7 @@
     {
       "type": "line",
       "id": "waterway",
+      "minzoom": 14,
       "paint": {
         "line-color": "#303090",
         "line-width": {
@@ -115,6 +116,7 @@
     {
       "type": "line",
       "id": "waterway_stream_canal",
+      "minzoom": 12,
       "paint": {
         "line-color": "#a0c8f0",
         "line-width": {

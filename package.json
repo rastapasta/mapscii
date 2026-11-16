@@ -4,7 +4,9 @@
   "description": "MapSCII is a Braille & ASCII world map renderer for your console, based on OpenStreetMap",
   "main": "main.js",
   "scripts": {
-    "lint": "eslint src",
+    "lint": "eslint src tools scripts main.js app/src app/sw.js",
+    "app:build": "node scripts/build-app.js",
+    "app:serve": "node scripts/build-app.js && node scripts/serve-app.js",
     "start": "node main",
     "test": "jest"
   },
@@ -13,10 +15,17 @@
     "url": "https://github.com/rastapasta/mapscii.git"
   },
   "bin": {
-    "mapscii": "./bin/mapscii.sh"
+    "mapscii": "./bin/mapscii.sh",
+    "mapscii-notes": "./tools/field-notes/notes.js",
+    "mapscii-gps": "./tools/gps-bridge/bridge.js",
+    "mapscii-depot": "./tools/map-depot/depot.js",
+    "mapscii-codes": "./tools/address-codes/codes.js",
+    "mapscii-sms": "./tools/sms-gateway/gateway.js",
+    "mapscii-fleet": "./tools/fleet/fleet.js",
+    "mapscii-route": "./tools/routing/route.js"
   },
   "engines": {
-    "node": ">=10"
+    "node": ">=16"
   },
   "keywords": [
     "map",
@@ -38,9 +47,11 @@
     "node-fetch": "^2.6.1",
     "pbf": "^3.2.1",
     "rbush": "^3.0.1",
+    "satellite.js": "^6.0.2",
     "simplify-js": "^1.2.4",
     "string-width": "^4.2.0",
     "term-mouse": "^0.2.2",
+    "ws": "^7.4.6",
     "x256": "0.0.2",
     "yargs": "^15.4.1"
   },

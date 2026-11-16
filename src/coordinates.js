@@ -1,31 +1,14 @@
-/*
-  Reads coordinates as people write them, e.g.
-
-    42.3601, -71.0942              decimal degrees, latitude first
-    42.3601 -71.0942 16            ... with a zoom level (or "z16", "zoom 16")
-    42.3601N 71.0942W              hemisphere letters, before or after the number
-    42°21'36.4"N 71°05'39.1"W      degrees, minutes and seconds
-    3 50 53 N 11 30 7 E            ... without the symbols
-    N 42° 21.606 W 071° 05.650     degrees and decimal minutes (geocaching)
-    42,3601 -71,0942               decimal commas
-    lat 42.3601 lon -71.0942       labelled, in either order
-    geo:42.3601,-71.0942           geo URIs
-    https://www.google.com/maps/@42.3601,-71.0942,15z
-    https://www.openstreetmap.org/#map=16/42.3601/-71.0942
-    ... and links with ?q=, ?query=, ?ll=, ?mlat=&mlon= or ?cp= (Google, Apple, OSM, Bing)
-
-  parse(text) returns {lat, lon, zoom} (zoom is undefined if none was given),
-  or throws an Error saying what is wrong with the text.
-*/
+// Reads coordinates as people write them: decimal or DMS, hemisphere letters,
+// decimal commas, a zoom ("z16"), geo: URIs and links from map websites.
+// parse() returns {lat, lon, zoom} or throws saying what is wrong.
 'use strict';
 
-// a number such as 42, -71.0942, 42. or .5
 const NUM = '[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)';
 const NUMBER = new RegExp(NUM, 'g');
 
+// Coordinates in any notation to {lat, lon, zoom}, or throws saying what is wrong
 function parse(text) {
   const input = String(text || '')
-    // minus signs as typeset on web pages
     .replace(/[\u2212\u2012\u2013\uFE63\uFF0D](?=\s*[\d.])/g, '-')
     .trim();
   if (!input) {
@@ -34,7 +17,7 @@ function parse(text) {
   return fromUrl(input) || fromLabels(input) || fromText(input);
 }
 
-// links from map websites
+// Coordinates from a map website's link, or null
 function fromUrl(input) {
   let m = input.match(/@([-+]?\d+(?:\.\d+)?),([-+]?\d+(?:\.\d+)?)(?:,(\d+(?:\.\d+)?)z)?/);
   if (m) {
@@ -53,12 +36,10 @@ function fromUrl(input) {
   }
   const zoom = input.match(/[?&](?:z|zoom|lvl)=(\d+(?:\.\d+)?)/i);
   const zoomLevel = zoom ? +zoom[1] : undefined;
-  // ?q=lat,lon (Google), ?ll= (Apple), ?cp=lat~lon (Bing) and the like
   m = input.match(new RegExp(`[?&](?:q|query|ll|sll|center|destination|daddr|cp)=(${NUM})(?:,|%2C|~)\\s*(${NUM})`, 'i'));
   if (m) {
     return check(+m[1], +m[2], zoomLevel);
   }
-  // ?mlat=..&mlon=.. (OpenStreetMap)
   const lat = input.match(new RegExp(`[?&]mlat=(${NUM})`, 'i'));
   const lon = input.match(new RegExp(`[?&]mlon=(${NUM})`, 'i'));
   if (lat && lon) {
@@ -67,7 +48,7 @@ function fromUrl(input) {
   throw new Error('this link has no coordinates in it - copy them from the map instead');
 }
 
-// "lat 42.3601 lon -71.0942", "lng: -71.0942, lat: 42.3601"
+// "lat 42.36 lon -71.09" in either order, or null
 function fromLabels(input) {
   const lat = input.match(new RegExp(`\\blat(?:itude)?\\s*[:=]?\\s*(${NUM})`, 'i'));
   const lon = input.match(new RegExp(`\\b(?:lon|lng|long|longitude)\\s*[:=]?\\s*(${NUM})`, 'i'));
@@ -78,6 +59,7 @@ function fromLabels(input) {
   return check(+lat[1], +lon[1], zoom ? +zoom[1] : undefined);
 }
 
+// Two coordinates written as text, with an optional zoom
 function fromText(input) {
   if (!/\d/.test(input)) {
     throw new Error('place names can\'t be looked up - type coordinates, e.g. "42.3601, -71.0942"');
@@ -87,10 +69,8 @@ function fromText(input) {
     .replace(/[″“”]|''/g, '"')
     .replace(/[º˚]/g, '°');
 
-  // decimal commas: "48,8584 2,2945"
   text = text.replace(/^([-+]?\d+),(\d+)(\s*[\s;]\s*)([-+]?\d+),(\d+)$/, '$1.$2$3$4.$5');
 
-  // a zoom level written as "z16", "zoom 16" or "16z"
   let zoom;
   text = text.replace(/(?:\b(?:z|zoom)\s*[:=]?\s*(\d+(?:\.\d+)?)|[,;\s]\s*(\d+(?:\.\d+)?)z)\s*$/i, (all, value, suffixed) => {
     zoom = +(value || suffixed);
@@ -107,7 +87,6 @@ function fromText(input) {
   }
 
   let [first, second] = parts.map(readCoordinate);
-  // hemisphere letters say which one is which, whatever the order
   if (first.axis === 'lon' || second.axis === 'lat') {
     [first, second] = [second, first];
   }
@@ -117,18 +96,18 @@ function fromText(input) {
   return check(first.value, second.value, zoom);
 }
 
+// The text split into its latitude and longitude parts
 function splitCoordinates(text) {
-  // separated by a comma or semicolon
   if (/[,;]/.test(text)) {
     return text.split(/\s*[,;]\s*/).filter(Boolean);
   }
-  // letters in front of the numbers: split before the second one ("N42.36 W71.09")
+  // "N42.36 W71.09"
   const leading = /^[NSEW]/i.test(text);
   let m = text.match(/^([NSEW].*?)\s*([NSEW]\s*\d.*)$/i);
   if (leading && m) {
     return [m[1], m[2]];
   }
-  // letters after the numbers: split after the first one ("42.36N 71.09W", "42.36N71.09W")
+  // "42.36N 71.09W", "42.36N71.09W"
   const end = leading ? '(?=\\s|$)' : '(?=\\s|$|[-+\\d.])';
   m = text.match(new RegExp(`^(.*?\\d[^NSEW]*?[NSEW])${end}\\s*(\\S.*)$`, 'i'));
   if (m && /\d/.test(m[2])) {
@@ -138,14 +117,14 @@ function splitCoordinates(text) {
   if (tokens.length === 2 || tokens.length === 3) {
     return tokens;
   }
-  // degrees, minutes (and seconds) without symbols: half for each coordinate
+  // "3 50 53 N 11 30 7 E": half the numbers each
   if (tokens.length === 4 || tokens.length === 6) {
     return [tokens.slice(0, tokens.length / 2).join(' '), tokens.slice(tokens.length / 2).join(' ')];
   }
   return [text];
 }
 
-// one coordinate: decimal degrees or degrees/minutes/seconds, maybe with N/S/E/W
+// One coordinate: decimal or degrees/minutes/seconds, maybe with N/S/E/W
 function readCoordinate(part) {
   const letters = part.toUpperCase().match(/[NSEW]/g) || [];
   if (letters.length > 1 || /[A-DF-MO-RT-VX-Z]/i.test(part.replace(/[NSEW]/gi, ''))) {
@@ -169,8 +148,7 @@ function readCoordinate(part) {
   return {value, axis};
 }
 
-// Map websites put longitudes beyond 180 into their links after panning across
-// the date line (e.g. @21.3,-202.1) - those are the same places, once round
+// links past the date line (e.g. @21.3,-202.1)
 function wrapLongitude(lon) {
   if (Math.abs(lon) <= 180 || Math.abs(lon) > 720) {
     return lon;
@@ -178,6 +156,7 @@ function wrapLongitude(lon) {
   return ((lon + 180) % 360 + 360) % 360 - 180;
 }
 
+// Checks the ranges and returns {lat, lon, zoom}
 function check(lat, lon, zoom) {
   if (!(Math.abs(lat) <= 90)) {
     throw new Error(`latitude ${lat} is not between -90 and 90`);

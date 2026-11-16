@@ -8,13 +8,14 @@
 const stringWidth = require('string-width');
 const config = require('./config');
 
+const graphemes = new Intl.Segmenter(undefined, {granularity: 'grapheme'});
+
 const constants = {
   RADIUS: 6378137,
 };
 
 const utils = {
-  // The text cut to at most the given number of terminal columns (wide
-  // characters such as Japanese ones take two), ending in ellipsis if given
+  // wide characters (e.g. Japanese) take two columns
   fitWidth: (text, columns, ellipsis = '') => {
     if (stringWidth(text) <= columns) {
       return text;
@@ -22,7 +23,8 @@ const utils = {
     const room = columns - stringWidth(ellipsis);
     let result = '';
     let width = 0;
-    for (const char of text) {
+    // graphemes: a flag or an emoji family is one
+    for (const {segment: char} of graphemes.segment(text)) {
       width += stringWidth(char);
       if (width > room) break;
       result += char;
@@ -30,6 +32,18 @@ const utils = {
     return result + ellipsis;
   },
 
+  // cut after a whole word when that keeps most of the room
+  shortenName: (name, columns) => {
+    if (stringWidth(name) <= columns) {
+      return name;
+    }
+    const cut = utils.fitWidth(name, columns - 1);
+    const wordEnd = Math.max(cut.lastIndexOf(' '), cut.lastIndexOf('-'));
+    const text = wordEnd > 0 && stringWidth(cut.slice(0, wordEnd)) >= columns * 0.6 ? cut.slice(0, wordEnd) : cut;
+    return text.replace(/[\s\-–,.(]+$/, '') + '…';
+  },
+
+  // The number within [min, max]
   clamp: (num, min, max) => {
     if (num <= min) {
       return min;
@@ -40,20 +54,26 @@ const utils = {
     }
   },
 
+  // The zoom level of the tiles for a zoom
   baseZoom: (zoom) => {
     return Math.min(config.tileRange, Math.max(0, Math.floor(zoom)));
   },
 
+  // How big a tile is drawn at a zoom, in pixels
   tilesizeAtZoom: (zoom) => {
     return config.projectSize * Math.pow(2, zoom-utils.baseZoom(zoom));
   },
 
+  // Degrees to radians
   deg2rad: (angle) => {
     // (angle / 180) * Math.PI
     return angle * 0.017453292519943295;
   },
 
+  // A place to tile coordinates (fractional) at a zoom
   ll2tile: (lon, lat, zoom) => {
+    // the map ends at ±85.0511; at -90 the tile loops never ended
+    lat = Math.max(-85.0511, Math.min(85.0511, lat));
     return {
       x: (lon+180)/360*Math.pow(2, zoom),
       y: (1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*Math.pow(2, zoom),
@@ -61,6 +81,7 @@ const utils = {
     };
   },
 
+  // Tile coordinates to a place
   tile2ll: (x, y, zoom) => {
     const n = Math.PI - 2*Math.PI*y/Math.pow(2, zoom);
 
@@ -70,10 +91,12 @@ const utils = {
     };
   },
 
+  // Metres per pixel at a zoom and latitude
   metersPerPixel: (zoom, lat = 0) => {
     return (Math.cos(lat * Math.PI/180) * 2 * Math.PI * constants.RADIUS) / (256 * Math.pow(2, zoom));
   },
 
+  // "#rrggbb" or "#rgb" to [r, g, b]
   hex2rgb: (color) => {
     if (typeof color !== 'string') return [255, 0, 0];
 
@@ -94,13 +117,13 @@ const utils = {
     }
   },
 
-  // rounded to the given number of decimals, for display
+  // The number rounded to this many decimals
   digits: (number, digits) => {
     return Math.round(number*Math.pow(10, digits))/Math.pow(10, digits);
   },
 
+  // The place with its longitude wrapped into -180..180 and its latitude clamped to the map
   normalize: (ll) => {
-    // any number of times round the world
     if (ll.lon < -180 || ll.lon > 180) {
       ll.lon = ((ll.lon + 180) % 360 + 360) % 360 - 180;
     }
@@ -111,6 +134,7 @@ const utils = {
     return ll;
   },
 
+  // How many bits of the number are set
   population: (val) => {
     let bits = 0;
     while (val > 0) {

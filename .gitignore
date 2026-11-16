@@ -5,3 +5,17 @@ tmp
 mbtiles
 tiles
 .DS_Store
+app/dist
+*.spec.js
+app/tests/
+scripts/cli-check.js
+scripts/keys-check.py
+scripts/hunt.js
+scripts/bench-views.js
+scripts/app-check.js
+scripts/offline.js
+scripts/make-test-pictures.js
+memory.md
+docs/images/
+docs/*.py
+docs/user_manual.txt

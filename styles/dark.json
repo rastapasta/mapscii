@@ -181,6 +181,7 @@
     {
       "type": "line",
       "id": "waterway",
+      "minzoom": 14,
       "paint": {
         "line-color": "@waterway"
       },
@@ -220,6 +221,7 @@
     {
       "type": "line",
       "id": "waterway_stream_canal",
+      "minzoom": 12,
       "paint": {
         "line-color": "@waterway_stream_canal"
       },

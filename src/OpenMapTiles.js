@@ -1,16 +1,8 @@
-/*
-  Translates features of the OpenMapTiles schema (https://openmaptiles.org/schema/),
-  as served e.g. by OpenFreeMap, into the osm2vectortiles layers and properties
-  the bundled styles and the renderer are written for.
-
-  translate(layer, properties, type) returns {layer, properties} for the
-  osm2vectortiles layer the feature belongs to, or null to skip the feature.
-  Only the properties the styles and labels use are kept, to save memory.
-*/
+// Translates OpenMapTiles features (e.g. OpenFreeMap) into the osm2vectortiles layers the styles use.
+// translate() returns {layer, properties}, or null to skip; only properties the styles use are kept.
 'use strict';
 const config = require('./config');
 
-// transportation classes -> osm2vectortiles road classes
 const roadClasses = {
   motorway: 'motorway',
   trunk: 'trunk',
@@ -60,8 +52,7 @@ const landuseClasses = {
   kindergarten: 'school',
 };
 
-// OpenMapTiles ranks POIs per area from 1 (most important) upwards;
-// the styles group them into scaleranks 1-4
+// OpenMapTiles ranks POIs from 1 upwards; the styles use scaleranks 1-4
 function scalerank(rank) {
   if (!rank) return 4;
   if (rank <= 2) return 1;
@@ -70,6 +61,7 @@ function scalerank(rank) {
   return 4;
 }
 
+// The name properties the labels use
 function names(properties) {
   const result = {name: properties.name, name_en: properties.name_en || properties['name:en']};
   const own = properties['name_' + config.language] || properties['name:' + config.language];
@@ -79,6 +71,7 @@ function names(properties) {
   return result;
 }
 
+// The osm2vectortiles class of a road or railway
 function roadClass(properties) {
   if (railClasses[properties.class]) {
     return railClasses[properties.class];
@@ -97,23 +90,28 @@ function roadClass(properties) {
 }
 
 const translators = {
+  // Roads and railways
   transportation(properties, type) {
     const cls = roadClass(properties);
     if (!cls || type !== 'LineString') return null;
     const structure = properties.brunnel === 'bridge' || properties.brunnel === 'tunnel' ? properties.brunnel : 'none';
-    return {layer: 'road', properties: {class: cls, structure}};
+    // 1: along the line, -1: against it
+    return {layer: 'road', properties: {class: cls, structure, oneway: properties.oneway}};
   },
 
+  // Road names
   transportation_name(properties) {
     const cls = roadClass(properties) || 'street';
     if (!properties.name) return null;
     return {layer: 'road_label', properties: Object.assign(names(properties), {class: cls})};
   },
 
+  // House numbers
   housenumber(properties) {
     return {layer: 'housenum_label', properties: {house_num: properties.housenumber}};
   },
 
+  // Points of interest, with a scalerank from their rank
   poi(properties) {
     if (!properties.name) return null;
     const rank = properties.rank;
@@ -126,14 +124,15 @@ const translators = {
     };
   },
 
+  // Mountain peaks, as points of interest
   mountain_peak(properties) {
     if (!properties.name) return null;
     return {layer: 'poi_label', properties: Object.assign(names(properties), {scalerank: 3, localrank: properties.rank})};
   },
 
+  // Parks: areas as landuse, names as points of interest
   park(properties, type) {
     if (type === 'Point') {
-      // park names
       if (!properties.name) return null;
       return {layer: 'poi_label', properties: Object.assign(names(properties), {scalerank: 2, localrank: properties.rank})};
     }
@@ -143,6 +142,7 @@ const translators = {
     return {layer: 'landuse', properties: {class: 'park'}};
   },
 
+  // Countries, states and settlements
   place(properties) {
     if (!properties.name) return null;
     if (properties.class === 'country') {
@@ -159,6 +159,7 @@ const translators = {
     };
   },
 
+  // Names of seas, lakes and rivers
   water_name(properties) {
     if (!properties.name) return null;
     if (marineRanks[properties.class]) {
@@ -167,25 +168,30 @@ const translators = {
     return {layer: 'water_label', properties: names(properties)};
   },
 
+  // Airports, ranked by class
   aerodrome_label(properties) {
     if (!properties.name) return null;
     const rank = properties.class === 'international' ? 1 : properties.class === 'public' ? 2 : 3;
     return {layer: 'airport_label', properties: Object.assign(names(properties), {scalerank: rank})};
   },
 
+  // Water areas
   water() {
     return {layer: 'water', properties: {}};
   },
 
+  // Rivers and streams
   waterway(properties) {
     const cls = properties.class === 'drain' || properties.class === 'ditch' ? 'stream' : properties.class;
     return {layer: 'waterway', properties: {class: cls}};
   },
 
+  // Land use areas
   landuse(properties) {
     return {layer: 'landuse', properties: {class: landuseClasses[properties.class] || properties.class}};
   },
 
+  // Woods, grass and the like, as landuse
   landcover(properties) {
     if (properties.class === 'wood') {
       return {layer: 'landuse', properties: {class: 'wood'}};
@@ -196,10 +202,12 @@ const translators = {
     return null;
   },
 
+  // Buildings
   building() {
     return {layer: 'building', properties: {}};
   },
 
+  // Borders
   boundary(properties) {
     return {
       layer: 'admin',
@@ -211,18 +219,20 @@ const translators = {
     };
   },
 
+  // Runways and taxiways
   aeroway(properties) {
     return {layer: 'aeroway', properties: {type: properties.class}};
   },
 };
 
 module.exports = {
+  // The osm2vectortiles {layer, properties} of a feature, or null to skip it
   translate(layer, properties, type) {
     const translator = translators[layer];
     return translator ? translator(properties, type) : null;
   },
 
-  // true if a TileJSON's vector layers look like the OpenMapTiles schema
+  // Whether a TileJSON's vector layers look like the OpenMapTiles schema
   matches(vectorLayers) {
     const ids = (vectorLayers || []).map((layer) => layer.id);
     return ids.includes('transportation') && ids.includes('poi');

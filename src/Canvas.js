@@ -22,35 +22,39 @@ class Canvas {
     this.buffer = new BrailleBuffer(width, height);
   }
 
+  // The frame as one string
   frame() {
     return this.buffer.frame();
   }
 
+  // The frame as one string per row
   frameLines() {
     return this.buffer.frameLines();
   }
 
+  // Empties the canvas
   clear() {
     this.buffer.clear();
   }
 
+  // Writes text at a pixel
   text(text, x, y, color, center = false) {
     this.buffer.writeText(text, x, y, color, center);
   }
 
+  // Draws a line between two points
   line(from, to, color, width = 1) {
     this._clippedLine(from.x, from.y, to.x, to.y, width, color);
   }
 
+  // Draws a line through the points
   polyline(points, color, width = 1) {
     for (let i = 1; i < points.length; i++) {
       this._clippedLine(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, width, color);
     }
   }
 
-  // Draws only the part of a line which can reach the canvas. Lines of a tile
-  // shown far above its zoom level (while the right one loads) can be hundreds
-  // of thousands of pixels long.
+  // Only the part of a line that can reach the canvas: overzoomed tiles make very long lines.
   _clippedLine(x0, y0, x1, y1, width, color) {
     const margin = width + 1;
     const segment = clipSegment(x0, y0, x1, y1, -margin, -margin, this.width - 1 + margin, this.height - 1 + margin);
@@ -59,23 +63,25 @@ class Canvas {
     }
   }
 
-  // Restricts drawing to the given {minX, minY, maxX, maxY} area, null to lift it
+  // Restricts drawing to an area, or lifts it with null
   setClip(clip) {
     this.buffer.setClip(clip);
   }
 
+  // Sets the background colour of the whole canvas
   setBackground(color) {
     this.buffer.setGlobalBackground(color);
   }
 
+  // Sets the background colour of the cell at a pixel
   background(x, y, color) {
     this.buffer.setBackground(x, y, color);
   }
 
+  // Fills a polygon with holes, by triangulating it
   polygon(rings, color) {
     const vertices = [];
     const holes = [];
-    // the area which can be drawn on (the canvas, or the clip set with setClip)
     const visible = {
       minX: this.buffer.clipMinX,
       minY: this.buffer.clipMinY,
@@ -84,9 +90,7 @@ class Canvas {
     };
     for (const ring of rings) {
       if (vertices.length) {
-        // Holes off screen, or shrunk to a line or a dot, hide nothing. Leaving
-        // them out saves much time (earcut slows down with every hole), and
-        // degenerate rings can send earcut into an endless loop.
+        // Skip holes off screen or degenerate: they hide nothing, slow earcut, and can hang it.
         if (ring.length < 3 || !ringArea(ring) || !overlaps(ring, visible)) continue;
         holes.push(vertices.length / 2);
       } else {
@@ -113,6 +117,7 @@ class Canvas {
     return true;
   }
 
+  // The point with this index in a flat vertex list
   _polygonExtract(vertices, pointId) {
     return [vertices[pointId * 2], vertices[pointId * 2 + 1]];
   }
@@ -173,6 +178,7 @@ class Canvas {
     /* eslint-enable */
   }
 
+  // Fills a rectangle as two triangles
   _filledRectangle(x, y, width, height, color) {
     const pointA = [x, y];
     const pointB = [x + width, y];
@@ -182,8 +188,7 @@ class Canvas {
     this._filledTriangle(pointC, pointB, pointD, color);
   }
 
-  // Draws a filled triangle, row by row and only within the canvas, so the
-  // work doesn't grow with the size of the triangle (see _clippedLine)
+  // row by row within the canvas, so the work doesn't grow with the triangle
   _filledTriangle(pointA, pointB, pointC, color) {
     const top = Math.max(0, Math.min(pointA[1], pointB[1], pointC[1]));
     const bottom = Math.min(this.height - 1, Math.max(pointA[1], pointB[1], pointC[1]));
@@ -200,7 +205,6 @@ class Canvas {
           right = Math.max(right, p[0], q[0]);
           continue;
         }
-        // where the edge crosses this pixel row, like a Bresenham line would
         const from = Math.max(low, y - 0.5);
         const to = Math.min(high, y + 0.5);
         const slope = (q[0] - p[0]) / (q[1] - p[1]);
@@ -218,8 +222,7 @@ class Canvas {
   }
 }
 
-// The part of the line from (x0, y0) to (x1, y1) inside the given rectangle,
-// as rounded [x0, y0, x1, y1], or null if it misses it (Liang-Barsky)
+// Liang-Barsky clipping: rounded [x0, y0, x1, y1], or null
 function clipSegment(x0, y0, x1, y1, minX, minY, maxX, maxY) {
   const dx = x1 - x0;
   const dy = y1 - y0;
@@ -246,7 +249,7 @@ function clipSegment(x0, y0, x1, y1, minX, minY, maxX, maxY) {
   ];
 }
 
-// whether the bounding box of the points overlaps the {minX, minY, maxX, maxY} area
+// Whether the bounding box of the points overlaps the area
 function overlaps(points, area) {
   let minX = Infinity;
   let minY = Infinity;
@@ -261,7 +264,7 @@ function overlaps(points, area) {
   return maxX >= area.minX && minX <= area.maxX && maxY >= area.minY && minY <= area.maxY;
 }
 
-// twice the area of a ring (shoelace formula); 0 when it encloses nothing
+// twice the ring's area (shoelace)
 function ringArea(ring) {
   let sum = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {

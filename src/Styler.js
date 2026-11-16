@@ -40,6 +40,7 @@ class Styler {
     }
   }
 
+  // The style rule that applies to a feature of a layer, or false
   getStyleFor(layer, feature) {
     if (!this.styleByLayer[layer]) {
       return false;
@@ -54,6 +55,7 @@ class Styler {
     return false;
   }
 
+  // Replaces @constants in the style with their values
   _replaceConstants(constants, tree) {
     for (const id in tree) {
       const node = tree[id];

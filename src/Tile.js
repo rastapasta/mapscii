@@ -21,13 +21,13 @@ const schemas = {
 };
 
 class Tile {
-  // schema: the tile source's data schema; anything but osm2vectortiles gets
-  // translated into it, which is what the styles are written for
+  // anything but osm2vectortiles is translated into it, as the styles expect
   constructor(styler, schema) {
     this.styler = styler;
     this.translate = schemas[schema] || null;
   }
 
+  // Reads a tile from its (maybe gzipped) data
   load(buffer) {
     return this._unzipIfNeeded(buffer).then((buffer) => {
       return this._loadTile(buffer);
@@ -38,10 +38,12 @@ class Tile {
     });
   }
 
+  // Parses the vector tile
   _loadTile(buffer) {
     this.tile = new VectorTile(new Protobuf(buffer));
   }
 
+  // Unzips gzipped data, else passes it on
   _unzipIfNeeded(buffer) {
     return new Promise((resolve, reject) => {
       if (this._isGzipped(buffer)) {
@@ -57,12 +59,12 @@ class Tile {
     });
   }
 
+  // Whether data starts with the gzip header
   _isGzipped(buffer) {
     return buffer.slice(0, 2).indexOf(Buffer.from([0x1f, 0x8b])) === 0;
   }
 
-  // Big tiles take a few hundred milliseconds to read, so this takes breaks to
-  // let keys and drawing through
+  // big tiles take a few hundred ms to read: yield so keys and drawing get through
   async _loadLayers() {
     let sliceStart = performance.now();
     const takeBreak = async () => {
@@ -117,7 +119,6 @@ class Tile {
         const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
         extents[name] = layer.extent;
         if (style.type === 'fill') {
-          // one feature can hold several polygons, each an outer ring followed by its holes
           for (const polygon of classifyRings(geometries)) {
             nodes.push(this._addBoundaries(true, {
               //            id: feature.id
@@ -131,7 +132,7 @@ class Tile {
           }
         } else {
           for (const points of geometries) {
-            nodes.push(this._addBoundaries(false, {
+            const node = {
               //id: feature.id,
               layer: name,
               style,
@@ -139,13 +140,25 @@ class Tile {
               sort,
               points,
               color: colorCode,
-            }));
+            };
+            // 1 along the line, -1 against it (OpenMapTiles: 1 / -1, osm2vectortiles: true / false)
+            if (name === 'road') {
+              const oneway = feature.properties.oneway;
+              if (oneway === 1 || oneway === '1' || oneway === true || oneway === 'true') node.oneway = 1;
+              else if (oneway === -1 || oneway === '-1') node.oneway = -1;
+            }
+            nodes.push(this._addBoundaries(false, node));
           }
         }
       }
     }
 
     const layers = {};
+    let features = 0;
+    for (const name in nodesByLayer) {
+      features += nodesByLayer[name].length;
+    }
+    this.memoryEstimate = features * config.tileFeatureBytes;
     for (const name in nodesByLayer) {
       await takeBreak();
       const tree = new RBush(18);
@@ -158,6 +171,7 @@ class Tile {
     return this.layers = layers;
   }
 
+  // Adds a feature's bounding box to the data for the spatial index
   _addBoundaries(deep, data) {
     let minX = 2e308;
     let maxX = -2e308;
@@ -177,6 +191,7 @@ class Tile {
     return data;
   }
 
+  // A feature's geometry divided by factor, without repeated points
   _reduceGeometry(feature, factor) {
     const results = [];
     const geometries = feature.loadGeometry();
@@ -199,8 +214,7 @@ class Tile {
   }
 }
 
-// A name as it can be put on screen: line breaks, tabs and other control
-// characters (they occur in the map data) would move the terminal's cursor
+// control characters occur in the map data and would move the cursor
 function cleanLabel(name) {
   if (name === undefined || name === null) {
     return undefined;
@@ -210,9 +224,7 @@ function cleanLabel(name) {
   return text || undefined;
 }
 
-// Splits the rings of a polygon feature into polygons: the first ring's winding
-// order marks outer rings, the opposite order holes of the polygon before.
-// (The same approach as classifyRings in @mapbox/vector-tile.)
+// Splits rings into polygons by winding order, like classifyRings in @mapbox/vector-tile.
 function classifyRings(rings) {
   if (rings.length <= 1) {
     return [rings];
@@ -243,6 +255,7 @@ function classifyRings(rings) {
   return polygons;
 }
 
+// Twice the signed area of a ring (shoelace formula)
 function signedArea(ring) {
   let sum = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {

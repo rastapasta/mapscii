@@ -5,17 +5,15 @@ module.exports = {
   // mapscii.me hosts the last available version, 2016-06-20
   source: 'https://mapscii.me/',
 
-  // Tile sources which can be chosen by name, e.g. --tile_source openfreemap
+  // sources by name, e.g. --tile_source openfreemap
   sources: {
-    // mapscii.me: osm2vectortiles data from 2016, small tiles
+    // osm2vectortiles data from 2016, small tiles
     mapscii: 'https://mapscii.me/',
-    // OpenFreeMap: current OpenStreetMap data (updated weekly) in the OpenMapTiles
-    // schema, more names and details, but about twice the download size
+    // current OpenStreetMap data in the OpenMapTiles schema; more detail, about twice the size
     openfreemap: 'https://tiles.openfreemap.org/planet',
   },
 
-  // Data schema of the tile source: 'osm2vectortiles' or 'openmaptiles'.
-  // null detects it from a TileJSON source and assumes osm2vectortiles otherwise.
+  // 'osm2vectortiles' or 'openmaptiles'; null detects it from the TileJSON
   tileSchema: null,
 
   //source: __dirname+"/../mbtiles/regensburg.mbtiles",
@@ -40,41 +38,61 @@ module.exports = {
   // Downloaded files get persisted in ~/.mapscii
   persistDownloadedTiles: true,
 
-  // How many parsed tiles to keep in memory (a dense city tile takes ~5MB)
+  // a dense tile takes up to 25 MB, a city one ~5 MB; tiles on screen are kept beyond the budget
   tileCacheSize: 40,
-  // Parallel downloads of visible tiles (like a web browser), and how many may wait in line.
-  // Slow links are often limited per connection, so parallel downloads pay off.
+  tileCacheMB: 200,
+  // measured
+  tileFeatureBytes: 480,
+  // slow links are often limited per connection, so parallel downloads pay off
   maxConcurrentDownloads: 6,
   maxQueuedDownloads: 64,
-  // Download tiles around the view (and one zoom level in and out) when no visible tile is waiting
   prefetch: true,
   maxConcurrentPrefetches: 4,
-  // Never more connections than this to the tile server
   maxConnections: 8,
-  // Give up on a tile request after this many ms, and retry it after tileRetryDelay
+  // give up when no data comes for this long, retry after tileRetryDelay
   tileRequestTimeout: 20000,
-  // How long to wait for a connection to each of a server's addresses
   connectAttemptTimeout: 5000,
-  // Retries right away after a dropped connection or a server error
   tileRequestRetries: 2,
   tileRetryDelay: 10000,
-  // Upper limit for redraws per second
   maxFps: 30,
-  // reading a tile pauses after this many milliseconds, so keys stay responsive
+  // ms of tile reading between pauses, so keys stay responsive
   tileLoadSlice: 8,
-  // --download: the most tiles in one go, and the size of a stored tile for
-  // estimating the disk space needed (they average 20-30 KB)
+  // --download: the most tiles at once, and the average stored tile size
   maxDownloadTiles: 200000,
   downloadTileKB: 30,
 
   tileRange: 14,
   projectSize: 256,
 
-  // Free space (in characters) kept around each name
   labelMargin: 2,
-  // Show every name there is room for, regardless of its zoom level in the style
-  showAllLabels: true,
-  // A repeated name (e.g. a long street) only shows again this far (in pixels) from its other copy
+  // names may show this many zoom levels early when there is room
+  labelsEarly: 3,
+  // longer names are shortened with "…"; clicking one shows it in full
+  labelMaxWidth: 20,
+  overlayColor: '#ff5f87',
+  waypointMarker: '◆',
+  notesColor: '#ffd75f',
+  noteMarker: '●',
+  trueColor: /truecolor|24bit/i.test(process.env.COLORTERM || ''),
+  // imagery one zoom coarser than the map: enough for two pixels per cell, a quarter of the data
+  imageryDetail: -1,
+  terrainDetail: -2,
+  // relief brightness under the map (lines need contrast)
+  reliefBrightness: 0.7,
+
+  gpsColor: '#5fffff',
+  gpsMarker: '◉',
+  gpsTrackPoints: 50000,
+  // fleet devices not heard of for fleetStale seconds show how long ago
+  fleetColor: '#ffaf5f',
+  fleetMarker: '▲',
+  fleetStale: 600,
+  routeColor: '#87d7ff',
+  indexDelay: 150,
+  // below this share of cells drawn (and at most two names) the footer says little is mapped here
+  sparseFilled: 0.3,
+  printTimeout: 30000,
+  // in pixels
   labelRepeatDistance: {x: 80, y: 40},
 
   layers: {
@@ -102,9 +120,8 @@ module.exports = {
 
   poiMarker: '◉',
 
-  // Zoom level for going to coordinates (g key, --goto) when none is given
   goToZoom: 14,
-  // How a place gone to is marked on the map (color: xterm-256 code, 196 = red)
+  // color: xterm-256 code
   locationMarker: '✚',
   locationMarkerColor: 196,
 };
