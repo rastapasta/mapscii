@@ -81,7 +81,7 @@ class Styler {
         filters = (() => {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
-        return (feature) => !!filters.find((appliesTo) => {
+        return (feature) => !filters.find((appliesTo) => {
           return !appliesTo(feature);
         });
       case 'any':
@@ -98,7 +98,7 @@ class Styler {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
         return (feature) => !filters.find((appliesTo) => {
-          return !appliesTo(feature);
+          return appliesTo(feature);
         });
       case '==':
         return (feature) => feature.properties[filter[1]] === filter[2];
