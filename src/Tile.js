@@ -8,17 +8,26 @@
 const VectorTile = require('@mapbox/vector-tile').VectorTile;
 const Protobuf = require('pbf');
 const zlib = require('zlib');
+const {performance} = require('perf_hooks');
 const RBush = require('rbush');
 const x256 = require('x256');
 
 const config = require('./config');
 const utils = require('./utils');
+const OpenMapTiles = require('./OpenMapTiles');
+
+const schemas = {
+  openmaptiles: OpenMapTiles.translate,
+};
 
 class Tile {
-  constructor(styler) {
+  // anything but osm2vectortiles is translated into it, as the styles expect
+  constructor(styler, schema) {
     this.styler = styler;
+    this.translate = schemas[schema] || null;
   }
 
+  // Reads a tile from its (maybe gzipped) data
   load(buffer) {
     return this._unzipIfNeeded(buffer).then((buffer) => {
       return this._loadTile(buffer);
@@ -29,10 +38,12 @@ class Tile {
     });
   }
 
+  // Parses the vector tile
   _loadTile(buffer) {
     this.tile = new VectorTile(new Protobuf(buffer));
   }
 
+  // Unzips gzipped data, else passes it on
   _unzipIfNeeded(buffer) {
     return new Promise((resolve, reject) => {
       if (this._isGzipped(buffer)) {
@@ -48,23 +59,41 @@ class Tile {
     });
   }
 
+  // Whether data starts with the gzip header
   _isGzipped(buffer) {
     return buffer.slice(0, 2).indexOf(Buffer.from([0x1f, 0x8b])) === 0;
   }
 
-  _loadLayers() {
-    const layers = {};
+  // big tiles take a few hundred ms to read: yield so keys and drawing get through
+  async _loadLayers() {
+    let sliceStart = performance.now();
+    const takeBreak = async () => {
+      if (performance.now() - sliceStart > config.tileLoadSlice) {
+        await new Promise((resolve) => setImmediate(resolve));
+        sliceStart = performance.now();
+      }
+    };
+    const nodesByLayer = {};
+    const extents = {};
     const colorCache = {};
-    for (const name in this.tile.layers) {
-      const layer = this.tile.layers[name];
-      const nodes = [];
-      //continue if name is 'water'
+    for (const sourceLayer in this.tile.layers) {
+      const layer = this.tile.layers[sourceLayer];
       for (let i = 0; i < layer.length; i++) {
-        // TODO: caching of similar attributes to avoid looking up the style each time
-        //continue if @styler and not @styler.getStyleFor layer, feature
-
+        if ((i & 15) === 0) {
+          await takeBreak();
+        }
         const feature = layer.feature(i);
-        feature.properties.$type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        const type = [undefined, 'Point', 'LineString', 'Polygon'][feature.type];
+        let name = sourceLayer;
+        if (this.translate) {
+          const translated = this.translate(sourceLayer, feature.properties, type);
+          if (!translated) {
+            continue;
+          }
+          name = translated.layer;
+          feature.properties = translated.properties;
+        }
+        feature.properties.$type = type;
         let style;
         if (this.styler) {
           style = this.styler.getStyleFor(name, feature);
@@ -86,20 +115,24 @@ class Tile {
         // use feature.loadGeometry() again as soon as we got a 512 extent tileset
         const geometries = feature.loadGeometry(); //@_reduceGeometry feature, 8
         const sort = feature.properties.localrank || feature.properties.scalerank;
-        const label = style.type === 'symbol' ? feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num : void 0;
+        const label = style.type === 'symbol' ? cleanLabel(feature.properties['name_' + config.language] || feature.properties.name_en || feature.properties.name || feature.properties.house_num) : void 0;
+        const nodes = nodesByLayer[name] || (nodesByLayer[name] = []);
+        extents[name] = layer.extent;
         if (style.type === 'fill') {
-          nodes.push(this._addBoundaries(true, {
-            //            id: feature.id
-            layer: name,
-            style,
-            label,
-            sort,
-            points: geometries,
-            color: colorCode,
-          }));
+          for (const polygon of classifyRings(geometries)) {
+            nodes.push(this._addBoundaries(true, {
+              //            id: feature.id
+              layer: name,
+              style,
+              label,
+              sort,
+              points: polygon,
+              color: colorCode,
+            }));
+          }
         } else {
           for (const points of geometries) {
-            nodes.push(this._addBoundaries(false, {
+            const node = {
               //id: feature.id,
               layer: name,
               style,
@@ -107,20 +140,38 @@ class Tile {
               sort,
               points,
               color: colorCode,
-            }));
+            };
+            // 1 along the line, -1 against it (OpenMapTiles: 1 / -1, osm2vectortiles: true / false)
+            if (name === 'road') {
+              const oneway = feature.properties.oneway;
+              if (oneway === 1 || oneway === '1' || oneway === true || oneway === 'true') node.oneway = 1;
+              else if (oneway === -1 || oneway === '-1') node.oneway = -1;
+            }
+            nodes.push(this._addBoundaries(false, node));
           }
         }
       }
+    }
+
+    const layers = {};
+    let features = 0;
+    for (const name in nodesByLayer) {
+      features += nodesByLayer[name].length;
+    }
+    this.memoryEstimate = features * config.tileFeatureBytes;
+    for (const name in nodesByLayer) {
+      await takeBreak();
       const tree = new RBush(18);
-      tree.load(nodes);
+      tree.load(nodesByLayer[name]);
       layers[name] = {
-        extent: layer.extent,
+        extent: extents[name],
         tree,
       };
     }
     return this.layers = layers;
   }
 
+  // Adds a feature's bounding box to the data for the spatial index
   _addBoundaries(deep, data) {
     let minX = 2e308;
     let maxX = -2e308;
@@ -140,6 +191,7 @@ class Tile {
     return data;
   }
 
+  // A feature's geometry divided by factor, without repeated points
   _reduceGeometry(feature, factor) {
     const results = [];
     const geometries = feature.loadGeometry();
@@ -162,6 +214,58 @@ class Tile {
   }
 }
 
+// control characters occur in the map data and would move the cursor
+function cleanLabel(name) {
+  if (name === undefined || name === null) {
+    return undefined;
+  }
+  // eslint-disable-next-line no-control-regex
+  const text = String(name).replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim();
+  return text || undefined;
+}
+
+// Splits rings into polygons by winding order, like classifyRings in @mapbox/vector-tile.
+function classifyRings(rings) {
+  if (rings.length <= 1) {
+    return [rings];
+  }
+  const polygons = [];
+  let polygon = null;
+  let outerIsNegative;
+  for (const ring of rings) {
+    const area = signedArea(ring);
+    if (area === 0) {
+      continue;
+    }
+    if (outerIsNegative === undefined) {
+      outerIsNegative = area < 0;
+    }
+    if (outerIsNegative === area < 0) {
+      if (polygon) {
+        polygons.push(polygon);
+      }
+      polygon = [ring];
+    } else if (polygon) {
+      polygon.push(ring);
+    }
+  }
+  if (polygon) {
+    polygons.push(polygon);
+  }
+  return polygons;
+}
+
+// Twice the signed area of a ring (shoelace formula)
+function signedArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j].x - ring[i].x) * (ring[i].y + ring[j].y);
+  }
+  return sum;
+}
+
 Tile.prototype.layers = {};
+Tile.classifyRings = classifyRings;
+Tile.cleanLabel = cleanLabel;
 
 module.exports = Tile;

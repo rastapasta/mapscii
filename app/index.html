@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f0c">
+<title>Dotpath</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root { --bg: #0b0f0c; --panel: rgba(16, 22, 18, 0.92); --text: #d8e6d8; --dim: #8aa08a; --accent: #7fd17f; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.3 system-ui, sans-serif; overflow: hidden; overscroll-behavior: none; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  #search { display: flex; gap: 6px; padding: 8px; padding-top: max(8px, env(safe-area-inset-top)); background: var(--panel); }
+  #query { flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid #2c3a2f;
+    background: #111813; color: var(--text); }
+  #map { position: relative; flex: 1; overflow: hidden; touch-action: none; background: var(--bg); }
+  #cells, #sharp, #overlay { position: absolute; left: 0; top: 0; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+  #side { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  #turn { position: absolute; left: 10px; top: 10px; display: flex; gap: 8px; }
+  button, select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid #2c3a2f;
+    border-radius: 10px; min-width: 44px; min-height: 44px; padding: 0 10px; }
+  button.on { color: #0b0f0c; background: var(--accent); }
+  #bar { background: var(--panel); padding: 6px 10px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+  #controls { display: flex; gap: 6px; align-items: center; }
+  #where { flex: 1; font-variant-numeric: tabular-nums; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #credits { color: var(--dim); font-size: 11px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #results { list-style: none; margin: 0; padding: 0; background: var(--panel); max-height: 45vh; overflow-y: auto; }
+  #results li { padding: 10px 14px; border-top: 1px solid #1f2a22; }
+  #results li small { color: var(--dim); margin-left: 6px; }
+  #nav { background: #12351f; padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); }
+  #navtop { display: flex; gap: 8px; align-items: center; }
+  #navnext { flex: 1; font-size: 20px; font-weight: 600; line-height: 1.25; }
+  #navleft { color: #bfe3c6; margin-top: 4px; font-size: 14px; }
+  #destbar { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: var(--panel); border-top: 1px solid #1f2a22; }
+  #destname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #live { color: #d7c4ff; font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #live:empty { display: none; }
+  #panel { position: fixed; inset: 0; z-index: 10; background: rgba(8, 12, 9, 0.97); display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  #panelhead { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #1f2a22; }
+  #panelbody { overflow-y: auto; padding: 4px 12px 24px; }
+  #panelbody h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin: 18px 0 6px; }
+  #panelbody .row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #16201a; }
+  #panelbody .row .text { flex: 1; min-width: 0; }
+  #panelbody .row small { display: block; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #panelbody .buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  #panelbody p { color: var(--dim); font-size: 13px; }
+  [hidden] { display: none !important; }
+  /* short screens (a phone on its side, e.g. in a car holder): slimmer bars, more map */
+  @media (max-height: 500px) {
+    #search { padding: 4px 8px; padding-top: max(4px, env(safe-area-inset-top)); }
+    #query { padding: 5px 10px; }
+    button, select { min-height: 36px; border-radius: 8px; }
+    #bar { padding: 3px 10px; padding-bottom: max(3px, env(safe-area-inset-bottom)); }
+    #credits { font-size: 10px; margin-top: 1px; }
+    #nav { padding: 4px 10px; }
+    #navnext { font-size: 17px; }
+    #side { top: 6px; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <form id="search" autocomplete="off">
+    <input id="query" type="search" placeholder="Place, coordinates or plus code" enterkeyhint="go">
+    <button type="submit" aria-label="Go">⌕</button>
+  </form>
+  <div id="nav" hidden>
+    <div id="navtop"><div id="navnext"></div><button id="voice" aria-label="Voice">🔊</button><button id="stop" aria-label="Stop">✕</button></div>
+    <div id="navleft"></div>
+  </div>
+  <ul id="results" hidden></ul>
+  <div id="map">
+    <canvas id="cells" hidden></canvas>
+    <img id="sharp" alt="" hidden>
+    <canvas id="overlay"></canvas>
+    <div id="side">
+      <button id="zoomin" aria-label="Zoom in">＋</button>
+      <button id="zoomout" aria-label="Zoom out">－</button>
+      <button id="locate" aria-label="My position">◎</button>
+    </div>
+    <div id="turn" hidden>
+      <button id="left" aria-label="Turn left">⟲</button>
+      <button id="right" aria-label="Turn right">⟳</button>
+      <button id="photo" aria-label="Satellite colours">Photo</button>
+    </div>
+  </div>
+  <div id="destbar" hidden>
+    <div id="destname"></div>
+    <select id="mode" aria-label="Travel by"><option value="car">Car</option><option value="bike">Bike</option><option value="foot">Foot</option></select>
+    <button id="go" class="on">Route</button>
+    <button id="cleardest" aria-label="Clear">✕</button>
+  </div>
+  <div id="bar">
+    <div id="controls">
+      <div id="where"></div>
+      <select id="view" aria-label="View"></select>
+      <button id="look"></button>
+      <button id="menu" aria-label="Menu">☰</button>
+    </div>
+    <div id="live"></div>
+    <div id="credits"></div>
+  </div>
+</div>
+<div id="panel" hidden>
+  <div id="panelhead"><b>Menu</b><button id="closepanel" aria-label="Close">✕</button></div>
+  <div id="panelbody"></div>
+</div>
+<input id="file" type="file" accept=".gpx,.geojson,.json,application/gpx+xml,application/geo+json,application/json" multiple hidden>
+<script src="dist/app.js"></script>
+</body>
+</html>

@@ -16,14 +16,17 @@ module.exports = class LabelBuffer {
     this.margin = 5;
   }
 
+  // Forgets all placed labels
   clear() {
     this.tree.clear();
   }
 
+  // A pixel's cell: [column, row]
   project(x, y) {
     return [Math.floor(x/2), Math.floor(y/4)];
   }
 
+  // Places a label if its area (with the margin) is free; returns whether it did
   writeIfPossible(text, x, y, feature, margin) {
     margin = margin || this.margin;
 
@@ -38,14 +41,17 @@ module.exports = class LabelBuffer {
     }
   }
 
+  // The labels at a cell
   featuresAt(x, y) {
-    this.tree.search({minX: x, maxX: x, minY: y, maxY: y});
+    return this.tree.search({minX: x, maxX: x, minY: y, maxY: y});
   }
 
+  // Whether the text's area at this place is free
   _hasSpace(text, x, y) {
     return !this.tree.collides(this._calculateArea(text, x, y));
   }
 
+  // The area text takes at a place, with a margin
   _calculateArea(text, x, y, margin = 0) {
     return {
       minX: x-margin,

@@ -40,6 +40,7 @@ class Styler {
     }
   }
 
+  // The style rule that applies to a feature of a layer, or false
   getStyleFor(layer, feature) {
     if (!this.styleByLayer[layer]) {
       return false;
@@ -54,6 +55,7 @@ class Styler {
     return false;
   }
 
+  // Replaces @constants in the style with their values
   _replaceConstants(constants, tree) {
     for (const id in tree) {
       const node = tree[id];
@@ -81,7 +83,7 @@ class Styler {
         filters = (() => {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
-        return (feature) => !!filters.find((appliesTo) => {
+        return (feature) => !filters.find((appliesTo) => {
           return !appliesTo(feature);
         });
       case 'any':
@@ -98,7 +100,7 @@ class Styler {
           return filter.map((sub) => this._compileFilter(sub));
         }).call(this);
         return (feature) => !filters.find((appliesTo) => {
-          return !appliesTo(feature);
+          return appliesTo(feature);
         });
       case '==':
         return (feature) => feature.properties[filter[1]] === filter[2];
