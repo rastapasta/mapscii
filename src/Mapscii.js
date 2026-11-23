@@ -14,6 +14,8 @@ const TileSource = require('./TileSource');
 const utils = require('./utils');
 let config = require('./config');
 
+const KEY_HELP = 'arrows/hjkl: move  a/zy: zoom  c: braille  q: quit';
+
 class Mapscii {
   constructor(options) {
     this.width = null;
@@ -48,7 +50,7 @@ class Mapscii {
     this._initTileSource();
     this._initRenderer();
     this._draw();
-    this.notify('Welcome to MapSCII! Use your cursors to navigate, a/z to zoom, q to quit.');
+    this.notify('Welcome to MapSCII! Use arrows/hjkl to move, a/z to zoom, c for braille, q to quit.');
   }
 
 
@@ -272,6 +274,13 @@ class Mapscii {
     footer += `  zoom: ${utils.digits(this.zoom, 2)} `;
     if (this.mousePosition.lat !== undefined) {
       footer += `  mouse: ${utils.digits(this.mousePosition.lat, 3)}, ${utils.digits(this.mousePosition.lon, 3)} `;
+    }
+
+    const cols = config.output && config.output.columns;
+    if (!cols) {
+      footer += `  ${KEY_HELP}`;
+    } else if (footer.length + 2 + KEY_HELP.length <= cols - 1) {
+      footer = footer.padEnd(cols - 1 - KEY_HELP.length) + KEY_HELP;
     }
     return footer;
   }
